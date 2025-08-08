@@ -1,2 +1,2 @@
-# vikareta-dashboard
-Vikareta Analytics Dashboard - Data Visualization
+# vikareta-web
+Vikareta Web Frontend - React/Next.js Application

@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vikareta-dashboard
+  namespace: vikareta
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vikareta-dashboard
+  template:
+    metadata:
+      labels:
+        app: vikareta-dashboard
+    spec:
+      containers:
+      - name: vikareta-dashboard
+        image: ghcr.io/aryannkumar/vikareta-dashboard:main
+        ports:
+        - containerPort: 3001
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
