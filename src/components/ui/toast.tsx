@@ -1,63 +1,79 @@
-import { X, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
-import type { Toast } from '@/components/providers/toast-provider';
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+import { 
+  CheckCircleIcon, 
+  ExclamationTriangleIcon, 
+  InformationCircleIcon, 
+  XCircleIcon 
+} from "@heroicons/react/24/solid";
 
 interface ToastProps {
-  toast: Toast;
+  type: 'success' | 'error' | 'warning' | 'info';
+  title: string;
+  description?: string;
   onClose: () => void;
 }
 
-const toastStyles = {
-  success: 'bg-green-50 border-green-200 text-green-800',
-  error: 'bg-red-50 border-red-200 text-red-800',
-  warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-  info: 'bg-blue-50 border-blue-200 text-blue-800',
+const toastConfig = {
+  success: {
+    icon: CheckCircleIcon,
+    className: 'border-success-200 bg-success-50 text-success-800',
+    iconClassName: 'text-success-500',
+  },
+  error: {
+    icon: XCircleIcon,
+    className: 'border-error-200 bg-error-50 text-error-800',
+    iconClassName: 'text-error-500',
+  },
+  warning: {
+    icon: ExclamationTriangleIcon,
+    className: 'border-warning-200 bg-warning-50 text-warning-800',
+    iconClassName: 'text-warning-500',
+  },
+  info: {
+    icon: InformationCircleIcon,
+    className: 'border-primary-200 bg-primary-50 text-primary-800',
+    iconClassName: 'text-primary-500',
+  },
 };
 
-const toastIcons = {
-  success: CheckCircle,
-  error: XCircle,
-  warning: AlertTriangle,
-  info: Info,
-};
+export function Toast({ type, title, description, onClose }: ToastProps) {
+  const config = toastConfig[type];
+  const Icon = config.icon;
 
-const iconStyles = {
-  success: 'text-green-400',
-  error: 'text-red-400',
-  warning: 'text-yellow-400',
-  info: 'text-blue-400',
-};
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
 
-export function Toast({ toast, onClose }: ToastProps) {
-  const Icon = toastIcons[toast.type];
+    return () => clearTimeout(timer);
+  }, [onClose]);
 
   return (
-    <div className={`
-      max-w-sm w-full bg-white shadow-lg rounded-lg pointer-events-auto 
-      ring-1 ring-black ring-opacity-5 overflow-hidden
-      ${toastStyles[toast.type]}
-    `}>
-      <div className="p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <Icon className={`h-6 w-6 ${iconStyles[toast.type]}`} />
-          </div>
-          <div className="ml-3 w-0 flex-1 pt-0.5">
-            <p className="text-sm font-medium">{toast.title}</p>
-            {toast.description && (
-              <p className="mt-1 text-sm opacity-90">{toast.description}</p>
-            )}
-          </div>
-          <div className="ml-4 flex-shrink-0 flex">
-            <button
-              className="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              onClick={onClose}
-            >
-              <span className="sr-only">Close</span>
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
+    <div
+      className={cn(
+        "relative flex w-full max-w-sm items-start space-x-3 rounded-lg border p-4 shadow-lg animate-slide-in-right",
+        config.className
+      )}
+      role="alert"
+    >
+      <Icon className={cn("h-5 w-5 flex-shrink-0 mt-0.5", config.iconClassName)} />
+      
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{title}</p>
+        {description && (
+          <p className="mt-1 text-sm opacity-90">{description}</p>
+        )}
       </div>
+
+      <button
+        onClick={onClose}
+        className="flex-shrink-0 rounded-md p-1 hover:bg-black/5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-current"
+        aria-label="Close notification"
+      >
+        <XMarkIcon className="h-4 w-4" />
+      </button>
     </div>
   );
 }

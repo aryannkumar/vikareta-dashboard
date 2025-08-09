@@ -2,117 +2,128 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Eye, EyeOff, Shield } from 'lucide-react';
-import { useAuth } from '@/components/providers/auth-provider';
+import { useAuthStore } from '@/lib/stores/auth';
 import { useToast } from '@/components/providers/toast-provider';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { APP_CONFIG } from '@/constants';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
-  const { login } = useAuth();
-  const { error } = useToast();
   const router = useRouter();
+  const { login } = useAuthStore();
+  const { addToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      addToast({
+        type: 'error',
+        title: 'Validation Error',
+        description: 'Please enter both email and password.',
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      // TODO: Replace with actual API call for authentication
+      // const response = await apiClient.post('/auth/login', { email, password });
+      
+      // Mock successful login for now
+      await login({ email, password });
+      addToast({
+        type: 'success',
+        title: 'Login Successful',
+        description: 'Welcome to your dashboard!',
+      });
       router.push('/dashboard');
-    } catch (err: any) {
-      error('Login Failed', err.message);
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Login Failed',
+        description: error instanceof Error ? error.message : 'An error occurred during login.',
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleMainAppRedirect = () => {
+    window.location.href = APP_CONFIG.mainAppUrl;
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-indigo-100">
-            <Shield className="h-8 w-8 text-indigo-600" />
-          </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Admin Portal
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Sign in to access the Vikareta admin dashboard
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">
+            {APP_CONFIG.name}
+          </CardTitle>
+          <p className="text-muted-foreground">
+            Sign in to access your business dashboard
           </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            <div className="relative">
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5 text-gray-400" />
-                ) : (
-                  <Eye className="h-5 w-5 text-gray-400" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <button
-              type="submit"
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              type="email"
+              label="Email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              ) : (
-                'Sign in'
-              )}
-            </button>
-          </div>
+            />
+            
+            <Input
+              type="password"
+              label="Password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={isLoading}
+            />
 
-          <div className="text-center">
-            <p className="text-xs text-gray-500">
-              Authorized personnel only. All access is logged and monitored.
+            <Button
+              type="submit"
+              className="w-full"
+              loading={isLoading}
+              disabled={isLoading}
+            >
+              Sign In
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <button
+                onClick={handleMainAppRedirect}
+                className="text-primary hover:underline"
+              >
+                Sign up on Vikareta
+              </button>
             </p>
           </div>
-        </form>
-      </div>
+
+          <div className="mt-4 text-center">
+            <button
+              onClick={handleMainAppRedirect}
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              ← Back to main site
+            </button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

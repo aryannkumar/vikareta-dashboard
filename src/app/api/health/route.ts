@@ -5,7 +5,7 @@ export async function GET() {
     const healthData = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
-      service: 'vikareta-admin',
+      service: 'vikareta-dashboard',
       version: process.env.npm_package_version || '1.0.0',
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
@@ -27,7 +27,7 @@ export async function GET() {
     const errorData = {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      service: 'vikareta-admin',
+      service: 'vikareta-dashboard',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
 

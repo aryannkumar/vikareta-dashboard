@@ -1,14 +1,23 @@
 import type { NextConfig } from "next";
+import withBundleAnalyzer from '@next/bundle-analyzer';
+
+// Initialize bundle analyzer
+const withBundleAnalyzerPlugin = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const nextConfig: NextConfig = {
   // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: [
-      'lucide-react',
-      'zustand',
-      'clsx',
+      '@heroicons/react', 
+      'lucide-react', 
+      'zustand', 
+      'class-variance-authority',
       'tailwind-merge',
+      'clsx',
       '@tanstack/react-query',
+      '@tanstack/react-table',
       'recharts'
     ],
     // Enable server actions
@@ -18,7 +27,17 @@ const nextConfig: NextConfig = {
     // Enable React optimizations
     optimizeServerReact: true,
   },
-
+  
+  // Turbopack configuration (stable)
+  turbopack: {
+    rules: {
+      '*.svg': {
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+  
   // Image optimization
   images: {
     remotePatterns: [
@@ -39,11 +58,11 @@ const nextConfig: NextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-
+  
   // Compression and optimization
   compress: true,
   poweredByHeader: false,
-
+  
   // Security headers
   async headers() {
     return [
@@ -68,7 +87,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(self)',
+            value: 'camera=(), microphone=(), geolocation=(self), interest-cohort=()',
           },
           {
             key: 'Strict-Transport-Security',
@@ -82,7 +101,7 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-
+  
   // Build optimization
   webpack: (config, { dev, isServer }) => {
     // Production optimizations
@@ -110,9 +129,9 @@ const nextConfig: NextConfig = {
               chunks: 'all',
               priority: 20,
             },
-            admin: {
+            dashboard: {
               test: /[\\/]node_modules[\\/](zustand|@tanstack|recharts)[\\/]/,
-              name: 'admin',
+              name: 'dashboard',
               chunks: 'all',
               priority: 15,
             },
@@ -137,46 +156,46 @@ const nextConfig: NextConfig = {
 
     return config;
   },
-
+  
   // Environment variables validation
   env: {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-    NEXT_PUBLIC_SITE_NAME: process.env.NEXT_PUBLIC_SITE_NAME || 'Vikareta Admin',
+    NEXT_PUBLIC_SITE_NAME: process.env.NEXT_PUBLIC_SITE_NAME || 'Vikareta Dashboard',
     NEXT_PUBLIC_MAIN_APP_URL: process.env.NEXT_PUBLIC_MAIN_APP_URL || 'https://vikareta.com',
   },
-
+  
   // Output configuration for production
   output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
-
+  
   // TypeScript configuration
   typescript: {
     ignoreBuildErrors: false,
     tsconfigPath: './tsconfig.json',
   },
-
+  
   // ESLint configuration
   eslint: {
     ignoreDuringBuilds: false,
     dirs: ['src'],
   },
-
+  
   // Redirects
   async redirects() {
     return [
       {
         source: '/home',
-        destination: '/admin',
+        destination: '/dashboard',
         permanent: true,
       },
       {
         source: '/',
-        destination: '/admin',
+        destination: '/dashboard',
         permanent: false,
       },
     ];
   },
-
+  
   // Rewrites
   async rewrites() {
     return {
@@ -193,4 +212,5 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Apply bundle analyzer
+export default withBundleAnalyzerPlugin(nextConfig);
