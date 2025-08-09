@@ -193,3 +193,10 @@ NODE_ENV=production
 ## Support
 
 For technical support or questions about the dashboard, contact the development team.
+## 
+CI/CD Pipeline Status
+- ✅ Centralized Helm Chart Integration
+- ✅ ArgoCD Image Updater Support
+- ✅ Automatic Deployment Pipeline
+
+<!-- Build trigger: Sat Aug  9 22:54:00 IST 2025 -->
