@@ -3,6 +3,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api';
+
 interface User {
   id: string;
   email?: string;
@@ -20,6 +22,7 @@ interface User {
 interface AuthState {
   user: User | null;
   token: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -31,11 +34,43 @@ interface AuthState {
   checkAuth: () => Promise<void>;
 }
 
+const apiCall = async (endpoint: string, options: RequestInit = {}) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      credentials: 'include',
+      ...options,
+    });
+
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      throw new Error('Invalid response format');
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || `Request failed with status ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error - please check your connection');
+    }
+    throw error;
+  }
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       token: null,
+      refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -43,87 +78,109 @@ export const useAuthStore = create<AuthState>()(
       login: async (credentials: { email: string; password: string }) => {
         set({ isLoading: true, error: null });
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          const response = await apiCall('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify(credentials),
+          });
+
+          const { user, tokens } = response.data;
           
-          // Mock successful login
-          const mockUser: User = {
-            id: '1',
-            email: credentials.email,
-            firstName: 'John',
-            lastName: 'Doe',
-            businessName: 'Acme Corp',
-            role: 'seller',
-            verificationTier: 'verified',
-            isVerified: true,
-            phone: '+1234567890',
-            gstin: 'GST123456789',
-            createdAt: new Date().toISOString(),
-          };
-          
-          const mockToken = 'mock-jwt-token';
-          
-          set({ 
-            user: mockUser, 
-            token: mockToken,
-            isAuthenticated: true, 
-            isLoading: false 
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('dashboard_token', tokens.accessToken);
+            if (tokens.refreshToken) {
+              localStorage.setItem('dashboard_refresh_token', tokens.refreshToken);
+            }
+          }
+
+          set({
+            user,
+            token: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
           });
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Login failed', 
-            isLoading: false 
+          const errorMessage = error instanceof Error ? error.message : 'Login failed';
+          set({
+            isLoading: false,
+            error: errorMessage,
           });
+          throw error;
         }
       },
       
       logout: () => {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('dashboard_token');
+          localStorage.removeItem('dashboard_refresh_token');
+        }
         set({ 
           user: null, 
           token: null,
+          refreshToken: null,
           isAuthenticated: false,
           error: null 
         });
       },
       
       refreshAuth: async () => {
-        const { token } = get();
-        if (!token) return;
-        
-        set({ isLoading: true });
+        const { refreshToken } = get();
+        if (!refreshToken) return;
+
         try {
-          // Simulate token refresh
-          await new Promise(resolve => setTimeout(resolve, 500));
-          set({ isLoading: false });
-        } catch {
-          set({ 
-            error: 'Session expired', 
-            isLoading: false,
-            user: null,
-            token: null,
-            isAuthenticated: false
+          const response = await apiCall('/auth/refresh', {
+            method: 'POST',
+            body: JSON.stringify({ refreshToken }),
           });
+
+          const { token: newToken, refreshToken: newRefreshToken } = response.data;
+          
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('dashboard_token', newToken);
+            if (newRefreshToken) {
+              localStorage.setItem('dashboard_refresh_token', newRefreshToken);
+            }
+          }
+
+          set({
+            token: newToken,
+            refreshToken: newRefreshToken,
+          });
+        } catch (error) {
+          get().logout();
         }
       },
       
       updateProfile: async (data: Partial<User>) => {
-        const { user } = get();
-        if (!user) return;
-        
+        const { token } = get();
+        if (!token) throw new Error('Not authenticated');
+
         set({ isLoading: true, error: null });
+        
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          const response = await apiCall('/auth/profile', {
+            method: 'PUT',
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+          });
+
+          const { user } = response.data;
           
-          set({ 
-            user: { ...user, ...data },
-            isLoading: false 
+          set({
+            user,
+            isLoading: false,
+            error: null,
           });
         } catch (error) {
-          set({ 
-            error: error instanceof Error ? error.message : 'Update failed', 
-            isLoading: false 
+          const errorMessage = error instanceof Error ? error.message : 'Profile update failed';
+          set({
+            isLoading: false,
+            error: errorMessage,
           });
+          throw error;
         }
       },
       
@@ -131,29 +188,48 @@ export const useAuthStore = create<AuthState>()(
       
       checkAuth: async () => {
         const { token } = get();
-        if (!token) return;
-        
-        set({ isLoading: true });
+        if (!token) {
+          set({ isAuthenticated: false, user: null });
+          return;
+        }
+
         try {
-          // Simulate auth check
-          await new Promise(resolve => setTimeout(resolve, 500));
-          set({ isLoading: false });
-        } catch {
-          set({ 
-            user: null,
-            token: null,
-            isAuthenticated: false,
-            isLoading: false,
-            error: 'Authentication failed'
+          const response = await apiCall('/auth/me', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           });
+
+          const user = response.data;
+          
+          set({
+            user,
+            isAuthenticated: true,
+            error: null,
+          });
+        } catch (error) {
+          // Silently logout on auth check failure
+          set({ 
+            user: null, 
+            token: null, 
+            refreshToken: null, 
+            isAuthenticated: false, 
+            error: null 
+          });
+          
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('dashboard_token');
+            localStorage.removeItem('dashboard_refresh_token');
+          }
         }
       },
     }),
     {
-      name: 'auth-storage',
+      name: 'dashboard-auth-storage',
       partialize: (state) => ({ 
         user: state.user, 
         token: state.token,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated 
       }),
     }
