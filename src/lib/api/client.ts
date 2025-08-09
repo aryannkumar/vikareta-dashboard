@@ -69,7 +69,7 @@ class ApiClient {
   private isOnline: boolean = true;
 
   constructor() {
-    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api';
+    this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api';
     
     this.retryConfig = {
       retries: 3,
