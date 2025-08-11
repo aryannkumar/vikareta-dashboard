@@ -8,6 +8,6 @@ spec:
     app: vikareta-dashboard
   ports:
   - protocol: TCP
-    port: 3001
+    port: 5741
     targetPort: 3001
   type: ClusterIP
