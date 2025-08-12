@@ -187,9 +187,20 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
       
       checkAuth: async () => {
-        const { token } = get();
+        set({ isLoading: true });
+        
+        let { token } = get();
+        
+        // If no token in state, try to get from localStorage
+        if (!token && typeof window !== 'undefined') {
+          token = localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token');
+          if (token) {
+            set({ token });
+          }
+        }
+        
         if (!token) {
-          set({ isAuthenticated: false, user: null });
+          set({ isAuthenticated: false, user: null, isLoading: false });
           return;
         }
 
@@ -204,8 +215,10 @@ export const useAuthStore = create<AuthState>()(
           
           set({
             user,
+            token,
             isAuthenticated: true,
             error: null,
+            isLoading: false,
           });
         } catch (error) {
           // Silently logout on auth check failure
@@ -214,12 +227,14 @@ export const useAuthStore = create<AuthState>()(
             token: null, 
             refreshToken: null, 
             isAuthenticated: false, 
-            error: null 
+            error: null,
+            isLoading: false,
           });
           
           if (typeof window !== 'undefined') {
             localStorage.removeItem('dashboard_token');
             localStorage.removeItem('dashboard_refresh_token');
+            localStorage.removeItem('auth_token');
           }
         }
       },
