@@ -132,7 +132,7 @@ export interface NegotiationData {
 }
 
 class RFQService {
-  private baseUrl = '/api/rfqs';
+  private baseUrl = '/rfqs';
 
   async getRFQs(filters: RFQFilters = {}): Promise<RFQsResponse> {
     const params = new URLSearchParams();
@@ -172,36 +172,36 @@ class RFQService {
   }
 
   async getQuote(quoteId: string): Promise<Quote> {
-    const response = await apiClient.get(`/api/quotes/${quoteId}`);
+    const response = await apiClient.get(`/quotes/${quoteId}`);
     return response.data as Quote;
   }
 
   async createQuote(data: CreateQuoteData): Promise<Quote> {
-    const response = await apiClient.post('/api/quotes', data);
+    const response = await apiClient.post('/quotes', data);
     return response.data as Quote;
   }
 
   async acceptQuote(quoteId: string): Promise<{ orderId: string }> {
-    const response = await apiClient.post(`/api/quotes/${quoteId}/accept`);
+    const response = await apiClient.post(`/quotes/${quoteId}/accept`);
     return response.data as { orderId: string };
   }
 
   async rejectQuote(quoteId: string, reason?: string): Promise<void> {
-    await apiClient.post(`/api/quotes/${quoteId}/reject`, { reason });
+    await apiClient.post(`/quotes/${quoteId}/reject`, { reason });
   }
 
   async negotiateQuote(quoteId: string, data: NegotiationData): Promise<Quote> {
-    const response = await apiClient.post(`/api/quotes/${quoteId}/negotiate`, data);
+    const response = await apiClient.post(`/quotes/${quoteId}/negotiate`, data);
     return response.data as Quote;
   }
 
   async getCategories(): Promise<Category[]> {
-    const response = await apiClient.get('/api/categories');
+    const response = await apiClient.get('/categories');
     return response.data as Category[];
   }
 
   async getSubcategories(categoryId: string): Promise<Category[]> {
-    const response = await apiClient.get(`/api/categories/${categoryId}/subcategories`);
+    const response = await apiClient.get(`/categories/${categoryId}/subcategories`);
     return response.data as Category[];
   }
 
@@ -213,7 +213,7 @@ class RFQService {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await apiClient.post('/api/attachments/upload', formData, {
+    const response = await apiClient.post('/attachments/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
