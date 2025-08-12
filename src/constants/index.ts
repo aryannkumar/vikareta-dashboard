@@ -4,7 +4,7 @@ export const APP_CONFIG = {
   version: '1.0.0',
   description: 'Business dashboard for Vikareta marketplace',
   mainAppUrl: process.env.NEXT_PUBLIC_MAIN_APP_URL || 'https://vikareta.com',
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api',
 } as const;
 
 // API Endpoints
