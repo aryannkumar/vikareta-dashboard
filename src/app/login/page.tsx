@@ -24,6 +24,8 @@ function LoginContent() {
   useEffect(() => {
     // Check for authentication errors from URL
     const error = searchParams.get('error');
+    const token = searchParams.get('token');
+    
     if (error === 'auth_failed') {
       setAuthError('Authentication failed. Please try logging in again.');
     }
@@ -34,8 +36,14 @@ function LoginContent() {
       return;
     }
 
-    // Only auto-redirect to main site if not authenticated and no auth error
-    if (!isAuthenticated && !error) {
+    // Don't auto-redirect if there's a token in URL (user was just redirected back)
+    // or if there's an auth error (user needs to see the error)
+    if (token || error) {
+      return;
+    }
+
+    // Only auto-redirect to main site if not authenticated, no token, and no auth error
+    if (!isAuthenticated && !token && !error) {
       const redirectTimer = setTimeout(() => {
         const mainAppUrl = process.env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/auth/login' 
@@ -115,16 +123,18 @@ function LoginContent() {
             </div>
           )}
           
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-sm text-blue-700">
-              <strong>Redirecting...</strong> You will be redirected to the main Vikareta website to log in. 
-              This ensures secure authentication across all our services.
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-              <span className="text-xs text-blue-600">Redirecting in a few seconds...</span>
+          {!searchParams.get('token') && !searchParams.get('error') && !isAuthenticated && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-700">
+                <strong>Redirecting...</strong> You will be redirected to the main Vikareta website to log in. 
+                This ensures secure authentication across all our services.
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-xs text-blue-600">Redirecting in a few seconds...</span>
+              </div>
             </div>
-          </div>
+          )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
