@@ -142,6 +142,7 @@ export class DashboardSSOClient {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('Dashboard SSO: Request failed with response:', errorData);
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
