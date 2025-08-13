@@ -8,7 +8,7 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { checkAuth, setToken, isAuthenticated, isLoading } = useAuthStore();
+  const { checkAuth, setToken, isLoading } = useAuthStore();
 
   useEffect(() => {
     // Mark as hydrated after first render
@@ -19,7 +19,6 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
     if (!isHydrated) return;
 
     const handleAuth = async () => {
-      // Check if there's a token in the URL (from cross-domain redirect)
       const urlToken = searchParams.get('token');
       const redirectSource = searchParams.get('redirect');
 
@@ -36,75 +35,40 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
         url.searchParams.delete('redirect');
         window.history.replaceState({}, '', url.toString());
 
-        // Check authentication with the new token and wait for completion
-        try {
-          await checkAuth();
-          console.log('Dashboard: Authentication check completed for URL token');
-        } catch (error) {
-          console.error('Dashboard: Authentication check failed for URL token:', error);
+        // Check authentication with the new token
+        await checkAuth();
+
+        // After checkAuth completes, check the current state and redirect
+        const { isAuthenticated: authResult, error } = useAuthStore.getState();
+
+        if (authResult) {
+          console.log('Dashboard: Authentication successful, redirecting to dashboard');
+          router.push('/dashboard');
+        } else if (error && !error.includes('Network connection')) {
+          console.error('Dashboard: Authentication failed after receiving token');
+          router.push('/login?error=auth_failed');
         }
       } else {
         console.log('Dashboard: No token in URL, checking existing authentication');
-        // No token in URL, check existing authentication
-        try {
-          await checkAuth();
-          console.log('Dashboard: Authentication check completed for existing session');
-        } catch (error) {
-          console.error('Dashboard: Authentication check failed for existing session:', error);
+
+        // Check existing authentication
+        await checkAuth();
+
+        // After checkAuth completes, check the current state and redirect
+        const { isAuthenticated: authResult, error } = useAuthStore.getState();
+
+        if (authResult) {
+          console.log('Dashboard: Already authenticated, redirecting to dashboard');
+          router.push('/dashboard');
+        } else if (!error || !error.includes('Network connection')) {
+          console.log('Dashboard: Not authenticated, redirecting to login');
+          router.push('/login');
         }
       }
     };
 
     handleAuth();
-  }, [isHydrated, searchParams, checkAuth, setToken]);
-
-  // Handle redirects based on authentication state
-  useEffect(() => {
-    if (!isHydrated || isLoading) return;
-
-    const urlToken = searchParams.get('token');
-    const { error } = useAuthStore.getState();
-
-    console.log('Dashboard: Redirect logic - Auth state:', {
-      isAuthenticated,
-      hasUrlToken: !!urlToken,
-      hasError: !!error,
-      errorType: error?.includes('Network connection') ? 'network' : 'auth'
-    });
-
-    // Check if there's a network error
-    if (error && error.includes('Network connection')) {
-      console.warn('Dashboard: Network error detected, not redirecting');
-      return;
-    }
-
-    // If we have a URL token, handle cross-domain authentication flow
-    if (urlToken) {
-      if (isAuthenticated) {
-        // Successfully authenticated with URL token, redirect to dashboard
-        console.log('Dashboard: Cross-domain authentication successful, redirecting to dashboard');
-        router.push('/dashboard');
-      } else if (error && !error.includes('Network connection')) {
-        // Had token but authentication failed (and no network error)
-        console.error('Dashboard: Cross-domain authentication failed after receiving token');
-        router.push('/login?error=auth_failed');
-      } else {
-        // Still processing authentication, wait
-        console.log('Dashboard: Still processing cross-domain authentication...');
-      }
-    } else {
-      // No URL token - normal authentication flow
-      if (isAuthenticated) {
-        // Already authenticated, redirect to dashboard
-        console.log('Dashboard: Already authenticated, redirecting to dashboard');
-        router.push('/dashboard');
-      } else if (!error || !error.includes('Network connection')) {
-        // Not authenticated and no network error, redirect to login
-        console.log('Dashboard: Not authenticated, redirecting to login');
-        router.push('/login');
-      }
-    }
-  }, [isAuthenticated, isLoading, isHydrated, searchParams, router]);
+  }, [isHydrated, searchParams, checkAuth, setToken, router]);
 
   // Show loading while checking authentication
   if (!isHydrated || isLoading) {

@@ -41,9 +41,13 @@ const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3)
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     try {
-      console.log(`API Call attempt ${attempt}/${retries}: ${API_BASE_URL}${endpoint}`);
+      // Ensure proper URL construction - add leading slash if missing
+      const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      const fullUrl = `${API_BASE_URL}${normalizedEndpoint}`;
       
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      console.log(`API Call attempt ${attempt}/${retries}: ${fullUrl}`);
+      
+      const response = await fetch(fullUrl, {
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
