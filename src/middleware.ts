@@ -22,7 +22,7 @@ function isProtectedRoute(pathname: string): boolean {
 }
 
 // Public routes that don't require authentication
-const publicRoutes = ['/login', '/health'];
+const publicRoutes = ['/login', '/health', '/'];
 
 // Helper function to decode JWT token and extract user role
 function getUserRoleFromToken(token: string): string | null {
@@ -58,9 +58,10 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get auth token from cookies or headers
+  // Get auth token from cookies, headers, or URL parameters
   const authToken = request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '');
+    request.headers.get('authorization')?.replace('Bearer ', '') ||
+    request.nextUrl.searchParams.get('token');
 
   // If no token, redirect to dashboard login page instead of main app
   if (!authToken) {

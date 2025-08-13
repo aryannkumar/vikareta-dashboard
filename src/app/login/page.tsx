@@ -31,7 +31,23 @@ function LoginContent() {
     // If already authenticated, redirect to dashboard
     if (isAuthenticated) {
       router.push('/dashboard');
+      return;
     }
+
+    // Auto-redirect to main site for login after a short delay
+    const redirectTimer = setTimeout(() => {
+      const mainAppUrl = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3000/auth/login' 
+        : 'https://vikareta.com/auth/login';
+      
+      // Add current URL as redirect parameter
+      const currentUrl = window.location.href;
+      const redirectUrl = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
+      
+      window.location.href = redirectUrl;
+    }, 3000); // 3 second delay to show the message
+
+    return () => clearTimeout(redirectTimer);
   }, [searchParams, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,8 +115,13 @@ function LoginContent() {
           
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-700">
-              <strong>Note:</strong> To access the dashboard, please log in through the main Vikareta website first.
+              <strong>Redirecting...</strong> You will be redirected to the main Vikareta website to log in. 
+              This ensures secure authentication across all our services.
             </p>
+            <div className="mt-2 flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              <span className="text-xs text-blue-600">Redirecting in a few seconds...</span>
+            </div>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
