@@ -230,10 +230,20 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem('dashboard_token', token);
           localStorage.setItem('auth_token', token);
         }
-        set({ token });
+        set({ 
+          token,
+          isLoading: false // Ensure loading state is cleared when token is set
+        });
       },
       
       checkAuth: async () => {
+        // Prevent multiple simultaneous auth checks
+        const currentState = get();
+        if (currentState.isLoading) {
+          console.log('Dashboard Auth: Auth check already in progress, skipping');
+          return;
+        }
+        
         set({ isLoading: true });
         
         let { token } = get();
@@ -242,6 +252,7 @@ export const useAuthStore = create<AuthState>()(
         if (!token && typeof window !== 'undefined') {
           token = localStorage.getItem('dashboard_token') || localStorage.getItem('auth_token');
           if (token) {
+            console.log('Dashboard Auth: Found token in localStorage');
             set({ token });
           }
         }

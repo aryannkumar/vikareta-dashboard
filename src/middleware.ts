@@ -38,6 +38,31 @@ function getUserRoleFromToken(token: string): string | null {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Handle manifest.json request
+  if (pathname === '/manifest.json') {
+    return new NextResponse(JSON.stringify({
+      name: 'Vikareta Dashboard',
+      short_name: 'Dashboard',
+      description: 'Vikareta Business Dashboard',
+      start_url: '/',
+      display: 'standalone',
+      background_color: '#ffffff',
+      theme_color: '#f97316',
+      icons: [
+        {
+          src: '/favicon.ico',
+          sizes: '64x64 32x32 24x24 16x16',
+          type: 'image/x-icon'
+        }
+      ]
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
   // Skip middleware for static files and API routes
   if (
     pathname.startsWith('/_next/') ||
