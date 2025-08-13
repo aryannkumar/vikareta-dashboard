@@ -70,7 +70,7 @@ class ApiClient {
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api';
-    
+
     this.retryConfig = {
       retries: 3,
       retryDelay: 1000,
@@ -78,10 +78,11 @@ class ApiClient {
         return !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED';
       },
     };
-    
+
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000'),
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
@@ -93,22 +94,30 @@ class ApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor for authentication
+    // Request interceptor for authentication and CSRF
     this.client.interceptors.request.use(
-      (config: any) => {
+      async (config: any) => {
         // Get token from localStorage or your auth store
         const token = this.getAuthToken();
 
-        
+
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
-        
+
+        // Add CSRF token for state-changing requests
+        if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
+          const csrfToken = await this.getCSRFToken();
+          if (csrfToken && config.headers) {
+            config.headers['X-CSRF-Token'] = csrfToken;
+          }
+        }
+
         // Add request ID for tracking
         if (config.headers) {
           config.headers['X-Request-ID'] = this.generateRequestId();
         }
-        
+
         return config;
       },
       (error: any) => {
@@ -122,12 +131,32 @@ class ApiClient {
         return response;
       },
       async (error: any) => {
-        const originalRequest = error.config as any & { _retry?: boolean };
+        const originalRequest = error.config as any & { _retry?: boolean; _csrfRetry?: boolean };
+
+        // Handle 403 CSRF token errors
+        if (error.response?.status === 403 && !originalRequest._csrfRetry) {
+          const errorData = error.response?.data;
+          const message = errorData?.error?.message || errorData?.message || '';
+
+          if (message.includes('CSRF') || message.includes('csrf')) {
+            console.log('CSRF token expired, clearing and retrying...');
+            originalRequest._csrfRetry = true;
+            this.clearCSRFToken();
+
+            // Get fresh CSRF token and retry
+            const csrfToken = await this.getCSRFToken();
+            if (csrfToken && originalRequest.headers) {
+              originalRequest.headers['X-CSRF-Token'] = csrfToken;
+            }
+
+            return this.client(originalRequest);
+          }
+        }
 
         // Handle 401 errors (unauthorized)
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
-          
+
           try {
             await this.refreshToken();
             const token = this.getAuthToken();
@@ -160,7 +189,7 @@ class ApiClient {
       } catch {
         // Ignore parsing errors
       }
-      
+
       // Fallback to direct storage key
       const token = localStorage.getItem('auth_token');
       if (token) return token;
@@ -170,7 +199,7 @@ class ApiClient {
 
   private async refreshToken(): Promise<void> {
     let refreshToken = null;
-    
+
     if (typeof window !== 'undefined') {
       // First try Zustand store format
       try {
@@ -182,13 +211,13 @@ class ApiClient {
       } catch {
         // Ignore parsing errors
       }
-      
+
       // Fallback to direct storage key
       if (!refreshToken) {
         refreshToken = localStorage.getItem('refresh_token');
       }
     }
-    
+
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
@@ -199,11 +228,11 @@ class ApiClient {
       });
 
       const { accessToken, refreshToken: newRefreshToken } = (response.data as any).data;
-      
+
       if (typeof window !== 'undefined') {
         // Set in cookie for middleware (primary method)
         document.cookie = `auth-token=${accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; secure; samesite=strict`;
-        
+
         // Also set in localStorage as backup
         localStorage.setItem('auth_token', accessToken);
         localStorage.setItem('refresh_token', newRefreshToken);
@@ -218,10 +247,10 @@ class ApiClient {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('refresh_token');
       localStorage.removeItem('user_data');
-      
+
       // Clear auth token cookie
       document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-      
+
       // Let the auth store handle the redirect to prevent conflicts
       // The middleware will catch the missing token and redirect appropriately
     }
@@ -229,25 +258,64 @@ class ApiClient {
 
   private handleApiError(error: any): Error {
     const response = error.response;
-    
+
     if (response?.data) {
       const apiError = response.data as ApiResponse;
       return new Error(apiError.error?.message || 'An error occurred');
     }
-    
+
     if (error.code === 'ECONNABORTED') {
       return new Error('Request timeout. Please try again.');
     }
-    
+
     if (!error.response) {
       return new Error('Network error. Please check your connection.');
     }
-    
+
     return new Error('An unexpected error occurred');
   }
 
   private generateRequestId(): string {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
+  // CSRF Token Management
+  private csrfToken: string | null = null;
+  private csrfTokenExpiry: number = 0;
+
+  private async getCSRFToken(): Promise<string | null> {
+    // Check if token is still valid (valid for 30 minutes)
+    if (this.csrfToken && Date.now() < this.csrfTokenExpiry) {
+      return this.csrfToken;
+    }
+
+    try {
+      // Use the correct base URL for CSRF token endpoint (without /api prefix)
+      const baseUrl = this.baseURL.replace('/api', '');
+      const response = await axios.get(`${baseUrl}/csrf-token`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (response.data?.success && response.data?.data?.csrfToken) {
+        this.csrfToken = response.data.data.csrfToken;
+        this.csrfTokenExpiry = Date.now() + (30 * 60 * 1000); // 30 minutes
+        return this.csrfToken;
+      } else {
+        console.error('CSRF token fetch failed:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error);
+    }
+
+    return null;
+  }
+
+  private clearCSRFToken(): void {
+    this.csrfToken = null;
+    this.csrfTokenExpiry = 0;
   }
 
   private setupNetworkListeners(): void {
@@ -256,11 +324,11 @@ class ApiClient {
         this.isOnline = true;
         this.processQueuedRequests();
       });
-      
+
       window.addEventListener('offline', () => {
         this.isOnline = false;
       });
-      
+
       this.isOnline = navigator.onLine;
     }
   }
@@ -270,12 +338,12 @@ class ApiClient {
       return await this.client(config);
     } catch (error) {
       const axiosError = error as any;
-      
+
       if (retryCount < this.retryConfig.retries && this.retryConfig.retryCondition(axiosError)) {
         await this.delay(this.retryConfig.retryDelay * Math.pow(2, retryCount));
         return this.retryRequest(config, retryCount + 1);
       }
-      
+
       throw error;
     }
   }
@@ -291,9 +359,9 @@ class ApiClient {
       timestamp: Date.now(),
       retryCount: 0,
     };
-    
+
     this.requestQueue.push(queuedRequest);
-    
+
     // Limit queue size
     if (this.requestQueue.length > 50) {
       this.requestQueue = this.requestQueue.slice(-50);
@@ -303,7 +371,7 @@ class ApiClient {
   private async processQueuedRequests(): Promise<void> {
     const requests = [...this.requestQueue];
     this.requestQueue = [];
-    
+
     for (const request of requests) {
       try {
         await this.retryRequest(request.config);
@@ -320,68 +388,68 @@ class ApiClient {
   // Generic HTTP methods with retry and offline support
   async get<T>(url: string, config?: any): Promise<ApiResponse<T>> {
     const requestConfig = { ...config, method: 'GET', url };
-    
+
     if (!this.isOnline) {
       this.queueRequest(requestConfig);
       throw new Error('You are offline. Request has been queued.');
     }
-    
+
     const response = await this.retryRequest(requestConfig);
     return response.data as ApiResponse<T>;
   }
 
   async post<T>(url: string, data?: unknown, config?: any): Promise<ApiResponse<T>> {
     const requestConfig = { ...config, method: 'POST', url, data };
-    
+
     if (!this.isOnline) {
       this.queueRequest(requestConfig);
       throw new Error('You are offline. Request has been queued.');
     }
-    
+
     const response = await this.retryRequest(requestConfig);
     return response.data as ApiResponse<T>;
   }
 
   async put<T>(url: string, data?: unknown, config?: any): Promise<ApiResponse<T>> {
     const requestConfig = { ...config, method: 'PUT', url, data };
-    
+
     if (!this.isOnline) {
       this.queueRequest(requestConfig);
       throw new Error('You are offline. Request has been queued.');
     }
-    
+
     const response = await this.retryRequest(requestConfig);
     return response.data as ApiResponse<T>;
   }
 
   async patch<T>(url: string, data?: unknown, config?: any): Promise<ApiResponse<T>> {
     const requestConfig = { ...config, method: 'PATCH', url, data };
-    
+
     if (!this.isOnline) {
       this.queueRequest(requestConfig);
       throw new Error('You are offline. Request has been queued.');
     }
-    
+
     const response = await this.retryRequest(requestConfig);
     return response.data as ApiResponse<T>;
   }
 
   async delete<T>(url: string, config?: any): Promise<ApiResponse<T>> {
     const requestConfig = { ...config, method: 'DELETE', url };
-    
+
     if (!this.isOnline) {
       this.queueRequest(requestConfig);
       throw new Error('You are offline. Request has been queued.');
     }
-    
+
     const response = await this.retryRequest(requestConfig);
     return response.data as ApiResponse<T>;
   }
 
   // File upload method with progress tracking
   async uploadFile<T>(
-    url: string, 
-    file: File, 
+    url: string,
+    file: File,
     onProgress?: (progress: number) => void
   ): Promise<ApiResponse<T>> {
     const formData = new FormData();
@@ -432,7 +500,7 @@ class ApiClient {
     if (params?.search) searchParams.set('search', params.search);
     if (params?.category) searchParams.set('category', params.category);
     if (params?.status) searchParams.set('status', params.status);
-    
+
     return this.get<PaginatedResponse<any>>(`/products?${searchParams.toString()}`);
   }
 
@@ -459,7 +527,7 @@ class ApiClient {
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.status) searchParams.set('status', params.status);
     if (params?.search) searchParams.set('search', params.search);
-    
+
     return this.get<PaginatedResponse<any>>(`/orders?${searchParams.toString()}`);
   }
 
@@ -478,7 +546,7 @@ class ApiClient {
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.status) searchParams.set('status', params.status);
     if (params?.search) searchParams.set('search', params.search);
-    
+
     return this.get<PaginatedResponse<any>>(`/rfqs?${searchParams.toString()}`);
   }
 
@@ -501,7 +569,7 @@ class ApiClient {
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.status) searchParams.set('status', params.status);
     if (params?.rfqId) searchParams.set('rfqId', params.rfqId);
-    
+
     return this.get<PaginatedResponse<any>>(`/quotes?${searchParams.toString()}`);
   }
 
@@ -527,7 +595,7 @@ class ApiClient {
     if (params?.page) searchParams.set('page', params.page.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.status) searchParams.set('status', params.status);
-    
+
     return this.get<PaginatedResponse<any>>(`/deals?${searchParams.toString()}`);
   }
 
@@ -553,7 +621,7 @@ class ApiClient {
     if (params?.page) searchParams.set('page', params.page.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
     if (params?.type) searchParams.set('type', params.type);
-    
+
     return this.get<PaginatedResponse<any>>(`/wallet/transactions?${searchParams.toString()}`);
   }
 
@@ -574,7 +642,7 @@ class ApiClient {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', params.page.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
-    
+
     return this.get<PaginatedResponse<any>>(`/users/following?${searchParams.toString()}`);
   }
 
@@ -582,7 +650,7 @@ class ApiClient {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', params.page.toString());
     if (params?.limit) searchParams.set('limit', params.limit.toString());
-    
+
     return this.get<PaginatedResponse<any>>(`/users/followers?${searchParams.toString()}`);
   }
 
@@ -599,7 +667,7 @@ class ApiClient {
     const searchParams = new URLSearchParams();
     if (params?.period) searchParams.set('period', params.period);
     if (params?.metrics) searchParams.set('metrics', params.metrics.join(','));
-    
+
     return this.get<any>(`/analytics?${searchParams.toString()}`);
   }
 
@@ -608,7 +676,7 @@ class ApiClient {
     if (typeof window !== 'undefined') {
       // Set in cookie for middleware (primary method)
       document.cookie = `auth-token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; secure; samesite=strict`;
-      
+
       // Also set in localStorage as backup (the Zustand store will handle the main storage)
       localStorage.setItem('auth_token', token);
     }
@@ -658,7 +726,7 @@ class ApiClient {
   // Batch requests
   async batch<T>(requests: Array<() => Promise<ApiResponse<T>>>): Promise<Array<ApiResponse<T> | Error>> {
     return Promise.allSettled(requests.map(request => request())).then(results =>
-      results.map(result => 
+      results.map(result =>
         result.status === 'fulfilled' ? result.value : result.reason
       )
     );
