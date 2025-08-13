@@ -35,34 +35,67 @@ interface AuthState {
   setToken: (token: string) => void;
 }
 
-const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      credentials: 'include',
-      ...options,
-    });
-
-    let data;
+const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     try {
-      data = await response.json();
-    } catch (parseError) {
-      throw new Error('Invalid response format');
-    }
+      console.log(`API Call attempt ${attempt}/${retries}: ${API_BASE_URL}${endpoint}`);
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        credentials: 'include',
+        signal: controller.signal,
+        ...options,
+      });
+      
+      clearTimeout(timeoutId);
 
-    if (!response.ok) {
-      throw new Error(data.error?.message || `Request failed with status ${response.status}`);
-    }
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        throw new Error('Invalid response format from server');
+      }
 
-    return data;
-  } catch (error) {
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new Error('Network error - please check your connection');
+      if (!response.ok) {
+        const errorMessage = data.error?.message || data.message || `Request failed with status ${response.status}`;
+        console.error('API request failed:', { status: response.status, error: errorMessage });
+        throw new Error(errorMessage);
+      }
+
+      console.log('API request successful:', endpoint);
+      return data;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error(`API call attempt ${attempt} failed:`, error);
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        if (attempt === retries) {
+          throw new Error('Network connection failed - please check your internet connection and try again');
+        }
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        continue;
+      }
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (attempt === retries) {
+          throw new Error('Request timeout - server is taking too long to respond');
+        }
+        // Wait before retry for timeout errors
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        continue;
+      }
+      
+      // For non-network errors, don't retry
+      throw error;
     }
-    throw error;
   }
 };
 
@@ -250,13 +283,27 @@ export const useAuthStore = create<AuthState>()(
         } catch (error) {
           console.error('Dashboard Auth: Authentication failed', error);
           
-          // Silently logout on auth check failure
+          const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+          
+          // Check if it's a network error
+          if (errorMessage.includes('Network connection failed') || errorMessage.includes('fetch')) {
+            console.warn('Dashboard Auth: Network error during authentication, keeping current state');
+            // Don't clear tokens on network errors, just set loading to false
+            set({ 
+              isLoading: false,
+              error: 'Network connection issue - please check your internet connection'
+            });
+            return;
+          }
+          
+          // For other errors (invalid token, etc.), clear authentication
+          console.log('Dashboard Auth: Clearing authentication due to non-network error');
           set({ 
             user: null, 
             token: null, 
             refreshToken: null, 
             isAuthenticated: false, 
-            error: null,
+            error: errorMessage,
             isLoading: false,
           });
           

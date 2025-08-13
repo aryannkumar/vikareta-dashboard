@@ -34,20 +34,22 @@ function LoginContent() {
       return;
     }
 
-    // Auto-redirect to main site for login after a short delay
-    const redirectTimer = setTimeout(() => {
-      const mainAppUrl = process.env.NODE_ENV === 'development' 
-        ? 'http://localhost:3000/auth/login' 
-        : 'https://vikareta.com/auth/login';
-      
-      // Add current URL as redirect parameter
-      const currentUrl = window.location.href;
-      const redirectUrl = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
-      
-      window.location.href = redirectUrl;
-    }, 3000); // 3 second delay to show the message
+    // Only auto-redirect to main site if not authenticated and no auth error
+    if (!isAuthenticated && !error) {
+      const redirectTimer = setTimeout(() => {
+        const mainAppUrl = process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:3000/auth/login' 
+          : 'https://vikareta.com/auth/login';
+        
+        // Add current URL as redirect parameter
+        const currentUrl = window.location.href;
+        const redirectUrl = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
+        
+        window.location.href = redirectUrl;
+      }, 3000); // 3 second delay to show the message
 
-    return () => clearTimeout(redirectTimer);
+      return () => clearTimeout(redirectTimer);
+    }
   }, [searchParams, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

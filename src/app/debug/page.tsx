@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 
 function DebugContent() {
   const searchParams = useSearchParams();
-  const { user, token, isAuthenticated, checkAuth } = useAuthStore();
+  const { user, token, isAuthenticated, checkAuth, error, isLoading } = useAuthStore();
   const [debugInfo, setDebugInfo] = useState<any>({});
 
   useEffect(() => {
@@ -19,6 +19,8 @@ function DebugContent() {
       dashboardToken: typeof window !== 'undefined' ? localStorage.getItem('dashboard_token') : null,
       storeToken: token,
       isAuthenticated,
+      isLoading,
+      error,
       user: user ? { id: user.id, email: user.email, role: user.role } : null,
       currentUrl: typeof window !== 'undefined' ? window.location.href : null,
     };
@@ -71,6 +73,9 @@ function DebugContent() {
                 </Button>
                 <Button variant="outline" onClick={() => window.location.href = 'https://vikareta.com/auth/login'}>
                   Go to Main Site Login
+                </Button>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Reload Page
                 </Button>
               </div>
             </div>
