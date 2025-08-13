@@ -62,11 +62,9 @@ export function middleware(request: NextRequest) {
   const authToken = request.cookies.get('auth-token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '');
 
-  // If no token, redirect to main app login
+  // If no token, redirect to dashboard login page instead of main app
   if (!authToken) {
-    const mainAppUrl = process.env.NEXT_PUBLIC_MAIN_APP_URL || 'https://vikareta.com';
-    const redirectUrl = `${mainAppUrl}/auth/login?redirect=${encodeURIComponent(request.url)}`;
-    return NextResponse.redirect(redirectUrl);
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // For dashboard routes, check if the route requires specific roles
@@ -82,10 +80,8 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
     } catch {
-      // If token is invalid, redirect to login
-      const mainAppUrl = process.env.NEXT_PUBLIC_MAIN_APP_URL || 'https://vikareta.com';
-      const redirectUrl = `${mainAppUrl}/auth/login?redirect=${encodeURIComponent(request.url)}`;
-      return NextResponse.redirect(redirectUrl);
+      // If token is invalid, redirect to dashboard login
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 

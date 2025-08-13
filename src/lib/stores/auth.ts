@@ -226,14 +226,22 @@ export const useAuthStore = create<AuthState>()(
 
           const user = response.data;
           
+          // Validate user data before setting state
+          if (!user || !user.id) {
+            throw new Error('Invalid user data received');
+          }
+          
           console.log('Dashboard Auth: User authenticated successfully', {
             id: user.id,
             email: user.email,
-            role: user.role
+            role: user.userType || user.role
           });
           
           set({
-            user,
+            user: {
+              ...user,
+              role: user.userType || user.role, // Normalize role field
+            },
             token,
             isAuthenticated: true,
             error: null,
