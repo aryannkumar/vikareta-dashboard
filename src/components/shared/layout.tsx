@@ -24,8 +24,10 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     // Mark as hydrated after first render
     setIsHydrated(true);
 
-    // Handle cross-domain authentication
+    // Handle cross-domain authentication - only once per page load
     if (typeof window !== 'undefined') {
+      // Check if token processing is already in progress
+      const tokenProcessingFlag = sessionStorage.getItem('token_processing');
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get('token');
       const redirectSource = urlParams.get('source');
@@ -33,10 +35,14 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
       console.log('Dashboard: Checking URL parameters', {
         hasToken: !!token,
         source: redirectSource,
-        url: window.location.href
+        url: window.location.href,
+        tokenProcessing: !!tokenProcessingFlag
       });
 
-      if (token) {
+      if (token && !tokenProcessingFlag) {
+        // Mark token processing as in progress
+        sessionStorage.setItem('token_processing', 'true');
+        
         console.log('Dashboard: Received token from URL, setting up authentication...');
         console.log('Dashboard: Redirect source:', redirectSource);
 
@@ -55,8 +61,9 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
         setTimeout(() => {
           checkAuth();
         }, 100);
-      } else {
+      } else if (!token && !tokenProcessingFlag) {
         console.log('Dashboard: No token in URL, checking existing authentication');
+        sessionStorage.setItem('token_processing', 'true');
         // Check if we have existing auth
         checkAuth();
       }
@@ -68,6 +75,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     if (isAuthenticated && user) {
       console.log('Dashboard: Authentication successful');
       sessionStorage.removeItem('auth_attempt_timestamp');
+      sessionStorage.removeItem('token_processing'); // Clear token processing flag
 
       // If we're on the root path, redirect to the main dashboard
       if (pathname === '/') {
@@ -149,6 +157,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
       // Mark that we're attempting auth to prevent loops
       sessionStorage.setItem('auth_attempt_timestamp', now.toString());
+      sessionStorage.removeItem('token_processing'); // Clear token processing flag
 
       console.log('Dashboard: Not authenticated, redirecting to login');
 

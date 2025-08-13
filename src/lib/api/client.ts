@@ -109,7 +109,18 @@ class ApiClient {
         if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
           const csrfToken = await this.getCSRFToken();
           if (csrfToken && config.headers) {
+            console.log('Dashboard API: Adding CSRF token to request:', csrfToken.substring(0, 10) + '...');
             config.headers['X-CSRF-Token'] = csrfToken;
+            // Add cross-domain headers
+            config.headers['X-Cross-Domain-Auth'] = 'true';
+            config.headers['X-Dashboard-Request'] = 'true';
+            config.headers['X-Requested-With'] = 'XMLHttpRequest';
+          } else if (config.headers) {
+            console.warn('Dashboard API: No CSRF token available, adding cross-domain headers only');
+            // Add cross-domain headers even without token
+            config.headers['X-Cross-Domain-Auth'] = 'true';
+            config.headers['X-Dashboard-Request'] = 'true';
+            config.headers['X-Requested-With'] = 'XMLHttpRequest';
           }
         }
 
@@ -138,8 +149,9 @@ class ApiClient {
           const errorData = error.response?.data;
           const message = errorData?.error?.message || errorData?.message || '';
 
-          if (message.includes('CSRF') || message.includes('csrf')) {
-            console.log('CSRF token expired, clearing and retrying...');
+          if (message.includes('CSRF') || message.includes('csrf') || errorData?.error?.code === 'CSRF_TOKEN_INVALID') {
+            console.log('Dashboard API: CSRF token error detected, clearing and retrying...');
+            console.log('Dashboard API: CSRF Error details:', { message, errorData });
             originalRequest._csrfRetry = true;
             this.clearCSRFToken();
 
@@ -147,6 +159,10 @@ class ApiClient {
             const csrfToken = await this.getCSRFToken();
             if (csrfToken && originalRequest.headers) {
               originalRequest.headers['X-CSRF-Token'] = csrfToken;
+              // Ensure cross-domain headers are present
+              originalRequest.headers['X-Cross-Domain-Auth'] = 'true';
+              originalRequest.headers['X-Dashboard-Request'] = 'true';
+              originalRequest.headers['X-Requested-With'] = 'XMLHttpRequest';
             }
 
             return this.client(originalRequest);
@@ -279,43 +295,21 @@ class ApiClient {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
   }
 
-  // CSRF Token Management
-  private csrfToken: string | null = null;
-  private csrfTokenExpiry: number = 0;
-
+  // CSRF Token Management using cross-domain manager
   private async getCSRFToken(): Promise<string | null> {
-    // Check if token is still valid (valid for 30 minutes)
-    if (this.csrfToken && Date.now() < this.csrfTokenExpiry) {
-      return this.csrfToken;
-    }
-
     try {
-      // Use the correct base URL for CSRF token endpoint (without /api prefix)
-      const baseUrl = this.baseURL.replace('/api', '');
-      const response = await axios.get<ApiResponse<{ csrfToken: string }>>(`${baseUrl}/csrf-token`, {
-        withCredentials: true,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      if (response.data?.success && response.data?.data?.csrfToken) {
-        this.csrfToken = response.data.data.csrfToken;
-        this.csrfTokenExpiry = Date.now() + (30 * 60 * 1000); // 30 minutes
-        return this.csrfToken;
-      } else {
-        console.error('CSRF token fetch failed:', response.status, response.statusText);
-      }
+      const { DashboardCSRFManager } = await import('./csrf-manager');
+      return await DashboardCSRFManager.getToken();
     } catch (error) {
-      console.error('Failed to fetch CSRF token:', error);
+      console.error('Dashboard API: Failed to get CSRF token:', error);
+      return null;
     }
-
-    return null;
   }
 
   private clearCSRFToken(): void {
-    this.csrfToken = null;
-    this.csrfTokenExpiry = 0;
+    import('./csrf-manager').then(({ DashboardCSRFManager }) => {
+      DashboardCSRFManager.clearAllTokens();
+    }).catch(console.error);
   }
 
   private setupNetworkListeners(): void {
