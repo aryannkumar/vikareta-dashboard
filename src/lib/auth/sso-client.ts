@@ -29,8 +29,38 @@ export class DashboardSSOClient {
 
   constructor() {
     this.baseURL = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:8000' 
+      ? 'http://localhost:5001' 
       : 'https://api.vikareta.com';
+  }
+
+  /**
+   * Get CSRF token from backend
+   */
+  private async ensureCSRFToken(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    
+    // Check if we already have a token in cookies
+    const existingToken = this.getCSRFToken();
+    if (existingToken) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/csrf-token`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        // Token should now be set in cookies
+        console.log('Dashboard SSO: CSRF token obtained');
+      }
+    } catch (error) {
+      console.warn('Dashboard SSO: Failed to get CSRF token:', error);
+    }
   }
 
   /**
@@ -103,7 +133,7 @@ export class DashboardSSOClient {
    */
   async checkSession(): Promise<AuthResponse> {
     try {
-      const response = await this.request<AuthResponse>('/auth/me', {
+      const response = await this.request<AuthResponse>('/api/auth/me', {
         method: 'GET',
       });
 
@@ -131,7 +161,10 @@ export class DashboardSSOClient {
    */
   async refreshToken(): Promise<AuthResponse> {
     try {
-      const response = await this.request<AuthResponse>('/auth/refresh', {
+      // Ensure we have a CSRF token before making the request
+      await this.ensureCSRFToken();
+      
+      const response = await this.request<AuthResponse>('/api/auth/refresh', {
         method: 'POST',
       });
 
@@ -159,7 +192,10 @@ export class DashboardSSOClient {
    */
   async logout(): Promise<AuthResponse> {
     try {
-      const response = await this.request<AuthResponse>('/auth/logout', {
+      // Ensure we have a CSRF token before making the request
+      await this.ensureCSRFToken();
+      
+      const response = await this.request<AuthResponse>('/api/auth/logout', {
         method: 'POST',
       });
 
