@@ -1,22 +1,38 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
 import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle } from 'lucide-react';
 import { APP_CONFIG } from '@/constants';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   const router = useRouter();
-  const { login } = useAuthStore();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated } = useAuthStore();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    // Check for authentication errors from URL
+    const error = searchParams.get('error');
+    if (error === 'auth_failed') {
+      setAuthError('Authentication failed. Please try logging in again.');
+    }
+
+    // If already authenticated, redirect to dashboard
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    }
+  }, [searchParams, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +72,10 @@ export default function LoginPage() {
   };
 
   const handleMainAppRedirect = () => {
-    window.location.href = APP_CONFIG.mainAppUrl;
+    const mainAppUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000' 
+      : 'https://vikareta.com';
+    window.location.href = mainAppUrl;
   };
 
   return (
@@ -71,6 +90,19 @@ export default function LoginPage() {
           </p>
         </CardHeader>
         <CardContent>
+          {authError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="text-sm">{authError}</span>
+            </div>
+          )}
+          
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> To access the dashboard, please log in through the main Vikareta website first.
+            </p>
+          </div>
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               type="email"

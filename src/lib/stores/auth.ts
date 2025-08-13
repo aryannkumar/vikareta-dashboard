@@ -32,6 +32,7 @@ interface AuthState {
   updateProfile: (data: Partial<User>) => Promise<void>;
   clearError: () => void;
   checkAuth: () => Promise<void>;
+  setToken: (token: string) => void;
 }
 
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
@@ -186,6 +187,15 @@ export const useAuthStore = create<AuthState>()(
       
       clearError: () => set({ error: null }),
       
+      setToken: (token: string) => {
+        console.log('Dashboard Auth: Setting token from cross-domain redirect');
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('dashboard_token', token);
+          localStorage.setItem('auth_token', token);
+        }
+        set({ token });
+      },
+      
       checkAuth: async () => {
         set({ isLoading: true });
         
@@ -200,9 +210,12 @@ export const useAuthStore = create<AuthState>()(
         }
         
         if (!token) {
+          console.log('Dashboard Auth: No token found');
           set({ isAuthenticated: false, user: null, isLoading: false });
           return;
         }
+
+        console.log('Dashboard Auth: Checking token with backend...');
 
         try {
           const response = await apiCall('/auth/me', {
@@ -213,6 +226,12 @@ export const useAuthStore = create<AuthState>()(
 
           const user = response.data;
           
+          console.log('Dashboard Auth: User authenticated successfully', {
+            id: user.id,
+            email: user.email,
+            role: user.role
+          });
+          
           set({
             user,
             token,
@@ -221,6 +240,8 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error) {
+          console.error('Dashboard Auth: Authentication failed', error);
+          
           // Silently logout on auth check failure
           set({ 
             user: null, 
