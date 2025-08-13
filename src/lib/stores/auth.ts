@@ -103,6 +103,8 @@ const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3)
   }
 };
 
+// Legacy auth store - replaced by SSO system
+// This is kept for compatibility but should be migrated
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({

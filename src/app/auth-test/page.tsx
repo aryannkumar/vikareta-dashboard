@@ -55,12 +55,18 @@ export default function AuthTestPage() {
   const handleTestCSRF = async () => {
     addLog('Testing CSRF token...');
     try {
-      const { DashboardCSRFManager } = await import('@/lib/api/csrf-manager');
-      const token = await DashboardCSRFManager.getToken();
-      addLog(`CSRF token: ${token ? token.substring(0, 20) + '...' : 'Not available'}`);
+      // Check for CSRF token in cookies
+      const cookies = document.cookie.split(';');
+      const csrfCookie = cookies.find(cookie => 
+        cookie.trim().startsWith('XSRF-TOKEN=')
+      );
       
-      const debugInfo = DashboardCSRFManager.getDebugInfo();
-      addLog(`CSRF debug info: ${JSON.stringify(debugInfo, null, 2)}`);
+      if (csrfCookie) {
+        const token = decodeURIComponent(csrfCookie.split('=')[1]);
+        addLog(`CSRF token found in cookie: ${token.substring(0, 20)}...`);
+      } else {
+        addLog('No CSRF token found in cookies');
+      }
     } catch (error) {
       addLog(`CSRF test failed: ${error}`);
     }
@@ -69,9 +75,9 @@ export default function AuthTestPage() {
   const handleClearCSRF = async () => {
     addLog('Clearing CSRF tokens...');
     try {
-      const { DashboardCSRFManager } = await import('@/lib/api/csrf-manager');
-      DashboardCSRFManager.clearAllTokens();
-      addLog('CSRF tokens cleared');
+      // Clear CSRF cookie
+      document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.vikareta.com;';
+      addLog('CSRF token cookie cleared');
     } catch (error) {
       addLog(`Failed to clear CSRF tokens: ${error}`);
     }

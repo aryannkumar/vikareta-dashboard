@@ -107,20 +107,9 @@ class ApiClient {
 
         // Add CSRF token for state-changing requests
         if (['post', 'put', 'patch', 'delete'].includes(config.method?.toLowerCase())) {
-          const csrfToken = await this.getCSRFToken();
+          const csrfToken = this.getCSRFToken();
           if (csrfToken && config.headers) {
-            console.log('Dashboard API: Adding CSRF token to request:', csrfToken.substring(0, 10) + '...');
-            config.headers['X-CSRF-Token'] = csrfToken;
-            // Add cross-domain headers
-            config.headers['X-Cross-Domain-Auth'] = 'true';
-            config.headers['X-Dashboard-Request'] = 'true';
-            config.headers['X-Requested-With'] = 'XMLHttpRequest';
-          } else if (config.headers) {
-            console.warn('Dashboard API: No CSRF token available, adding cross-domain headers only');
-            // Add cross-domain headers even without token
-            config.headers['X-Cross-Domain-Auth'] = 'true';
-            config.headers['X-Dashboard-Request'] = 'true';
-            config.headers['X-Requested-With'] = 'XMLHttpRequest';
+            config.headers['X-XSRF-TOKEN'] = csrfToken;
           }
         }
 
@@ -150,19 +139,13 @@ class ApiClient {
           const message = errorData?.error?.message || errorData?.message || '';
 
           if (message.includes('CSRF') || message.includes('csrf') || errorData?.error?.code === 'CSRF_TOKEN_INVALID') {
-            console.log('Dashboard API: CSRF token error detected, clearing and retrying...');
-            console.log('Dashboard API: CSRF Error details:', { message, errorData });
+            console.log('Dashboard API: CSRF token error detected, retrying...');
             originalRequest._csrfRetry = true;
-            this.clearCSRFToken();
 
             // Get fresh CSRF token and retry
-            const csrfToken = await this.getCSRFToken();
+            const csrfToken = this.getCSRFToken();
             if (csrfToken && originalRequest.headers) {
-              originalRequest.headers['X-CSRF-Token'] = csrfToken;
-              // Ensure cross-domain headers are present
-              originalRequest.headers['X-Cross-Domain-Auth'] = 'true';
-              originalRequest.headers['X-Dashboard-Request'] = 'true';
-              originalRequest.headers['X-Requested-With'] = 'XMLHttpRequest';
+              originalRequest.headers['X-XSRF-TOKEN'] = csrfToken;
             }
 
             return this.client(originalRequest);
@@ -295,21 +278,20 @@ class ApiClient {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
   }
 
-  // CSRF Token Management using cross-domain manager
-  private async getCSRFToken(): Promise<string | null> {
-    try {
-      const { DashboardCSRFManager } = await import('./csrf-manager');
-      return await DashboardCSRFManager.getToken();
-    } catch (error) {
-      console.error('Dashboard API: Failed to get CSRF token:', error);
-      return null;
+  // CSRF Token Management using cookies
+  private getCSRFToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    
+    const cookies = document.cookie.split(';');
+    const csrfCookie = cookies.find(cookie => 
+      cookie.trim().startsWith('XSRF-TOKEN=')
+    );
+    
+    if (csrfCookie) {
+      return decodeURIComponent(csrfCookie.split('=')[1]);
     }
-  }
-
-  private clearCSRFToken(): void {
-    import('./csrf-manager').then(({ DashboardCSRFManager }) => {
-      DashboardCSRFManager.clearAllTokens();
-    }).catch(console.error);
+    
+    return null;
   }
 
   private setupNetworkListeners(): void {
