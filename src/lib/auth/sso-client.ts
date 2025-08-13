@@ -60,14 +60,6 @@ export class DashboardSSOClient {
         
         // Wait a bit for the cookie to be set
         await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Verify the token is now available
-        const token = this.getCSRFToken();
-        if (!token) {
-          console.warn('Dashboard SSO: CSRF token not found in cookies after request');
-        } else {
-          console.log('Dashboard SSO: CSRF token verified in cookies');
-        }
       }
     } catch (error) {
       console.warn('Dashboard SSO: Failed to get CSRF token:', error);
@@ -113,8 +105,6 @@ export class DashboardSSOClient {
     // Add CSRF token for state-changing requests
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET')) {
       const csrfToken = this.getCSRFToken();
-      console.log('Dashboard SSO: CSRF token for request:', csrfToken ? 'Found' : 'Not found');
-      console.log('Dashboard SSO: All cookies:', document.cookie);
       if (csrfToken) {
         config.headers = {
           ...config.headers,
