@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
-export default function DebugPage() {
+function DebugContent() {
   const searchParams = useSearchParams();
   const { user, token, isAuthenticated, checkAuth } = useAuthStore();
   const [debugInfo, setDebugInfo] = useState<any>({});
@@ -104,5 +104,20 @@ export default function DebugPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function DebugPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading debug information...</p>
+        </div>
+      </div>
+    }>
+      <DebugContent />
+    </Suspense>
   );
 }

@@ -292,7 +292,7 @@ class ApiClient {
     try {
       // Use the correct base URL for CSRF token endpoint (without /api prefix)
       const baseUrl = this.baseURL.replace('/api', '');
-      const response = await axios.get(`${baseUrl}/csrf-token`, {
+      const response = await axios.get<ApiResponse<{ csrfToken: string }>>(`${baseUrl}/csrf-token`, {
         withCredentials: true,
         headers: {
           'Accept': 'application/json',
