@@ -30,38 +30,43 @@ export function DashboardHeader({ title, description, actions }: DashboardHeader
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center justify-between px-6">
+      <div className="flex h-16 items-center justify-between px-4 lg:px-6">
         {/* Left Section - Title and Description */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 min-w-0 flex-1 lg:flex-initial">
           {title && (
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+            <div className="min-w-0">
+              <h1 className="text-xl lg:text-2xl font-bold tracking-tight truncate">{title}</h1>
               {description && (
-                <p className="text-sm text-muted-foreground">{description}</p>
+                <p className="text-sm text-muted-foreground hidden sm:block truncate">{description}</p>
               )}
             </div>
           )}
         </div>
 
-        {/* Center Section - Search */}
-        <div className="flex-1 max-w-md mx-8">
-          <div className="relative">
+        {/* Center Section - Search (Hidden on mobile) */}
+        <div className="hidden md:flex flex-1 max-w-md mx-4 lg:mx-8">
+          <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search products, orders, customers..."
-              className="pl-10 pr-4"
+              className="pl-10 pr-4 w-full"
             />
           </div>
         </div>
 
         {/* Right Section - Actions and User Menu */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 lg:space-x-4">
           {/* Custom Actions */}
           {actions && (
-            <div className="flex items-center space-x-2">
+            <div className="hidden sm:flex items-center space-x-2">
               {actions}
             </div>
           )}
+
+          {/* Search Button (Mobile only) */}
+          <Button variant="ghost" size="sm" className="md:hidden">
+            <Search className="h-5 w-5" />
+          </Button>
 
           {/* Notifications */}
           <Button variant="ghost" size="sm" className="relative">

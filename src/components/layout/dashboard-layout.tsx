@@ -27,15 +27,15 @@ export function DashboardLayout({
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    redirect('/auth/login');
+    redirect('/login');
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50/50">
       {/* Sidebar */}
       <ModernSidebar />
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       <div className="lg:pl-64 transition-all duration-300">
         {/* Header */}
         <DashboardHeader 
@@ -45,8 +45,8 @@ export function DashboardLayout({
         />
 
         {/* Page Content */}
-        <main className="p-6">
-          <div className="mx-auto max-w-7xl">
+        <main className="p-4 lg:p-6 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto space-y-6">
             {children}
           </div>
         </main>

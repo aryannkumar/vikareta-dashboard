@@ -75,7 +75,7 @@ export class ApiClient {
 
   // Dashboard endpoints
   async getDashboardMetrics() {
-    return this.request('/dashboard/metrics');
+    return this.request('/dashboard/stats');
   }
 
   async getRecentOrders(limit: number = 10) {
@@ -83,7 +83,7 @@ export class ApiClient {
   }
 
   async getRecentRFQs(limit: number = 5) {
-    return this.request(`/rfqs?limit=${limit}&sort=createdAt:desc`);
+    return this.request(`/rfqs/my?limit=${limit}&sortBy=createdAt&sortOrder=desc`);
   }
 
   // Products endpoints
@@ -136,7 +136,7 @@ export class ApiClient {
   // RFQs endpoints
   async getRFQs(params: any = {}) {
     const query = new URLSearchParams(params).toString();
-    return this.request(`/rfqs?${query}`);
+    return this.request(`/rfqs/my?${query}`);
   }
 
   async getRFQ(id: string) {

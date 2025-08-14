@@ -44,176 +44,142 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
 
   const loadMetrics = useCallback(async () => {
     try {
-      // Get real analytics data
-      const [revenueResponse, productResponse] = await Promise.all([
-        apiClient.getRevenueAnalytics('30d'),
-        apiClient.getProductPerformance(10)
-      ]);
-
-      if (revenueResponse.success && productResponse.success) {
+      // Get real dashboard stats from backend
+      const statsResponse = await apiClient.getDashboardMetrics();
+      
+      if (statsResponse.success && statsResponse.data) {
+        const data = statsResponse.data as any;
+        
+        // Get revenue data in parallel
+        const [revenueResponse, orderStatsResponse] = await Promise.allSettled([
+          apiClient.getRevenueAnalytics('30d'),
+          apiClient.get('/orders/stats/overview')
+        ]);
+        
+        let totalRevenue = 0;
+        let revenueChange = 0;
+        let pendingOrders = 0;
+        let completedOrders = 0;
+        
+        if (revenueResponse.status === 'fulfilled' && revenueResponse.value.success) {
+          const revenueData = revenueResponse.value.data as any;
+          totalRevenue = revenueData.totalRevenue || 0;
+          revenueChange = revenueData.growthRate || 0;
+        }
+        
+        if (orderStatsResponse.status === 'fulfilled' && orderStatsResponse.value.success) {
+          const orderData = orderStatsResponse.value.data as any;
+          pendingOrders = orderData.pendingCount || 0;
+          completedOrders = orderData.completedCount || 0;
+        }
+        
         const metrics: DashboardMetrics = {
-          totalRevenue: (revenueResponse.data as any)?.totalRevenue || 0,
-          totalOrders: (productResponse.data as any)?.summary?.totalOrders || 0,
-          totalProducts: (productResponse.data as any)?.summary?.totalProducts || 0,
-          totalCustomers: 156, // TODO: Add customer analytics endpoint
-          pendingOrders: Math.floor(((productResponse.data as any)?.summary?.totalOrders || 0) * 0.15),
-          completedOrders: Math.floor(((productResponse.data as any)?.summary?.totalOrders || 0) * 0.85),
-          activeCustomers: 134, // TODO: Add active customer analytics
-          activeRFQs: 45, // TODO: Add RFQ analytics
-          revenueChange: (revenueResponse.data as any)?.growthRate || 0,
-          ordersChange: 8.3, // TODO: Calculate from previous period
-          productsChange: 15.2, // TODO: Calculate from previous period
-          customersChange: 6.7, // TODO: Calculate from previous period
+          totalRevenue,
+          totalOrders: data.totalOrders || 0,
+          totalProducts: data.totalProducts || 0,
+          totalCustomers: 0, // Not available in current API
+          pendingOrders,
+          completedOrders,
+          activeCustomers: 0, // Not available in current API
+          activeRFQs: data.totalRFQs || 0,
+          revenueChange,
+          ordersChange: 0, // Calculate from historical data if needed
+          productsChange: 0, // Calculate from historical data if needed
+          customersChange: 0, // Not available in current API
         };
         
         setMetrics(metrics);
         setError(null);
       } else {
-        throw new Error('Failed to fetch analytics data');
+        throw new Error('Failed to fetch dashboard stats');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load metrics';
       setError(errorMessage);
       console.error('Error loading dashboard metrics:', err);
       
-      // Fallback to mock data
-      const mockMetrics: DashboardMetrics = {
-        totalRevenue: 125000,
-        totalOrders: 342,
-        totalProducts: 89,
-        totalCustomers: 156,
-        pendingOrders: 23,
-        completedOrders: 319,
-        activeCustomers: 134,
-        activeRFQs: 45,
-        revenueChange: 12.5,
-        ordersChange: 8.3,
-        productsChange: 15.2,
-        customersChange: 6.7,
+      // Set empty metrics on error instead of mock data
+      const emptyMetrics: DashboardMetrics = {
+        totalRevenue: 0,
+        totalOrders: 0,
+        totalProducts: 0,
+        totalCustomers: 0,
+        pendingOrders: 0,
+        completedOrders: 0,
+        activeCustomers: 0,
+        activeRFQs: 0,
+        revenueChange: 0,
+        ordersChange: 0,
+        productsChange: 0,
+        customersChange: 0,
       };
-      setMetrics(mockMetrics);
+      setMetrics(emptyMetrics);
     }
   }, []);
 
   const loadRecentOrders = useCallback(async () => {
     try {
-      // Get real orders data
+      // Get real orders data from backend
       const response = await apiClient.getRecentOrders(10);
       
       if (response.success && response.data) {
-        setRecentOrders((response.data as any).orders || response.data || []);
+        const data = response.data as any;
+        const orders = Array.isArray(data) ? data : data.orders || data.data || [];
+        setRecentOrders(orders);
         setError(null);
       } else {
         throw new Error('Failed to fetch recent orders');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load recent orders';
-      setError(errorMessage);
-      console.error('Error loading recent orders:', err);
+      console.warn('Error loading recent orders:', err);
       
-      // Fallback to mock data on error
-      const mockOrders: Order[] = [
-        {
-          id: '1',
-          buyerId: 'buyer1',
-          sellerId: 'seller1',
-          orderNumber: 'ORD-001',
-          orderType: 'product',
-          subtotal: 1500,
-          taxAmount: 270,
-          shippingAmount: 100,
-          discountAmount: 0,
-          totalAmount: 1870,
-          status: 'processing',
-          paymentStatus: 'paid',
-          items: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      setRecentOrders(mockOrders);
+      // Set empty array on error
+      setRecentOrders([]);
     }
   }, []);
 
   const loadRecentRFQs = useCallback(async () => {
     try {
       // Get real RFQs data
-      const response = await apiClient.getRecentRFQs(5);
+      const response = await apiClient.getRFQs({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' });
       
       if (response.success && response.data) {
-        setRecentRFQs((response.data as any).rfqs || response.data || []);
+        const data = response.data as any;
+        const rfqs = Array.isArray(data) ? data : data.rfqs || data.data || [];
+        setRecentRFQs(rfqs);
         setError(null);
       } else {
         throw new Error('Failed to fetch recent RFQs');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load recent RFQs';
-      setError(errorMessage);
-      console.error('Error loading recent RFQs:', err);
+      console.warn('Error loading recent RFQs:', err);
       
-      // Fallback to mock data on error
-      const mockRFQs: RFQ[] = [
-        {
-          id: '1',
-          buyerId: 'buyer1',
-          title: 'Industrial Pumps Required',
-          description: 'Need high-quality industrial pumps for manufacturing plant',
-          categoryId: 'cat1',
-          subcategoryId: 'subcat1',
-          quantity: 10,
-          budgetMin: 50000,
-          budgetMax: 75000,
-          deliveryTimeline: '30 days',
-          deliveryLocation: 'Mumbai, Maharashtra',
-          status: 'active',
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          quotes: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      setRecentRFQs(mockRFQs);
+      // Set empty array on error
+      setRecentRFQs([]);
     }
   }, []);
 
   const loadTopProducts = useCallback(async () => {
     try {
-      // Get real product performance data
-      const response = await apiClient.getProductPerformance(5);
+      // Get user's products from backend - filter by current user as seller
+      const response = await apiClient.getProducts({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' });
       
       if (response.success && response.data) {
-        setTopProducts((response.data as any).products || []);
+        const data = response.data as any;
+        const products = Array.isArray(data) ? data : data.products || data.data || [];
+        setTopProducts(products);
         setError(null);
       } else {
-        throw new Error('Failed to fetch top products');
+        throw new Error('Failed to fetch products');
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load top products';
-      setError(errorMessage);
-      console.error('Error loading top products:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load products';
+      console.warn('Error loading products:', err);
       
-      // Fallback to mock data
-      const mockProducts: Product[] = [
-        {
-          id: '1',
-          sellerId: 'seller1',
-          title: 'Industrial LED Lights',
-          description: 'High-efficiency LED lighting for industrial use',
-          categoryId: 'electronics',
-          subcategoryId: 'lighting',
-          price: 2500,
-          currency: 'INR',
-          stockQuantity: 150,
-          minOrderQuantity: 10,
-          isService: false,
-          status: 'active',
-          media: [],
-          variants: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-      setTopProducts(mockProducts);
+      // Set empty array on error
+      setTopProducts([]);
     }
   }, []);
 
@@ -230,17 +196,16 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load wallet balance';
-      setError(errorMessage);
-      console.error('Error loading wallet balance:', err);
+      console.warn('Error loading wallet balance:', err);
       
-      // Fallback to mock wallet balance data
-      const mockWalletBalance: WalletBalance = {
-        availableBalance: 45000,
-        lockedBalance: 12000,
+      // Set default wallet balance on error
+      const defaultWalletBalance: WalletBalance = {
+        availableBalance: 0,
+        lockedBalance: 0,
         negativeBalance: 0,
-        totalBalance: 57000,
+        totalBalance: 0,
       };
-      setWalletBalance(mockWalletBalance);
+      setWalletBalance(defaultWalletBalance);
     }
   }, []);
 
@@ -249,13 +214,24 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
     setError(null);
     
     try {
-      await Promise.all([
+      // Load all data in parallel but handle individual failures gracefully
+      const results = await Promise.allSettled([
         loadMetrics(),
         loadRecentOrders(),
         loadRecentRFQs(),
         loadTopProducts(),
         loadWalletBalance(),
       ]);
+      
+      // Check if any critical operations failed
+      const failedOperations = results.filter(result => result.status === 'rejected');
+      if (failedOperations.length === results.length) {
+        // All operations failed
+        setError('Unable to load dashboard data. Please check your connection and try again.');
+      } else if (failedOperations.length > 0) {
+        // Some operations failed, but continue with partial data
+        console.warn('Some dashboard operations failed:', failedOperations);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
       setError(errorMessage);

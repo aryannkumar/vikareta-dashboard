@@ -67,63 +67,30 @@ export function AdAnalytics() {
       const response = await apiClient.getAdvertisementAnalytics(3);
       
       if (response.success && response.data) {
-        setAnalytics(response.data as AdAnalytics);
-      } else {
-        // Fallback to mock data if API fails
-        const mockAnalytics: AdAnalytics = {
-          totalImpressions: 36690,
-          totalClicks: 1904,
-          totalSpent: 9370,
-          totalConversions: 156,
-          averageCTR: 5.2,
-          averageCPC: 4.92,
-          averageROAS: 3.8,
-          campaigns: [
-            {
-              id: '1',
-              name: 'LED Lights Promotion',
-              status: 'active',
-              impressions: 15420,
-              clicks: 892,
-              spent: 4350,
-              budget: 10000,
-              ctr: 5.8,
-              cpc: 4.88,
-              conversions: 67,
-              roas: 4.2,
-              type: 'search'
-            },
-            {
-              id: '2',
-              name: 'Textile Products Banner',
-              status: 'active',
-              impressions: 12350,
-              clicks: 567,
-              spent: 2840,
-              budget: 7500,
-              ctr: 4.6,
-              cpc: 5.01,
-              conversions: 45,
-              roas: 3.6,
-              type: 'display'
-            },
-            {
-              id: '3',
-              name: 'Steel Products Featured',
-              status: 'paused',
-              impressions: 8920,
-              clicks: 445,
-              spent: 2180,
-              budget: 5000,
-              ctr: 5.0,
-              cpc: 4.90,
-              conversions: 44,
-              roas: 3.5,
-              type: 'social'
-            }
-          ]
+        const data = response.data as any;
+        const analytics: AdAnalytics = {
+          totalImpressions: data.totalImpressions || 0,
+          totalClicks: data.totalClicks || 0,
+          totalSpent: data.totalSpent || 0,
+          totalConversions: data.totalConversions || 0,
+          averageCTR: data.averageCTR || 0,
+          averageCPC: data.averageCPC || 0,
+          averageROAS: data.averageROAS || 0,
+          campaigns: Array.isArray(data.campaigns) ? data.campaigns : []
         };
-        setAnalytics(mockAnalytics);
+        setAnalytics(analytics);
+      } else {
+        // Set empty data if API fails
+        setAnalytics({
+          totalImpressions: 0,
+          totalClicks: 0,
+          totalSpent: 0,
+          totalConversions: 0,
+          averageCTR: 0,
+          averageCPC: 0,
+          averageROAS: 0,
+          campaigns: []
+        });
       }
     } catch (err) {
       console.error('Failed to fetch ad analytics:', err);

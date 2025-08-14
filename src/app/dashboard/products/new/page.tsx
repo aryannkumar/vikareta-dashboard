@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { DashboardLayout } from '@/components/layout/dashboard-layout';
+// Layout is handled by dashboard/layout.tsx
 import { ProductForm } from '@/components/products/product-form';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -24,17 +24,20 @@ export default function NewProductPage() {
   };
 
   return (
-    <DashboardLayout
-      title="Add New Product"
-      description="Create a new product for your catalog"
-      actions={
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Add New Product</h1>
+          <p className="text-muted-foreground">Create a new product for your catalog</p>
+        </div>
         <Button variant="outline" onClick={handleCancel}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Products
         </Button>
-      }
-    >
+      </div>
+
       <ProductForm onSave={handleSave} onCancel={handleCancel} />
-    </DashboardLayout>
+    </div>
   );
 }

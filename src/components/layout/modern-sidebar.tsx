@@ -295,7 +295,7 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
 
       {/* Desktop Sidebar */}
       <div
-        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:z-50 lg:bg-background lg:border-r transition-all duration-300 ${
+        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:bg-background lg:border-r lg:shadow-sm transition-all duration-300 ${
           isCollapsed ? 'lg:w-16' : 'lg:w-64'
         } ${className}`}
       >
@@ -307,7 +307,7 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
         variant="ghost"
         size="sm"
         onClick={() => setIsMobileOpen(true)}
-        className="fixed top-4 left-4 z-40 lg:hidden"
+        className="fixed top-4 left-4 z-40 lg:hidden bg-background border shadow-sm"
       >
         <Menu className="h-5 w-5" />
       </Button>

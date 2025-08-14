@@ -32,29 +32,35 @@ export function RevenueChart() {
         const response = await apiClient.getRevenueAnalytics(period);
         
         if (response.success && response.data) {
-          setMetrics(response.data as RevenueMetrics);
-        } else {
-          // Fallback mock data for demonstration
-          const mockData: RevenueMetrics = {
-            totalRevenue: 890000,
-            totalOrders: 2156,
-            averageOrderValue: 4130,
-            growthRate: 12.5,
-            data: generateMockData(period)
+          const data = response.data as any;
+          const revenueMetrics: RevenueMetrics = {
+            totalRevenue: data.totalRevenue || 0,
+            totalOrders: data.totalOrders || 0,
+            averageOrderValue: data.averageOrderValue || 0,
+            growthRate: data.growthRate || 0,
+            data: data.chartData || []
           };
-          setMetrics(mockData);
+          setMetrics(revenueMetrics);
+        } else {
+          // Set empty data if API fails
+          setMetrics({
+            totalRevenue: 0,
+            totalOrders: 0,
+            averageOrderValue: 0,
+            growthRate: 0,
+            data: []
+          });
         }
       } catch (error) {
         console.error('Failed to fetch revenue data:', error);
-        // Fallback to mock data
-        const mockData: RevenueMetrics = {
-          totalRevenue: 890000,
-          totalOrders: 2156,
-          averageOrderValue: 4130,
-          growthRate: 12.5,
-          data: generateMockData(period)
-        };
-        setMetrics(mockData);
+        // Set empty data on error
+        setMetrics({
+          totalRevenue: 0,
+          totalOrders: 0,
+          averageOrderValue: 0,
+          growthRate: 0,
+          data: []
+        });
       } finally {
         setLoading(false);
       }

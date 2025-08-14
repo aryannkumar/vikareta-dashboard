@@ -32,72 +32,28 @@ export function ProductPerformance() {
       const response = await apiClient.getProductPerformance(5);
       
       if (response.success && response.data) {
-        setProducts(response.data as ProductPerformance[]);
+        const data = response.data as any;
+        const products = Array.isArray(data) ? data : data.products || [];
+        
+        // Transform backend data to match our interface
+        const transformedProducts: ProductPerformance[] = products.map((product: any) => ({
+          id: product.id,
+          name: product.title || product.name,
+          views: product.views || 0,
+          orders: product.orders || 0,
+          revenue: product.revenue || 0,
+          conversionRate: product.conversionRate || 0,
+          trend: product.trend || 'stable',
+          trendPercentage: product.trendPercentage || 0,
+          category: product.category?.name || 'Uncategorized',
+          stockStatus: product.stockQuantity > 10 ? 'in_stock' : 
+                      product.stockQuantity > 0 ? 'low_stock' : 'out_of_stock'
+        }));
+        
+        setProducts(transformedProducts);
       } else {
-        // Fallback to mock data if API fails
-        const mockProducts: ProductPerformance[] = [
-          {
-            id: '1',
-            name: 'Industrial LED Lights',
-            views: 1250,
-            orders: 45,
-            revenue: 112500,
-            conversionRate: 3.6,
-            trend: 'up',
-            trendPercentage: 12.5,
-            category: 'Electronics',
-            stockStatus: 'in_stock'
-          },
-          {
-            id: '2',
-            name: 'Cotton Fabric Rolls',
-            views: 890,
-            orders: 32,
-            revenue: 14400,
-            conversionRate: 3.6,
-            trend: 'up',
-            trendPercentage: 8.2,
-            category: 'Textiles',
-            stockStatus: 'low_stock'
-          },
-          {
-            id: '3',
-            name: 'Steel Pipes Grade 304',
-            views: 1560,
-            orders: 28,
-            revenue: 33600,
-            conversionRate: 1.8,
-            trend: 'down',
-            trendPercentage: -5.3,
-            category: 'Machinery',
-            stockStatus: 'in_stock'
-          },
-          {
-            id: '4',
-            name: 'Organic Wheat Flour',
-            views: 720,
-            orders: 18,
-            revenue: 15300,
-            conversionRate: 2.5,
-            trend: 'stable',
-            trendPercentage: 0.8,
-            category: 'Food',
-            stockStatus: 'out_of_stock'
-          },
-          {
-            id: '5',
-            name: 'Automotive Parts Kit',
-            views: 950,
-            orders: 22,
-            revenue: 44000,
-            conversionRate: 2.3,
-            trend: 'up',
-            trendPercentage: 15.7,
-            category: 'Automotive',
-            stockStatus: 'in_stock'
-          }
-        ];
-        setProducts(mockProducts);
+        // Set empty array if API fails
+        setProducts([]);
       }
     } catch (err) {
       console.error('Failed to fetch product performance:', err);
