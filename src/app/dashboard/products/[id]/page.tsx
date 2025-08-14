@@ -15,7 +15,7 @@ import { StatusBadge } from '@/components/ui/status-badge';
 import { useApi } from '@/lib/hooks/use-api';
 import { Product } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { apiClient } from '@/lib/api/client';
+import { apiClient, ApiResponse } from '@/lib/api/client';
 
 export default function ProductDetailsPage() {
   const params = useParams();
@@ -36,7 +36,7 @@ export default function ProductDetailsPage() {
   } = useApi();
 
   useEffect(() => {
-    fetchProduct(() => apiClient.getProduct(productId));
+    fetchProduct(() => apiClient.getProduct(productId) as Promise<ApiResponse<Product>>);
     fetchAnalytics(() => apiClient.get(`/products/${productId}/analytics`));
   }, [productId, fetchProduct, fetchAnalytics]);
 

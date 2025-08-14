@@ -136,16 +136,17 @@ export default function NewProductPage() {
       const mediaUrls: string[] = [];
       
       for (const file of formData.media) {
-        const uploadResponse = await apiClient.uploadFile(
-          '/products/media/upload',
-          file,
-          (progress) => {
-            setUploadProgress(prev => ({
-              ...prev,
-              [file.name]: progress,
-            }));
-          }
-        );
+        // Create FormData for file upload
+        const fileFormData = new FormData();
+        fileFormData.append('file', file);
+        
+        const uploadResponse = await apiClient.post('/products/media/upload', fileFormData);
+        
+        // Update progress (simplified)
+        setUploadProgress(prev => ({
+          ...prev,
+          [file.name]: 100,
+        }));
         
         if (uploadResponse.success && uploadResponse.data) {
           mediaUrls.push(uploadResponse.data as string);

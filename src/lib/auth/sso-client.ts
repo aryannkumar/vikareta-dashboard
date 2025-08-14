@@ -211,7 +211,6 @@ export class SSOAuthClient {
     }
 
     try {
-      console.log(`Dashboard SSO: Making request to ${url}`);
       const response = await fetch(url, config);
       
       if (!response.ok) {
@@ -229,7 +228,6 @@ export class SSOAuthClient {
       }
 
       const data = await response.json();
-      console.log(`Dashboard SSO: Request successful to ${endpoint}`);
       return data;
     } catch (error) {
       console.error(`Dashboard SSO: Request failed to ${endpoint}:`, error);
@@ -309,11 +307,9 @@ export class SSOAuthClient {
         
         // Store tokens if provided (for cross-domain compatibility)
         if (response.accessToken) {
-          console.log('Dashboard SSO: Storing access token from /auth/me response');
           this.setAccessToken(response.accessToken);
         }
         if (response.refreshToken) {
-          console.log('Dashboard SSO: Storing refresh token from /auth/me response');
           this.setRefreshToken(response.refreshToken);
         }
         
@@ -338,24 +334,19 @@ export class SSOAuthClient {
       });
 
       if (response.success) {
-        console.log('Dashboard SSO: Session valid');
-        
         // Store user data and tokens if provided
         if (response.user) {
           this.setUser(response.user);
         }
         if (response.accessToken) {
-          console.log('Dashboard SSO: Storing access token from session check');
           this.setAccessToken(response.accessToken);
         }
         if (response.refreshToken) {
-          console.log('Dashboard SSO: Storing refresh token from session check');
           this.setRefreshToken(response.refreshToken);
         }
         
         return response;
       } else {
-        console.log('Dashboard SSO: Session invalid');
         return response;
       }
     } catch (error) {
@@ -382,8 +373,6 @@ export class SSOAuthClient {
       });
 
       if (response.success) {
-        console.log('Dashboard SSO: Token refreshed successfully');
-        
         // Update stored tokens
         if (response.accessToken) {
           this.setAccessToken(response.accessToken);
@@ -397,7 +386,6 @@ export class SSOAuthClient {
         
         return response;
       } else {
-        console.log('Dashboard SSO: Token refresh failed');
         return response;
       }
     } catch (error) {
@@ -427,7 +415,6 @@ export class SSOAuthClient {
         method: 'POST',
       });
 
-      console.log('Dashboard SSO: Logout completed');
       return response;
     } catch (error) {
       // Even if API call fails, we've cleared local tokens

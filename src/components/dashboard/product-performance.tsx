@@ -29,7 +29,7 @@ export function ProductPerformance() {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get('/analytics/products/performance?limit=5');
+      const response = await apiClient.getProductPerformance(5);
       
       if (response.success && response.data) {
         setProducts(response.data as ProductPerformance[]);

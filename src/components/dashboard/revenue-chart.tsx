@@ -29,7 +29,7 @@ export function RevenueChart() {
     const fetchRevenueData = async () => {
       try {
         setLoading(true);
-        const response = await apiClient.get(`/analytics/revenue?period=${period}`);
+        const response = await apiClient.getRevenueAnalytics(period);
         
         if (response.success && response.data) {
           setMetrics(response.data as RevenueMetrics);

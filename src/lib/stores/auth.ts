@@ -47,7 +47,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3)
       const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
       const fullUrl = `${API_BASE_URL}${normalizedEndpoint}`;
       
-      console.log(`API Call attempt ${attempt}/${retries}: ${fullUrl}`);
+      // API call attempt
       
       const response = await fetch(fullUrl, {
         headers: {
@@ -75,7 +75,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}, retries = 3)
         throw new Error(errorMessage);
       }
 
-      console.log('API request successful:', endpoint);
+      // API request successful
       return data;
     } catch (error) {
       clearTimeout(timeoutId);
@@ -209,7 +209,6 @@ export const useAuthStore = create<AuthState>()(
       clearError: () => set({ error: null }),
       
       setToken: (token: string) => {
-        console.log('Dashboard Auth: Setting token from cross-domain redirect');
         
         // Store token in the unified SSO format
         if (typeof window !== 'undefined') {
@@ -235,36 +234,28 @@ export const useAuthStore = create<AuthState>()(
           error: null // Clear any previous errors
         });
         
-        console.log('Dashboard Auth: Token set successfully in localStorage and auth store');
+        // Token set successfully
       },
       
       checkAuth: async () => {
         // Prevent multiple simultaneous auth checks
         const currentState = get();
         if (currentState.isLoading) {
-          console.log('Dashboard Auth: Auth check already in progress, skipping');
           return;
         }
         
         set({ isLoading: true });
-        
-        console.log('Dashboard Auth: Checking authentication with SSO client...');
 
         try {
           // Check if we have a token first
           const hasToken = typeof window !== 'undefined' && 
             (localStorage.getItem('vikareta_access_token') || localStorage.getItem('dashboard_token'));
           
-          console.log('Dashboard Auth: Token available:', !!hasToken);
+          // Check token availability
           
           const user = await ssoClient.getCurrentUser();
           
           if (user) {
-            console.log('Dashboard Auth: User authenticated successfully', {
-              id: user.id,
-              email: user.email,
-              role: user.role
-            });
             
             set({
               user,
@@ -274,19 +265,14 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
             });
           } else {
-            console.log('Dashboard Auth: No authenticated user found');
-            
             // If we have a token but no user, there might be an issue with the token
-            if (hasToken) {
-              console.warn('Dashboard Auth: Token exists but user not found - token may be invalid');
-            }
             
             set({ 
               user: null, 
               token: null, 
               refreshToken: null, 
               isAuthenticated: false, 
-              error: hasToken ? 'Invalid or expired token' : null,
+              error: null,
               isLoading: false,
             });
           }
@@ -306,7 +292,6 @@ export const useAuthStore = create<AuthState>()(
           }
           
           // For other errors (invalid token, etc.), clear authentication
-          console.log('Dashboard Auth: Clearing authentication due to error:', errorMessage);
           set({ 
             user: null, 
             token: null, 

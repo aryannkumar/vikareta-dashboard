@@ -160,7 +160,7 @@ export default function DealsPage() {
       sortOrder,
       ...filters,
     };
-    await fetchDeals(() => apiClient.get('/deals', { params }));
+    await fetchDeals(() => apiClient.getDeals(params));
   }, [currentPage, itemsPerPage, searchTerm, sortBy, sortOrder, filters, fetchDeals]);
 
   useEffect(() => {

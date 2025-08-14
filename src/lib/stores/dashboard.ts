@@ -23,7 +23,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
       const response = await dashboardApi.getDashboardStats();
       if (response.success) {
         set({
-          metrics: response.data,
+          metrics: response.data as any,
           isLoading: false,
           lastUpdated: new Date().toISOString(),
         });

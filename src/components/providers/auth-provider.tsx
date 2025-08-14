@@ -25,8 +25,6 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
       const redirectSource = searchParams.get('redirect');
 
       if (urlToken) {
-        console.log('Dashboard: Received token from URL, setting up authentication...');
-        console.log('Dashboard: Redirect source:', redirectSource);
 
         // Store the token from URL
         setToken(urlToken);
@@ -45,7 +43,6 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
           const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
           if (authResult) {
-            console.log('Dashboard: Authentication successful, staying on dashboard');
             // Redirect to dashboard if we're on login page or root
             if (window.location.pathname === '/login' || window.location.pathname === '/') {
               router.push('/dashboard');
@@ -60,7 +57,6 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
           }
         }, 100);
       } else {
-        console.log('Dashboard: No token in URL, checking existing authentication');
 
         // Check existing authentication
         await checkAuth();
@@ -70,16 +66,13 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
           const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
           if (authResult) {
-            console.log('Dashboard: Already authenticated');
             // Check if we're on login page and redirect to dashboard
             if (window.location.pathname === '/login' || window.location.pathname === '/') {
               router.push('/dashboard');
             }
           } else if (!error || !error.includes('Network connection')) {
-            console.log('Dashboard: Not authenticated');
             // Don't auto-redirect from login page - let the login page handle its own logic
             if (window.location.pathname !== '/login') {
-              console.log('Dashboard: Redirecting to main site login');
               const mainAppUrl = process.env.NODE_ENV === 'development' 
                 ? 'http://localhost:3000/auth/login' 
                 : 'https://vikareta.com/auth/login';

@@ -38,7 +38,6 @@ function LoginContent() {
       setTimeout(() => {
         const { isAuthenticated: currentAuthState } = useAuthStore.getState();
         if (currentAuthState) {
-          console.log('Login page: User is authenticated, redirecting to dashboard');
           router.push('/dashboard');
           return;
         }

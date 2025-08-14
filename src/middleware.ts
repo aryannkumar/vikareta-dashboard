@@ -89,11 +89,8 @@ export function middleware(request: NextRequest) {
     request.headers.get('authorization')?.replace('Bearer ', '') ||
     request.nextUrl.searchParams.get('token');
 
-  // If no token, redirect to dashboard login page instead of main app
-  // But allow the request to proceed if it's the initial load (client-side auth will handle it)
+  // If no token, allow the request to proceed for client-side auth handling
   if (!authToken) {
-    // Allow the request to proceed for initial page load - client-side auth will handle redirects
-    console.log('Middleware: No token found, allowing request to proceed for client-side auth check');
     return NextResponse.next();
   }
 

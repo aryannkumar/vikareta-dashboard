@@ -46,15 +46,15 @@ export interface QuickAction {
 
 export const dashboardApi = {
   async getDashboardStats() {
-    return apiClient.get<DashboardStats>('/dashboard/stats');
+    return apiClient.get('/dashboard/stats');
   },
 
   async getRecentActivity(limit: number = 10) {
-    return apiClient.get<RecentActivity[]>('/dashboard/activity', { limit });
+    return apiClient.get('/dashboard/activity', { params: { limit } });
   },
 
   async getQuickActions() {
-    return apiClient.get<QuickAction[]>('/dashboard/quick-actions');
+    return apiClient.get('/dashboard/quick-actions');
   },
 
   async getSavedItems(params?: {
@@ -63,12 +63,7 @@ export const dashboardApi = {
     page?: number;
     limit?: number;
   }) {
-    return apiClient.get<{
-      items: SavedItem[];
-      total: number;
-      page: number;
-      totalPages: number;
-    }>('/dashboard/saved-items', params);
+    return apiClient.get('/dashboard/saved-items', { params });
   },
 
   async removeSavedItem(itemId: string) {
