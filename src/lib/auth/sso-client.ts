@@ -303,6 +303,17 @@ export class SSOAuthClient {
       if (response.success && response.user) {
         // Store user data in localStorage for future use
         this.setUser(response.user);
+        
+        // Store tokens if provided (for cross-domain compatibility)
+        if (response.accessToken) {
+          console.log('Dashboard SSO: Storing access token from /auth/me response');
+          this.setAccessToken(response.accessToken);
+        }
+        if (response.refreshToken) {
+          console.log('Dashboard SSO: Storing refresh token from /auth/me response');
+          this.setRefreshToken(response.refreshToken);
+        }
+        
         return response.user;
       }
       
@@ -325,6 +336,20 @@ export class SSOAuthClient {
 
       if (response.success) {
         console.log('Dashboard SSO: Session valid');
+        
+        // Store user data and tokens if provided
+        if (response.user) {
+          this.setUser(response.user);
+        }
+        if (response.accessToken) {
+          console.log('Dashboard SSO: Storing access token from session check');
+          this.setAccessToken(response.accessToken);
+        }
+        if (response.refreshToken) {
+          console.log('Dashboard SSO: Storing refresh token from session check');
+          this.setRefreshToken(response.refreshToken);
+        }
+        
         return response;
       } else {
         console.log('Dashboard SSO: Session invalid');
