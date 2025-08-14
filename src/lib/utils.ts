@@ -130,3 +130,10 @@ export function formatCompactNumber(value: number): string {
 export function formatPercentage(value: number, decimals: number = 1): string {
   return `${value.toFixed(decimals)}%`;
 }
+
+/**
+ * Format number with proper locale formatting
+ */
+export function formatNumber(value: number): string {
+  return new Intl.NumberFormat('en-IN').format(value);
+}

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback } from 'react';
-import { Toast } from '@/components/ui/toast';
+import { Toast, ToastProvider as RadixToastProvider, ToastViewport } from '@/components/ui/toast';
 
 interface ToastMessage {
   id: string;
@@ -54,18 +54,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast, clearToasts }}>
-      {children}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      <RadixToastProvider>
+        {children}
         {toasts.map((toast) => (
           <Toast
             key={toast.id}
-            type={toast.type}
-            title={toast.title}
-            description={toast.description}
-            onClose={() => removeToast(toast.id)}
-          />
+            variant={toast.type === 'error' ? 'destructive' : 'default'}
+          >
+            <div className="grid gap-1">
+              {toast.title && <div className="text-sm font-semibold">{toast.title}</div>}
+              {toast.description && <div className="text-sm opacity-90">{toast.description}</div>}
+            </div>
+          </Toast>
         ))}
-      </div>
+        <ToastViewport />
+      </RadixToastProvider>
     </ToastContext.Provider>
   );
 }
