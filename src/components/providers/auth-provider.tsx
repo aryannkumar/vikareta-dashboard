@@ -40,38 +40,53 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
         // Check authentication with the new token
         await checkAuth();
 
-        // After checkAuth completes, check the current state and redirect
-        const { isAuthenticated: authResult, error } = useAuthStore.getState();
+        // Give a moment for the auth state to update
+        setTimeout(() => {
+          const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
-        if (authResult) {
-          console.log('Dashboard: Authentication successful, staying on dashboard');
-          // Don't redirect if already authenticated, just stay where we are
-        } else if (error && !error.includes('Network connection')) {
-          console.error('Dashboard: Authentication failed after receiving token');
-          router.push('/login?error=auth_failed');
-        }
+          if (authResult) {
+            console.log('Dashboard: Authentication successful, staying on dashboard');
+            // Redirect to dashboard if we're on login page or root
+            if (window.location.pathname === '/login' || window.location.pathname === '/') {
+              router.push('/dashboard');
+            }
+          } else if (error && !error.includes('Network connection')) {
+            console.error('Dashboard: Authentication failed after receiving token:', error);
+            // Redirect back to main site login instead of dashboard login
+            const mainAppUrl = process.env.NODE_ENV === 'development' 
+              ? 'http://localhost:3000/auth/login' 
+              : 'https://vikareta.com/auth/login';
+            window.location.href = `${mainAppUrl}?error=dashboard_auth_failed`;
+          }
+        }, 100);
       } else {
         console.log('Dashboard: No token in URL, checking existing authentication');
 
         // Check existing authentication
         await checkAuth();
 
-        // After checkAuth completes, check the current state and redirect
-        const { isAuthenticated: authResult, error } = useAuthStore.getState();
+        // Give a moment for the auth state to update
+        setTimeout(() => {
+          const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
-        if (authResult) {
-          console.log('Dashboard: Already authenticated');
-          // Check if we're on login page and redirect to dashboard
-          if (window.location.pathname === '/login' || window.location.pathname === '/') {
-            router.push('/dashboard');
+          if (authResult) {
+            console.log('Dashboard: Already authenticated');
+            // Check if we're on login page and redirect to dashboard
+            if (window.location.pathname === '/login' || window.location.pathname === '/') {
+              router.push('/dashboard');
+            }
+          } else if (!error || !error.includes('Network connection')) {
+            console.log('Dashboard: Not authenticated, redirecting to main site login');
+            // Redirect to main site login instead of dashboard login to avoid redirect loop
+            const mainAppUrl = process.env.NODE_ENV === 'development' 
+              ? 'http://localhost:3000/auth/login' 
+              : 'https://vikareta.com/auth/login';
+            
+            // Add current dashboard URL as redirect parameter
+            const currentUrl = window.location.href;
+            window.location.href = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
           }
-        } else if (!error || !error.includes('Network connection')) {
-          console.log('Dashboard: Not authenticated, redirecting to login');
-          // Only redirect to login if not already there
-          if (window.location.pathname !== '/login') {
-            router.push('/login');
-          }
-        }
+        }, 100);
       }
     };
 

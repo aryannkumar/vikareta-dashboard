@@ -217,10 +217,15 @@ export const useAuthStore = create<AuthState>()(
           localStorage.setItem('dashboard_token', token);
           localStorage.setItem('auth_token', token);
         }
+        
+        // Update state with token and clear loading
         set({ 
           token,
-          isLoading: false // Ensure loading state is cleared when token is set
+          isLoading: false,
+          error: null // Clear any previous errors
         });
+        
+        console.log('Dashboard Auth: Token set successfully, will check authentication next');
       },
       
       checkAuth: async () => {
@@ -236,6 +241,12 @@ export const useAuthStore = create<AuthState>()(
         console.log('Dashboard Auth: Checking authentication with SSO client...');
 
         try {
+          // Check if we have a token first
+          const hasToken = typeof window !== 'undefined' && 
+            (localStorage.getItem('vikareta_access_token') || localStorage.getItem('dashboard_token'));
+          
+          console.log('Dashboard Auth: Token available:', !!hasToken);
+          
           const user = await ssoClient.getCurrentUser();
           
           if (user) {
@@ -247,19 +258,25 @@ export const useAuthStore = create<AuthState>()(
             
             set({
               user,
-              token: null, // Token is managed internally by SSO client
+              token: hasToken ? localStorage.getItem('vikareta_access_token') : null,
               isAuthenticated: true,
               error: null,
               isLoading: false,
             });
           } else {
             console.log('Dashboard Auth: No authenticated user found');
+            
+            // If we have a token but no user, there might be an issue with the token
+            if (hasToken) {
+              console.warn('Dashboard Auth: Token exists but user not found - token may be invalid');
+            }
+            
             set({ 
               user: null, 
               token: null, 
               refreshToken: null, 
               isAuthenticated: false, 
-              error: null,
+              error: hasToken ? 'Invalid or expired token' : null,
               isLoading: false,
             });
           }
@@ -269,7 +286,7 @@ export const useAuthStore = create<AuthState>()(
           const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
           
           // Check if it's a network error
-          if (errorMessage.includes('Network connection failed') || errorMessage.includes('fetch')) {
+          if (errorMessage.includes('Network connection failed') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
             console.warn('Dashboard Auth: Network error during authentication, keeping current state');
             set({ 
               isLoading: false,
@@ -279,7 +296,7 @@ export const useAuthStore = create<AuthState>()(
           }
           
           // For other errors (invalid token, etc.), clear authentication
-          console.log('Dashboard Auth: Clearing authentication due to error');
+          console.log('Dashboard Auth: Clearing authentication due to error:', errorMessage);
           set({ 
             user: null, 
             token: null, 

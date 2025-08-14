@@ -38,12 +38,17 @@ function LoginContent() {
 
     // Don't auto-redirect if there's a token in URL (user was just redirected back)
     // or if there's an auth error (user needs to see the error)
-    if (token || error) {
+    // or if user is already authenticated
+    if (token || error || isAuthenticated) {
       return;
     }
 
     // Only auto-redirect to main site if not authenticated, no token, and no auth error
-    if (!isAuthenticated && !token && !error) {
+    // Also check if we're in the middle of an authentication process
+    const hasStoredToken = typeof window !== 'undefined' && 
+      (localStorage.getItem('vikareta_access_token') || localStorage.getItem('dashboard_token'));
+    
+    if (!isAuthenticated && !token && !error && !hasStoredToken) {
       const redirectTimer = setTimeout(() => {
         const mainAppUrl = process.env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/auth/login' 
@@ -54,7 +59,7 @@ function LoginContent() {
         const redirectUrl = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
         
         window.location.href = redirectUrl;
-      }, 3000); // 3 second delay to show the message
+      }, 5000); // Increased to 5 seconds to give more time for auth processing
 
       return () => clearTimeout(redirectTimer);
     }
