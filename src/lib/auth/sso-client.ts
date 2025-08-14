@@ -55,6 +55,9 @@ export class SSOAuthClient {
   private setAccessToken(token: string): void {
     if (typeof window !== 'undefined') {
       localStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+      // Also store in legacy locations for compatibility
+      localStorage.setItem('dashboard_token', token);
+      localStorage.setItem('auth_token', token);
     }
   }
 
