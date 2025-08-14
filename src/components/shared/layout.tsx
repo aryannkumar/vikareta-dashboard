@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useDashboardSSO } from '@/lib/auth/use-dashboard-sso';
+import { useAuthStore } from '@/lib/stores/auth';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Loading } from '@/components/ui/loading';
@@ -17,7 +17,14 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading, redirectToLogin } = useDashboardSSO();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
+  
+  const redirectToLogin = () => {
+    const mainAppUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3000/auth/login' 
+      : 'https://vikareta.com/auth/login';
+    window.location.href = mainAppUrl;
+  };
   // const { sidebarCollapsed } = useDashboardStore();
 
   useEffect(() => {

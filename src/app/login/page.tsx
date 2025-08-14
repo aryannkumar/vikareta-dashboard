@@ -18,7 +18,7 @@ function LoginContent() {
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated } = useAuthStore();
+  const { login, isAuthenticated, checkAuth } = useAuthStore();
   const { addToast } = useToast();
 
   useEffect(() => {
@@ -29,6 +29,23 @@ function LoginContent() {
     if (error === 'auth_failed') {
       setAuthError('Authentication failed. Please try logging in again.');
     }
+
+    // Force check authentication when login page loads
+    const checkAuthOnLoad = async () => {
+      await checkAuth();
+      
+      // After checking auth, see if we're authenticated
+      setTimeout(() => {
+        const { isAuthenticated: currentAuthState } = useAuthStore.getState();
+        if (currentAuthState) {
+          console.log('Login page: User is authenticated, redirecting to dashboard');
+          router.push('/dashboard');
+          return;
+        }
+      }, 100);
+    };
+
+    checkAuthOnLoad();
 
     // If already authenticated, redirect to dashboard
     if (isAuthenticated) {

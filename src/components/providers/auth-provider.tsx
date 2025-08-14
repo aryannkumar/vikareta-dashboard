@@ -76,15 +76,18 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
               router.push('/dashboard');
             }
           } else if (!error || !error.includes('Network connection')) {
-            console.log('Dashboard: Not authenticated, redirecting to main site login');
-            // Redirect to main site login instead of dashboard login to avoid redirect loop
-            const mainAppUrl = process.env.NODE_ENV === 'development' 
-              ? 'http://localhost:3000/auth/login' 
-              : 'https://vikareta.com/auth/login';
-            
-            // Add current dashboard URL as redirect parameter
-            const currentUrl = window.location.href;
-            window.location.href = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
+            console.log('Dashboard: Not authenticated');
+            // Don't auto-redirect from login page - let the login page handle its own logic
+            if (window.location.pathname !== '/login') {
+              console.log('Dashboard: Redirecting to main site login');
+              const mainAppUrl = process.env.NODE_ENV === 'development' 
+                ? 'http://localhost:3000/auth/login' 
+                : 'https://vikareta.com/auth/login';
+              
+              // Add current dashboard URL as redirect parameter
+              const currentUrl = window.location.href;
+              window.location.href = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
+            }
           }
         }, 100);
       }
