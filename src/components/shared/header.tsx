@@ -9,6 +9,7 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/lib/stores/auth';
 import { Button } from '@/components/ui/button';
@@ -34,20 +35,28 @@ export function Header() {
   };
 
   return (
-    <header className="bg-background border-b border-border px-6 py-4">
+    <header className="bg-background border-b border-border px-4 lg:px-6 py-4">
       <div className="flex items-center justify-between">
-        {/* Search */}
-        <div className="flex-1 max-w-md">
-          <form onSubmit={handleSearch} className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search products, orders, RFQs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4"
-            />
-          </form>
+        {/* Mobile Menu Button + Search */}
+        <div className="flex items-center space-x-4 flex-1">
+          {/* Mobile Menu Button */}
+          <Button variant="ghost" size="sm" className="lg:hidden">
+            <Bars3Icon className="w-5 h-5" />
+          </Button>
+          
+          {/* Search */}
+          <div className="flex-1 max-w-md">
+            <form onSubmit={handleSearch} className="relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search products, orders, RFQs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4"
+              />
+            </form>
+          </div>
         </div>
 
         {/* Right Side */}

@@ -106,23 +106,24 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <Sidebar />
+      {/* Sidebar - Hidden on mobile, shown on desktop */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
 
       {/* Main Content */}
-      <div className={cn(
-        'flex-1 flex flex-col overflow-hidden transition-all duration-300',
-        'ml-64' // TODO: Implement sidebar collapse functionality
-      )}>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Header */}
         <Header />
 
         {/* Page Content */}
         <main className={cn(
-          'flex-1 overflow-y-auto p-6',
+          'flex-1 overflow-y-auto p-4 lg:p-6',
           className
         )}>
-          {children}
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
         </main>
       </div>
     </div>

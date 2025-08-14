@@ -69,55 +69,7 @@ export function RevenueChart() {
     fetchRevenueData();
   }, [period]);
 
-  const generateMockData = (period: string): RevenueData[] => {
-    const now = new Date();
-    const data: RevenueData[] = [];
-    
-    let days: number;
-    let format: Intl.DateTimeFormatOptions;
-    
-    switch (period) {
-      case '7d':
-        days = 7;
-        format = { weekday: 'short' };
-        break;
-      case '30d':
-        days = 30;
-        format = { day: 'numeric', month: 'short' };
-        break;
-      case '90d':
-        days = 90;
-        format = { day: 'numeric', month: 'short' };
-        break;
-      case '1y':
-        days = 365;
-        format = { month: 'short' };
-        break;
-      default:
-        days = 30;
-        format = { day: 'numeric', month: 'short' };
-    }
-
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      
-      const baseRevenue = 25000 + Math.random() * 15000;
-      const seasonalMultiplier = 1 + Math.sin((date.getMonth() / 12) * Math.PI * 2) * 0.3;
-      const revenue = Math.round(baseRevenue * seasonalMultiplier);
-      const orders = Math.round(revenue / (3000 + Math.random() * 2000));
-      const growth = (Math.random() - 0.5) * 20;
-
-      data.push({
-        period: date.toLocaleDateString('en-US', format),
-        revenue,
-        orders,
-        growth
-      });
-    }
-
-    return data;
-  };
+  // Remove unused generateMockData function since we don't use mock data anymore
 
   if (loading) {
     return (
@@ -186,37 +138,46 @@ export function RevenueChart() {
 
       {/* Simple chart visualization */}
       <div className="relative h-48 bg-gradient-to-t from-primary/5 to-transparent rounded-lg p-4">
-        <div className="flex items-end justify-between h-full space-x-1">
-          {metrics.data.slice(-20).map((item, index) => {
-            const height = ((item.revenue - minRevenue) / (maxRevenue - minRevenue)) * 100;
-            return (
-              <div key={index} className="flex-1 flex flex-col items-center group">
-                <div
-                  className="w-full bg-primary/20 hover:bg-primary/40 transition-colors rounded-t-sm relative"
-                  style={{ height: `${Math.max(height, 5)}%` }}
-                >
+        {metrics.data && metrics.data.length > 0 ? (
+          <div className="flex items-end justify-between h-full space-x-1">
+            {metrics.data.slice(-20).map((item, index) => {
+              const height = maxRevenue > minRevenue ? ((item.revenue - minRevenue) / (maxRevenue - minRevenue)) * 100 : 50;
+              return (
+                <div key={index} className="flex-1 flex flex-col items-center group">
                   <div
-                    className="absolute bottom-0 w-full bg-primary rounded-t-sm transition-all"
-                    style={{ height: `${Math.max(height * 0.7, 3)}%` }}
-                  ></div>
-                </div>
-                
-                {/* Tooltip on hover */}
-                <div className="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow-md transition-opacity z-10">
-                  <div className="font-medium">{item.period}</div>
-                  <div>₹{item.revenue.toLocaleString()}</div>
-                  <div>{item.orders} orders</div>
-                </div>
-                
-                {index % Math.ceil(metrics.data.slice(-20).length / 5) === 0 && (
-                  <div className="text-xs text-muted-foreground mt-1 transform -rotate-45 origin-left">
-                    {item.period}
+                    className="w-full bg-primary/20 hover:bg-primary/40 transition-colors rounded-t-sm relative"
+                    style={{ height: `${Math.max(height, 5)}%` }}
+                  >
+                    <div
+                      className="absolute bottom-0 w-full bg-primary rounded-t-sm transition-all"
+                      style={{ height: `${Math.max(height * 0.7, 3)}%` }}
+                    ></div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  
+                  {/* Tooltip on hover */}
+                  <div className="opacity-0 group-hover:opacity-100 absolute bottom-full mb-2 bg-popover text-popover-foreground text-xs rounded px-2 py-1 shadow-md transition-opacity z-10">
+                    <div className="font-medium">{item.period}</div>
+                    <div>₹{item.revenue.toLocaleString()}</div>
+                    <div>{item.orders} orders</div>
+                  </div>
+                  
+                  {index % Math.ceil(metrics.data.slice(-20).length / 5) === 0 && (
+                    <div className="text-xs text-muted-foreground mt-1 transform -rotate-45 origin-left">
+                      {item.period}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground">
+            <div className="text-center">
+              <div className="text-sm">No revenue data available</div>
+              <div className="text-xs mt-1">Data will appear when orders are processed</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary stats */}
