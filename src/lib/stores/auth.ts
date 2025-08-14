@@ -111,6 +111,33 @@ import { SSOAuthClient } from '@/lib/auth/sso-client';
 // Create SSO client instance
 const ssoClient = new SSOAuthClient();
 
+// Token refresh interval (45 minutes - before 1 hour expiry)
+let refreshInterval: NodeJS.Timeout | null = null;
+
+const startTokenRefreshInterval = (refreshAuth: () => Promise<void>) => {
+  // Clear existing interval
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+  }
+  
+  // Set up new interval to refresh token every 45 minutes
+  refreshInterval = setInterval(async () => {
+    try {
+      await refreshAuth();
+      console.log('Dashboard Auth: Token refreshed automatically');
+    } catch (error) {
+      console.warn('Dashboard Auth: Automatic token refresh failed', error);
+    }
+  }, 45 * 60 * 1000); // 45 minutes
+};
+
+const stopTokenRefreshInterval = () => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
+};
+
 // Updated auth store using SSO client
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -136,6 +163,9 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
               error: null,
             });
+            
+            // Start automatic token refresh
+            startTokenRefreshInterval(get().refreshAuth);
           } else {
             throw new Error(response.error?.message || 'Login failed');
           }
@@ -150,6 +180,9 @@ export const useAuthStore = create<AuthState>()(
       },
       
       logout: async () => {
+        // Stop automatic token refresh
+        stopTokenRefreshInterval();
+        
         await ssoClient.logout();
         set({ 
           user: null, 
@@ -261,6 +294,7 @@ export const useAuthStore = create<AuthState>()(
           
           if (!hasToken) {
             // No token available, set as unauthenticated
+            stopTokenRefreshInterval();
             set({ 
               user: null, 
               token: null, 
@@ -282,8 +316,38 @@ export const useAuthStore = create<AuthState>()(
               error: null,
               isLoading: false,
             });
+            
+            // Start automatic token refresh if not already running
+            if (!refreshInterval) {
+              startTokenRefreshInterval(get().refreshAuth);
+            }
           } else {
-            // If we have a token but no user, clear authentication
+            // If we have a token but no user, try to refresh first
+            try {
+              await get().refreshAuth();
+              // After refresh, try to get user again
+              const refreshedUser = await ssoClient.getCurrentUser();
+              if (refreshedUser) {
+                set({
+                  user: refreshedUser,
+                  token: localStorage.getItem('vikareta_access_token'),
+                  isAuthenticated: true,
+                  error: null,
+                  isLoading: false,
+                });
+                
+                // Start automatic token refresh if not already running
+                if (!refreshInterval) {
+                  startTokenRefreshInterval(get().refreshAuth);
+                }
+                return;
+              }
+            } catch (refreshError) {
+              console.warn('Dashboard Auth: Token refresh failed during auth check', refreshError);
+            }
+            
+            // If refresh failed or still no user, clear authentication
+            stopTokenRefreshInterval();
             set({ 
               user: null, 
               token: null, 
@@ -298,9 +362,33 @@ export const useAuthStore = create<AuthState>()(
           
           const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
           
-          // Check if it's a 401 error (unauthorized)
+          // Check if it's a 401 error (unauthorized) - try refresh first
           if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-            // Clear authentication for 401 errors
+            try {
+              await get().refreshAuth();
+              // After refresh, try auth check again (but only once to prevent loops)
+              const user = await ssoClient.getCurrentUser();
+              if (user) {
+                set({
+                  user,
+                  token: localStorage.getItem('vikareta_access_token'),
+                  isAuthenticated: true,
+                  error: null,
+                  isLoading: false,
+                });
+                
+                // Start automatic token refresh if not already running
+                if (!refreshInterval) {
+                  startTokenRefreshInterval(get().refreshAuth);
+                }
+                return;
+              }
+            } catch (refreshError) {
+              console.warn('Dashboard Auth: Token refresh failed on 401', refreshError);
+            }
+            
+            // Clear authentication for 401 errors after refresh attempt
+            stopTokenRefreshInterval();
             set({ 
               user: null, 
               token: null, 
