@@ -63,47 +63,7 @@ export function FileUpload({
   const [isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      if (disabled) return;
-
-      // Check file limits
-      const totalFiles = files.length + acceptedFiles.length;
-      if (totalFiles > maxFiles) {
-        alert(`Maximum ${maxFiles} files allowed`);
-        return;
-      }
-
-      // Create file objects with initial state
-      const newFiles: UploadedFile[] = acceptedFiles.map((file) => ({
-        id: Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: '',
-        key: '',
-        status: 'uploading' as const,
-        progress: 0,
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
-      }));
-
-      setFiles((prev) => [...prev, ...newFiles]);
-
-      // Upload files
-      for (let i = 0; i < acceptedFiles.length; i++) {
-        const file = acceptedFiles[i];
-        const fileObj = newFiles[i];
-        try {
-          await uploadFile(file, fileObj);
-        } catch (error) {
-          updateFileStatus(fileObj.id, 'error', 0, error instanceof Error ? error.message : 'Upload failed');
-        }
-      }
-    },
-    [disabled, files.length, maxFiles, uploadFile]
-  );
-
-  const uploadFile = async (file: File, fileObj: UploadedFile) => {
+  const uploadFile = useCallback(async (file: File, fileObj: UploadedFile) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('folder', folder);
@@ -144,7 +104,47 @@ export function FileUpload({
     } catch (error) {
       updateFileStatus(fileObj.id, 'error', 0, error instanceof Error ? error.message : 'Upload failed');
     }
-  };
+  }, [folder, resize, generateThumbnail]);
+
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      if (disabled) return;
+
+      // Check file limits
+      const totalFiles = files.length + acceptedFiles.length;
+      if (totalFiles > maxFiles) {
+        alert(`Maximum ${maxFiles} files allowed`);
+        return;
+      }
+
+      // Create file objects with initial state
+      const newFiles: UploadedFile[] = acceptedFiles.map((file) => ({
+        id: Math.random().toString(36).substr(2, 9),
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        url: '',
+        key: '',
+        status: 'uploading' as const,
+        progress: 0,
+        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+      }));
+
+      setFiles((prev) => [...prev, ...newFiles]);
+
+      // Upload files
+      for (let i = 0; i < acceptedFiles.length; i++) {
+        const file = acceptedFiles[i];
+        const fileObj = newFiles[i];
+        try {
+          await uploadFile(file, fileObj);
+        } catch (error) {
+          updateFileStatus(fileObj.id, 'error', 0, error instanceof Error ? error.message : 'Upload failed');
+        }
+      }
+    },
+    [disabled, files.length, maxFiles, uploadFile]
+  );
 
   const updateFileStatus = (
     fileId: string,
