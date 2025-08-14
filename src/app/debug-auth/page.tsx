@@ -52,6 +52,26 @@ export default function DebugAuthPage() {
     await checkAuth();
   };
 
+  const testTokenFromMain = () => {
+    // Simulate receiving a token from main site
+    const testToken = prompt('Enter a test token (or leave empty to simulate):');
+    if (testToken !== null) {
+      const { setToken } = useAuthStore.getState();
+      setToken(testToken || 'test-token-123');
+      // Force a check auth after setting token
+      setTimeout(() => {
+        checkAuth();
+      }, 100);
+    }
+  };
+
+  const clearAllTokens = () => {
+    localStorage.clear();
+    const { logout } = useAuthStore.getState();
+    logout();
+    window.location.reload();
+  };
+
   return (
     <div className="p-8 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Dashboard Authentication Debug</h1>
@@ -88,9 +108,21 @@ export default function DebugAuthPage() {
           </button>
           <button 
             onClick={forceCheckAuth}
-            className="bg-green-500 text-white px-4 py-2 rounded mb-2"
+            className="bg-green-500 text-white px-4 py-2 rounded mr-2 mb-2"
           >
             Force Check Auth
+          </button>
+          <button 
+            onClick={testTokenFromMain}
+            className="bg-purple-500 text-white px-4 py-2 rounded mr-2 mb-2"
+          >
+            Simulate Token from Main
+          </button>
+          <button 
+            onClick={clearAllTokens}
+            className="bg-red-500 text-white px-4 py-2 rounded mb-2"
+          >
+            Clear All & Reload
           </button>
           <div className="text-sm bg-white p-3 rounded border">
             {apiTest || 'Click "Test API Call" to test authentication'}

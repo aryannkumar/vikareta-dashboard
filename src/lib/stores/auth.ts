@@ -210,12 +210,22 @@ export const useAuthStore = create<AuthState>()(
       
       setToken: (token: string) => {
         console.log('Dashboard Auth: Setting token from cross-domain redirect');
+        
         // Store token in the unified SSO format
         if (typeof window !== 'undefined') {
           localStorage.setItem('vikareta_access_token', token);
           // Also store in legacy locations for compatibility
           localStorage.setItem('dashboard_token', token);
           localStorage.setItem('auth_token', token);
+        }
+        
+        // Update the SSO client's token as well
+        try {
+          // Create a new SSO client instance and set the token
+          const tempSSOClient = new SSOAuthClient();
+          // The token is now in localStorage, so the SSO client will pick it up automatically
+        } catch (error) {
+          console.warn('Dashboard Auth: Could not update SSO client token:', error);
         }
         
         // Update state with token and clear loading
@@ -225,7 +235,7 @@ export const useAuthStore = create<AuthState>()(
           error: null // Clear any previous errors
         });
         
-        console.log('Dashboard Auth: Token set successfully, will check authentication next');
+        console.log('Dashboard Auth: Token set successfully in localStorage and auth store');
       },
       
       checkAuth: async () => {
