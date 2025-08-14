@@ -243,14 +243,14 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
     await loadAll();
   }, [loadAll]);
 
-  // Auto-load data when component mounts
+  // Auto-load data when component mounts (only once)
   useEffect(() => {
     if (autoLoad) {
       loadAll();
     }
-  }, [autoLoad, loadAll]);
+  }, [autoLoad]); // Remove loadAll from dependencies to prevent infinite loops
 
-  // Set up refresh interval
+  // Set up refresh interval (only if specified)
   useEffect(() => {
     if (refreshInterval && refreshInterval > 0) {
       const interval = setInterval(() => {
@@ -259,7 +259,7 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
 
       return () => clearInterval(interval);
     }
-  }, [refreshInterval, loadAll]);
+  }, [refreshInterval]); // Remove loadAll from dependencies
 
   return {
     metrics,

@@ -26,6 +26,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  lastAuthCheck?: number;
   login: (credentials: { email: string; password: string }) => Promise<void>;
   logout: () => void;
   refreshAuth: () => Promise<void>;
@@ -243,30 +244,46 @@ export const useAuthStore = create<AuthState>()(
         if (currentState.isLoading) {
           return;
         }
+
+        // Throttle auth checks - don't check more than once every 5 seconds
+        const lastCheck = get().lastAuthCheck || 0;
+        const now = Date.now();
+        if (now - lastCheck < 5000) {
+          return;
+        }
         
-        set({ isLoading: true });
+        set({ isLoading: true, lastAuthCheck: now });
 
         try {
           // Check if we have a token first
           const hasToken = typeof window !== 'undefined' && 
             (localStorage.getItem('vikareta_access_token') || localStorage.getItem('dashboard_token'));
           
-          // Check token availability
+          if (!hasToken) {
+            // No token available, set as unauthenticated
+            set({ 
+              user: null, 
+              token: null, 
+              refreshToken: null, 
+              isAuthenticated: false, 
+              error: null,
+              isLoading: false,
+            });
+            return;
+          }
           
           const user = await ssoClient.getCurrentUser();
           
           if (user) {
-            
             set({
               user,
-              token: hasToken ? localStorage.getItem('vikareta_access_token') : null,
+              token: localStorage.getItem('vikareta_access_token'),
               isAuthenticated: true,
               error: null,
               isLoading: false,
             });
           } else {
-            // If we have a token but no user, there might be an issue with the token
-            
+            // If we have a token but no user, clear authentication
             set({ 
               user: null, 
               token: null, 
@@ -277,28 +294,28 @@ export const useAuthStore = create<AuthState>()(
             });
           }
         } catch (error) {
-          console.error('Dashboard Auth: Authentication failed', error);
+          console.warn('Dashboard Auth: Authentication check failed', error);
           
           const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
           
-          // Check if it's a network error
-          if (errorMessage.includes('Network connection failed') || errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
-            console.warn('Dashboard Auth: Network error during authentication, keeping current state');
+          // Check if it's a 401 error (unauthorized)
+          if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+            // Clear authentication for 401 errors
             set({ 
+              user: null, 
+              token: null, 
+              refreshToken: null, 
+              isAuthenticated: false, 
+              error: null,
               isLoading: false,
-              error: 'Network connection issue - please check your internet connection'
             });
             return;
           }
           
-          // For other errors (invalid token, etc.), clear authentication
+          // For network errors, keep current state but stop loading
           set({ 
-            user: null, 
-            token: null, 
-            refreshToken: null, 
-            isAuthenticated: false, 
-            error: errorMessage,
             isLoading: false,
+            error: null // Don't show error for auth checks
           });
         }
       },

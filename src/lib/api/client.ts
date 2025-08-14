@@ -16,6 +16,8 @@ export interface ApiResponse<T = any> {
 
 export class ApiClient {
   private baseURL: string;
+  private requestCache: Map<string, { data: any; timestamp: number }> = new Map();
+  private readonly CACHE_DURATION = 30000; // 30 seconds cache
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api';
@@ -25,6 +27,14 @@ export class ApiClient {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
+    // Check cache for GET requests
+    if (!options.method || options.method === 'GET') {
+      const cached = this.requestCache.get(endpoint);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+        return cached.data;
+      }
+    }
+
     const url = `${this.baseURL}${endpoint}`;
     
     // Get access token from localStorage
@@ -53,6 +63,12 @@ export class ApiClient {
 
       const data = await response.json();
       console.log(`API: Request successful to ${endpoint}`);
+      
+      // Cache successful GET requests
+      if (!options.method || options.method === 'GET') {
+        this.requestCache.set(endpoint, { data, timestamp: Date.now() });
+      }
+      
       return data;
     } catch (error) {
       console.error(`API: Request failed to ${endpoint}:`, error);

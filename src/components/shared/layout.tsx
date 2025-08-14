@@ -26,12 +26,12 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     window.location.href = mainAppUrl;
   };
 
-  // Check authentication when layout loads
+  // Check authentication when layout loads (only once when hydrated)
   useEffect(() => {
     if (isHydrated && !isAuthenticated && !authLoading) {
       checkAuth();
     }
-  }, [isHydrated, isAuthenticated, authLoading, checkAuth]);
+  }, [isHydrated]); // Remove dependencies to prevent infinite loops
   // const { sidebarCollapsed } = useDashboardStore();
 
   useEffect(() => {
