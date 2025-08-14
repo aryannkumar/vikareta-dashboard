@@ -17,7 +17,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading, checkAuth } = useAuthStore();
   
   const redirectToLogin = () => {
     const mainAppUrl = process.env.NODE_ENV === 'development' 
@@ -25,6 +25,14 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
       : 'https://vikareta.com/auth/login';
     window.location.href = mainAppUrl;
   };
+
+  // Force check auth when layout loads
+  useEffect(() => {
+    if (isHydrated && !isAuthenticated && !authLoading) {
+      console.log('Dashboard Layout: Forcing auth check...');
+      checkAuth();
+    }
+  }, [isHydrated, isAuthenticated, authLoading, checkAuth]);
   // const { sidebarCollapsed } = useDashboardStore();
 
   useEffect(() => {
@@ -69,6 +77,13 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
   // Show loading or login prompt if not authenticated
   if (!isAuthenticated || !user) {
+    console.log('Dashboard Layout: Auth state check', {
+      isAuthenticated,
+      user: user ? 'Present' : 'Null',
+      isHydrated,
+      authLoading
+    });
+
     if (isHydrated && !authLoading) {
       return (
         <div className="flex items-center justify-center min-h-screen">
@@ -77,9 +92,22 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
             <p className="text-muted-foreground mb-4">
               Please log in to access the dashboard. You will be redirected to the login page.
             </p>
-            <Button onClick={redirectToLogin} className="w-full">
+            <Button onClick={redirectToLogin} className="w-full mb-2">
               Go to Login
             </Button>
+            <Button 
+              onClick={() => {
+                console.log('Manual auth check triggered');
+                checkAuth();
+              }} 
+              variant="outline" 
+              className="w-full"
+            >
+              Check Authentication
+            </Button>
+            <div className="mt-4 text-xs text-gray-500">
+              Debug: isAuth={isAuthenticated ? 'true' : 'false'}, user={user ? 'yes' : 'no'}, loading={authLoading ? 'true' : 'false'}
+            </div>
           </div>
         </div>
       );
