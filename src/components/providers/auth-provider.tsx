@@ -3,12 +3,14 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
+import { SSOAuthClient } from '@/lib/auth/sso-client';
 
 function AuthProviderContent({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { checkAuth, setToken, isLoading } = useAuthStore();
+  const { checkAuth, setToken, isLoading, isAuthenticated: _isAuthenticated } = useAuthStore();
+  const _ssoClient = new SSOAuthClient();
 
   useEffect(() => {
     // Mark as hydrated after first render
@@ -42,8 +44,8 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
         const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
         if (authResult) {
-          console.log('Dashboard: Authentication successful, redirecting to dashboard');
-          router.push('/dashboard');
+          console.log('Dashboard: Authentication successful, staying on dashboard');
+          // Don't redirect if already authenticated, just stay where we are
         } else if (error && !error.includes('Network connection')) {
           console.error('Dashboard: Authentication failed after receiving token');
           router.push('/login?error=auth_failed');
@@ -58,11 +60,17 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
         const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
         if (authResult) {
-          console.log('Dashboard: Already authenticated, redirecting to dashboard');
-          router.push('/dashboard');
+          console.log('Dashboard: Already authenticated');
+          // Check if we're on login page and redirect to dashboard
+          if (window.location.pathname === '/login' || window.location.pathname === '/') {
+            router.push('/dashboard');
+          }
         } else if (!error || !error.includes('Network connection')) {
           console.log('Dashboard: Not authenticated, redirecting to login');
-          router.push('/login');
+          // Only redirect to login if not already there
+          if (window.location.pathname !== '/login') {
+            router.push('/login');
+          }
         }
       }
     };

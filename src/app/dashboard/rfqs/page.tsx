@@ -49,7 +49,7 @@ export default function RFQsPage() {
     deleteRFQ,
     refresh,
     setPage,
-    setPageSize
+    setPageSize: _setPageSize
   } = useRFQs({
     autoLoad: true,
     search: searchTerm,

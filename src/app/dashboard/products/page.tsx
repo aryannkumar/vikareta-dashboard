@@ -55,7 +55,7 @@ export default function ProductsPage() {
     deleteProduct,
     refresh,
     setPage,
-    setPageSize
+    setPageSize: _setPageSize
   } = useProducts({
     autoLoad: true,
     search: searchTerm,

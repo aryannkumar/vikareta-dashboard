@@ -133,7 +133,7 @@ export function syncAuthAcrossDomains(authData: AuthData | null): void {
         try {
             // Try to communicate with other domain windows
             window.postMessage(message, `https://${domain}`);
-        } catch (error) {
+        } catch {
             // Ignore cross-origin errors
         }
     });

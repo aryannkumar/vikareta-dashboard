@@ -6,7 +6,10 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { dashboardSSO, User, AuthResponse } from './sso-client';
+import { SSOAuthClient, User } from './sso-client';
+
+// Create dashboard SSO client instance
+const dashboardSSO = new SSOAuthClient();
 
 interface DashboardAuthContextType {
   user: User | null;
@@ -39,7 +42,7 @@ export function DashboardSSOProvider({ children }: DashboardAuthProviderProps) {
     try {
       setIsLoading(true);
       const response = await dashboardSSO.checkSession();
-      
+
       if (response.success && response.user) {
         setUser(response.user);
         setError(null);
