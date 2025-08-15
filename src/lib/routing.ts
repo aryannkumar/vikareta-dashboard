@@ -218,13 +218,13 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     path: '/dashboard/analytics',
     title: 'Analytics & Reports',
     description: 'View detailed analytics and generate reports',
-    allowedRoles: ['seller', 'both'],
+    allowedRoles: ['buyer', 'seller', 'both'],
     icon: 'ChartBarIcon',
     children: [
       {
         path: '/dashboard/analytics',
         title: 'Overview',
-        allowedRoles: ['seller', 'both'],
+        allowedRoles: ['buyer', 'seller', 'both'],
       },
       {
         path: '/dashboard/analytics/sales',
