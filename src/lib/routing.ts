@@ -21,8 +21,8 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
   },
   {
     path: '/dashboard/products',
-    title: 'Products & Services',
-    description: 'Manage your product and service listings',
+    title: 'Products',
+    description: 'Manage your product listings',
     allowedRoles: ['seller', 'both'],
     icon: 'CubeIcon',
     children: [
@@ -49,6 +49,25 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     ],
   },
   {
+    path: '/dashboard/services',
+    title: 'Services',
+    description: 'Manage your service offerings',
+    allowedRoles: ['seller', 'both'],
+    icon: 'WrenchScrewdriverIcon',
+    children: [
+      {
+        path: '/dashboard/services',
+        title: 'All Services',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/services/new',
+        title: 'Add Service',
+        allowedRoles: ['seller', 'both'],
+      },
+    ],
+  },
+  {
     path: '/dashboard/orders',
     title: 'Orders',
     description: 'Track and manage your orders',
@@ -69,6 +88,25 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
         path: '/dashboard/orders/completed',
         title: 'Completed Orders',
         allowedRoles: ['buyer', 'seller', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/shipments',
+    title: 'Shipments',
+    description: 'Manage order shipments and tracking',
+    allowedRoles: ['seller', 'both'],
+    icon: 'TruckIcon',
+    children: [
+      {
+        path: '/dashboard/shipments',
+        title: 'All Shipments',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/shipments/create',
+        title: 'Create Shipment',
+        allowedRoles: ['seller', 'both'],
       },
     ],
   },

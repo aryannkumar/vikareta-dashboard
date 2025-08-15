@@ -1,147 +1,157 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Card } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Select } from '../../../../components/ui/select';
-import { Badge } from '../../../../components/ui/badge';
-// import { Loading } from '../../../../components/ui/loading';
-import { DataTable } from '../../../../components/ui/data-table';
-// import { WalletService } from '../../../../lib/api/services/wallet.service';
-import { formatCurrency, formatDate } from '../../../../lib/utils';
-import type { WalletTransaction, WalletBalance } from '../../../../types';
-import type { ColumnDef } from '@tanstack/react-table';
+import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, 
   ArrowUpRight, 
-  ArrowDownRight,
+  ArrowDownRight, 
+  Search, 
+  Filter, 
+  Download,
+  Calendar,
+  DollarSign,
+  RefreshCw,
+  Eye,
   Lock,
   Unlock,
-  Search,
-  Filter,
-  Download,
-  Activity,
-  TrendingUp,
-  TrendingDown
+  CreditCard,
+  Wallet as WalletIcon
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { apiClient } from '@/lib/api/client';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from '@/components/ui/use-toast';
 
-export default function TransactionsPage() {
-  const router = useRouter();
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
+interface WalletTransaction {
+  id: string;
+  transactionType: 'credit' | 'debit' | 'lock' | 'unlock';
+  amount: number;
+  balanceAfter: number;
+  referenceType: string;
+  referenceId: string;
+  description: string;
+  cashfreeTransactionId: string;
+  createdAt: string;
+}
+
+interface TransactionFilters {
+  type?: string;
+  dateRange?: string;
+  minAmount?: number;
+  maxAmount?: number;
+}
+
+export default function WalletTransactionsPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 20,
-    total: 0
-  });
-  const [filters, setFilters] = useState({
-    type: 'all',
-    dateFrom: '',
-    dateTo: '',
-    search: ''
-  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<TransactionFilters>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalTransactions, setTotalTransactions] = useState(0);
 
-  useEffect(() => {
-    loadData();
-  }, [filters]);
-
-  const loadData = async () => {
+  const loadTransactions = async (page = 1) => {
     try {
       setLoading(true);
-      
-      // TODO: Replace with actual API calls when backend is ready
-      // Mock wallet balance
-      const mockBalance: WalletBalance = {
-        availableBalance: 125000,
-        lockedBalance: 25000,
-        negativeBalance: 0,
-        totalBalance: 150000
-      };
-
-      // Mock transactions
-      const mockTransactions: WalletTransaction[] = [
-        {
-          id: '1',
-          walletId: 'wallet-1',
-          transactionType: 'credit',
-          amount: 25000,
-          description: 'Payment received from Order #ORD-2024-001',
-          balanceAfter: 125000,
-          referenceType: 'order',
-          referenceId: 'ORD-2024-001',
-          createdAt: '2024-01-15T10:30:00Z',
-        },
-        {
-          id: '2',
-          walletId: 'wallet-1',
-          transactionType: 'debit',
-          amount: 5000,
-          description: 'Advertisement campaign payment',
-          balanceAfter: 120000,
-          referenceType: 'advertisement',
-          referenceId: 'AD-2024-001',
-          createdAt: '2024-01-14T15:45:00Z',
-        },
-        {
-          id: '3',
-          walletId: 'wallet-1',
-          transactionType: 'credit',
-          amount: 15000,
-          description: 'Refund for cancelled order',
-          balanceAfter: 100000,
-          referenceType: 'refund',
-          referenceId: 'REF-2024-001',
-          createdAt: '2024-01-13T09:20:00Z',
-        },
-        {
-          id: '4',
-          walletId: 'wallet-1',
-          transactionType: 'lock',
-          amount: 10000,
-          description: 'Amount locked for pending order',
-          balanceAfter: 90000,
-          referenceType: 'order',
-          referenceId: 'ORD-2024-002',
-          createdAt: '2024-01-12T14:20:00Z',
-        },
-        {
-          id: '5',
-          walletId: 'wallet-1',
-          transactionType: 'unlock',
-          amount: 10000,
-          description: 'Amount unlocked after order completion',
-          balanceAfter: 100000,
-          referenceType: 'order',
-          referenceId: 'ORD-2024-002',
-          createdAt: '2024-01-11T16:30:00Z',
+      const response = await apiClient.get('/wallet/transactions', {
+        params: {
+          page,
+          limit: 20,
+          search: searchTerm,
+          type: filters.type,
+          dateRange: filters.dateRange,
+          minAmount: filters.minAmount,
+          maxAmount: filters.maxAmount,
         }
-      ];
+      });
 
-      setBalance(mockBalance);
-      setTransactions(mockTransactions);
-      setPagination(prev => ({
-        ...prev,
-        total: mockTransactions.length
-      }));
+      if (response.success && response.data) {
+        const data = response.data as any;
+        setTransactions(data.transactions || []);
+        setCurrentPage(data.currentPage || 1);
+        setTotalPages(data.totalPages || 1);
+        setTotalTransactions(data.total || 0);
+      } else {
+        setTransactions([]);
+      }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Failed to load transactions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load transactions. Please try again.',
+        variant: 'destructive',
+      });
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSearch = () => {
+    setCurrentPage(1);
+    loadTransactions(1);
+  };
+
   const handleExport = async () => {
     try {
-      // This would typically call an export API endpoint
-      alert('Export functionality would be implemented here');
+      const response = await apiClient.get('/wallet/transactions/export', {
+        params: {
+          search: searchTerm,
+          type: filters.type,
+          dateRange: filters.dateRange,
+          minAmount: filters.minAmount,
+          maxAmount: filters.maxAmount,
+          format: 'csv'
+        }
+      });
+
+      if (response.success) {
+        // Create and download CSV file
+        const blob = new Blob([response.data as string], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `wallet-transactions-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: 'Success',
+          description: 'Transactions exported successfully.',
+        });
+      }
     } catch (error) {
-      console.error('Error exporting transactions:', error);
-      alert('Failed to export transactions');
+      console.error('Failed to export transactions:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to export transactions. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
+
+  useEffect(() => {
+    loadTransactions();
+  }, [loadTransactions]);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -154,7 +164,7 @@ export default function TransactionsPage() {
       case 'unlock':
         return <Unlock className="h-4 w-4 text-blue-600" />;
       default:
-        return <Activity className="h-4 w-4 text-gray-600" />;
+        return <WalletIcon className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -173,296 +183,308 @@ export default function TransactionsPage() {
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    const typeConfig = {
-      credit: { color: 'bg-green-100 text-green-800', label: 'Credit' },
-      debit: { color: 'bg-red-100 text-red-800', label: 'Debit' },
-      lock: { color: 'bg-yellow-100 text-yellow-800', label: 'Lock' },
-      unlock: { color: 'bg-blue-100 text-blue-800', label: 'Unlock' }
-    };
-
-    const config = typeConfig[type as keyof typeof typeConfig] || { color: 'bg-gray-100 text-gray-800', label: type };
-    return <Badge className={config.color}>{config.label}</Badge>;
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'credit':
+        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+      case 'debit':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+      case 'lock':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'unlock':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+    }
   };
 
-  const columns: ColumnDef<WalletTransaction>[] = [
-    {
-      accessorKey: 'createdAt',
-      header: 'Date & Time',
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{formatDate(row.original.createdAt)}</p>
-          <p className="text-sm text-gray-600">
-            {new Date(row.original.createdAt).toLocaleTimeString()}
-          </p>
-        </div>
-      )
-    },
-    {
-      accessorKey: 'transactionType',
-      header: 'Type',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          {getTransactionIcon(row.original.transactionType)}
-          {getTypeBadge(row.original.transactionType)}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'description',
-      header: 'Description',
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium text-gray-900">{row.original.description}</p>
-          {row.original.referenceType && (
-            <p className="text-sm text-gray-600">
-              Ref: {row.original.referenceType} - {row.original.referenceId.slice(0, 8)}...
-            </p>
-          )}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'amount',
-      header: 'Amount',
-      cell: ({ row }) => (
-        <span className={`font-semibold text-lg ${getTransactionColor(row.original.transactionType)}`}>
-          {row.original.transactionType === 'credit' || row.original.transactionType === 'unlock' ? '+' : '-'}
-          {formatCurrency(row.original.amount)}
-        </span>
-      )
-    },
-    {
-      accessorKey: 'balanceAfter',
-      header: 'Balance After',
-      cell: ({ row }) => (
-        <span className="font-medium">{formatCurrency(row.original.balanceAfter)}</span>
-      )
-    },
-    {
-      accessorKey: 'cashfreeTransactionId',
-      header: 'Transaction ID',
-      cell: ({ row }) => (
-        row.original.cashfreeTransactionId ? (
-          <span className="text-sm font-mono text-gray-600">
-            {row.original.cashfreeTransactionId.slice(0, 12)}...
-          </span>
-        ) : (
-          <span className="text-sm text-gray-400">-</span>
-        )
-      )
-    }
-  ];
-
-  const creditTransactions = transactions.filter(t => t.transactionType === 'credit');
-  const debitTransactions = transactions.filter(t => t.transactionType === 'debit');
-  const totalCredits = creditTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const totalDebits = debitTransactions.reduce((sum, t) => sum + t.amount, 0);
+  const getAmountDisplay = (transaction: WalletTransaction) => {
+    const sign = transaction.transactionType === 'credit' || transaction.transactionType === 'unlock' ? '+' : '-';
+    return `${sign}${formatCurrency(transaction.amount)}`;
+  };
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Transaction History</h1>
-            <p className="text-gray-600">View and manage your wallet transactions</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Transaction History</h1>
+          <p className="text-muted-foreground">View and manage your wallet transaction history</p>
         </div>
-        <Button variant="outline" onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Current Balance</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(balance?.availableBalance || 0)}
-              </p>
-            </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Activity className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Credits</p>
-              <p className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalCredits)}
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <TrendingUp className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Debits</p>
-              <p className="text-2xl font-bold text-red-600">
-                {formatCurrency(totalDebits)}
-              </p>
-            </div>
-            <div className="p-3 bg-red-100 rounded-full">
-              <TrendingDown className="h-6 w-6 text-red-600" />
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Locked Balance</p>
-              <p className="text-2xl font-bold text-yellow-600">
-                {formatCurrency(balance?.lockedBalance || 0)}
-              </p>
-            </div>
-            <div className="p-3 bg-yellow-100 rounded-full">
-              <Lock className="h-6 w-6 text-yellow-600" />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card className="p-6">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-600" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">Type:</label>
-            <Select
-              value={filters.type}
-              onValueChange={(value) => setFilters({ ...filters, type: value })}
-            >
-              <option value="all">All Types</option>
-              <option value="credit">Credit</option>
-              <option value="debit">Debit</option>
-              <option value="lock">Lock</option>
-              <option value="unlock">Unlock</option>
-            </Select>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">From:</label>
-            <Input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              className="w-40"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600">To:</label>
-            <Input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              className="w-40"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-gray-600" />
-            <Input
-              placeholder="Search transactions..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="w-64"
-            />
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFilters({ type: 'all', dateFrom: '', dateTo: '', search: '' })}
-          >
-            Clear Filters
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => loadTransactions(currentPage)} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Export
           </Button>
         </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Transactions</p>
+                <p className="text-2xl font-bold">{totalTransactions}</p>
+              </div>
+              <WalletIcon className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Credits</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {transactions.filter(t => t.transactionType === 'credit').length}
+                </p>
+              </div>
+              <ArrowUpRight className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Debits</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {transactions.filter(t => t.transactionType === 'debit').length}
+                </p>
+              </div>
+              <ArrowDownRight className="h-8 w-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Amount</p>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(
+                    transactions.reduce((sum, t) => {
+                      const amount = t.transactionType === 'credit' || t.transactionType === 'unlock' 
+                        ? t.amount 
+                        : -t.amount;
+                      return sum + amount;
+                    }, 0)
+                  )}
+                </p>
+              </div>
+              <DollarSign className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search and Filters */}
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by description or transaction ID..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Select value={filters.type || ''} onValueChange={(value) => setFilters({ ...filters, type: value })}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="debit">Debit</SelectItem>
+                  <SelectItem value="lock">Lock</SelectItem>
+                  <SelectItem value="unlock">Unlock</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filters.dateRange || ''} onValueChange={(value) => setFilters({ ...filters, dateRange: value })}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All Time" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Time</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="quarter">This Quarter</SelectItem>
+                  <SelectItem value="year">This Year</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleSearch}>
+                <Filter className="h-4 w-4 mr-2" />
+                Apply
+              </Button>
+            </div>
+          </div>
+        </CardContent>
       </Card>
 
       {/* Transactions Table */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">All Transactions</h3>
-          <div className="text-sm text-gray-600">
-            Showing {transactions.length} of {pagination.total} transactions
-          </div>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Transactions ({totalTransactions})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <p className="ml-2 text-muted-foreground">Loading transactions...</p>
+            </div>
+          ) : transactions.length > 0 ? (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Transaction</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Balance After</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {transactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          {getTransactionIcon(transaction.transactionType)}
+                          <div>
+                            <div className="font-medium">{transaction.description}</div>
+                            <div className="text-sm text-muted-foreground">
+                              ID: {transaction.id.slice(0, 8)}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getTypeColor(transaction.transactionType)}>
+                          {transaction.transactionType.charAt(0).toUpperCase() + transaction.transactionType.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className={`font-medium ${getTransactionColor(transaction.transactionType)}`}>
+                          {getAmountDisplay(transaction)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-medium">
+                          {formatCurrency(transaction.balanceAfter)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div className="font-medium">{transaction.referenceType}</div>
+                          {transaction.referenceId && (
+                            <div className="text-muted-foreground">
+                              {transaction.referenceId.slice(0, 8)}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{formatDate(transaction.createdAt)}</div>
+                          <div className="text-muted-foreground">
+                            {new Date(transaction.createdAt).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
 
-        <DataTable
-          data={transactions}
-          columns={columns}
-          isLoading={loading}
-        />
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {((currentPage - 1) * 20) + 1} to {Math.min(currentPage * 20, totalTransactions)} of {totalTransactions} transactions
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newPage = currentPage - 1;
+                        setCurrentPage(newPage);
+                        loadTransactions(newPage);
+                      }}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const newPage = currentPage + 1;
+                        setCurrentPage(newPage);
+                        loadTransactions(newPage);
+                      }}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <WalletIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No transactions found</h3>
+              <p className="text-muted-foreground mb-4">
+                {searchTerm || Object.keys(filters).length > 0 
+                  ? 'Try adjusting your search or filters.'
+                  : 'Your wallet transactions will appear here.'
+                }
+              </p>
+              {searchTerm || Object.keys(filters).length > 0 ? (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilters({});
+                    setCurrentPage(1);
+                    loadTransactions(1);
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              ) : null}
+            </div>
+          )}
+        </CardContent>
       </Card>
-
-      {/* Transaction Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Credits</h3>
-          <div className="space-y-3">
-            {creditTransactions.slice(0, 5).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <ArrowUpRight className="h-4 w-4 text-green-600" />
-                  <div>
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
-                    <p className="text-sm text-gray-600">{formatDate(transaction.createdAt)}</p>
-                  </div>
-                </div>
-                <span className="font-semibold text-green-600">
-                  +{formatCurrency(transaction.amount)}
-                </span>
-              </div>
-            ))}
-            {creditTransactions.length === 0 && (
-              <p className="text-gray-500 text-center py-4">No credit transactions</p>
-            )}
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Debits</h3>
-          <div className="space-y-3">
-            {debitTransactions.slice(0, 5).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <ArrowDownRight className="h-4 w-4 text-red-600" />
-                  <div>
-                    <p className="font-medium text-gray-900">{transaction.description}</p>
-                    <p className="text-sm text-gray-600">{formatDate(transaction.createdAt)}</p>
-                  </div>
-                </div>
-                <span className="font-semibold text-red-600">
-                  -{formatCurrency(transaction.amount)}
-                </span>
-              </div>
-            ))}
-            {debitTransactions.length === 0 && (
-              <p className="text-gray-500 text-center py-4">No debit transactions</p>
-            )}
-          </div>
-        </Card>
-      </div>
     </div>
   );
 }

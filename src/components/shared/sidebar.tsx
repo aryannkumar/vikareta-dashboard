@@ -15,6 +15,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   ChevronDownIcon,
+  WrenchScrewdriverIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth';
@@ -29,6 +31,8 @@ const iconMap = {
   ChartBarIcon,
   HeartIcon,
   MegaphoneIcon,
+  WrenchScrewdriverIcon,
+  TruckIcon,
 };
 
 interface SidebarProps {

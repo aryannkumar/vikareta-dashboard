@@ -68,10 +68,6 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAnalyticsData();
-  }, [loadAnalyticsData, selectedPeriod]);
-
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
@@ -83,11 +79,11 @@ export default function AnalyticsPage() {
       ]);
 
       if (revenueResponse.success) {
-        setRevenueData(revenueResponse.data);
+        setRevenueData(revenueResponse.data as RevenueData);
       }
 
       if (performanceResponse.success) {
-        setProductPerformance(performanceResponse.data);
+        setProductPerformance(performanceResponse.data as ProductPerformance);
       }
     } catch (err) {
       console.error('Failed to load analytics data:', err);
@@ -96,6 +92,10 @@ export default function AnalyticsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadAnalyticsData();
+  }, [selectedPeriod]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -353,7 +353,7 @@ export default function AnalyticsPage() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="revenue"
