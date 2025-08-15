@@ -215,29 +215,29 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     ],
   },
   {
-    path: '/analytics',
+    path: '/dashboard/analytics',
     title: 'Analytics & Reports',
     description: 'View detailed analytics and generate reports',
     allowedRoles: ['seller', 'both'],
     icon: 'ChartBarIcon',
     children: [
       {
-        path: '/analytics',
+        path: '/dashboard/analytics',
         title: 'Overview',
         allowedRoles: ['seller', 'both'],
       },
       {
-        path: '/analytics/sales',
+        path: '/dashboard/analytics/sales',
         title: 'Sales Analytics',
         allowedRoles: ['seller', 'both'],
       },
       {
-        path: '/analytics/products',
+        path: '/dashboard/analytics/products',
         title: 'Product Performance',
         allowedRoles: ['seller', 'both'],
       },
       {
-        path: '/analytics/customers',
+        path: '/dashboard/analytics/customers',
         title: 'Customer Insights',
         allowedRoles: ['seller', 'both'],
       },
