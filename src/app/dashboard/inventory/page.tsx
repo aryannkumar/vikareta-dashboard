@@ -14,6 +14,12 @@ import {
 export default function InventoryPage() {
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Debug indicator */}
+      <div className="mb-4 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+        <p className="text-orange-800 font-medium">📦 Inventory page loaded successfully!</p>
+        <p className="text-orange-600 text-sm">This is the inventory management page.</p>
+      </div>
+      
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Inventory Management</h1>

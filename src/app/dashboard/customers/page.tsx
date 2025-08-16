@@ -7,6 +7,12 @@ import { UsersIcon, PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/ou
 export default function CustomersPage() {
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Debug indicator */}
+      <div className="mb-4 p-3 bg-green-100 border border-green-300 rounded-lg">
+        <p className="text-green-800 font-medium">✅ Customers page loaded successfully!</p>
+        <p className="text-green-600 text-sm">If you see this, routing is working correctly.</p>
+      </div>
+      
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-2">Customers</h1>
