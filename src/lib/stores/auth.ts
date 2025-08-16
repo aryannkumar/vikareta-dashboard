@@ -115,6 +115,8 @@ const ssoClient = new SSOAuthClient();
 let refreshInterval: NodeJS.Timeout | null = null;
 
 const startTokenRefreshInterval = (refreshAuth: () => Promise<void>) => {
+  console.log('Dashboard Auth: Starting automatic token refresh interval');
+  
   // Clear existing interval
   if (refreshInterval) {
     clearInterval(refreshInterval);
@@ -122,11 +124,21 @@ const startTokenRefreshInterval = (refreshAuth: () => Promise<void>) => {
   
   // Set up new interval to refresh token every 45 minutes
   refreshInterval = setInterval(async () => {
+    console.log('Dashboard Auth: Automatic token refresh triggered');
     try {
       await refreshAuth();
       console.log('Dashboard Auth: Token refreshed automatically');
     } catch (error) {
       console.warn('Dashboard Auth: Automatic token refresh failed', error);
+      
+      // If automatic refresh fails with specific errors, stop the interval
+      if (error instanceof Error && 
+          (error.message.includes('Rate limited') || 
+           error.message.includes('Authentication failed') ||
+           error.message.includes('Session expired'))) {
+        console.warn('Dashboard Auth: Stopping automatic refresh due to persistent errors');
+        stopTokenRefreshInterval();
+      }
     }
   }, 45 * 60 * 1000); // 45 minutes
 };
@@ -194,6 +206,7 @@ export const useAuthStore = create<AuthState>()(
       },
       
       refreshAuth: async () => {
+        set({ isLoading: true });
         try {
           const response = await ssoClient.refreshToken();
           
@@ -202,12 +215,38 @@ export const useAuthStore = create<AuthState>()(
               token: response.accessToken || null,
               refreshToken: response.refreshToken || null,
               user: response.user || get().user,
+              error: null,
             });
           } else {
+            // Handle specific error codes
+            if (response.error?.code === 'RATE_LIMITED') {
+              console.warn('Dashboard Auth: Rate limited during refresh');
+              set({ 
+                error: 'Too many requests. Please wait before trying again.',
+                isLoading: false
+              });
+              return; // Don't logout on rate limit
+            }
+            
+            // For other errors, logout
+            console.warn('Dashboard Auth: Token refresh failed, logging out');
             await get().logout();
           }
-        } catch {
+        } catch (error) {
+          console.error('Dashboard Auth: Token refresh failed:', error);
+          
+          // Don't logout if it's a rate limit error
+          if (error instanceof Error && error.message.includes('Rate limited')) {
+            set({ 
+              error: 'Too many requests. Please wait before trying again.',
+              isLoading: false
+            });
+            return;
+          }
+          
           await get().logout();
+        } finally {
+          set({ isLoading: false });
         }
       },
       

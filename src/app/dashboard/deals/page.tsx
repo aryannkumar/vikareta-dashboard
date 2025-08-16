@@ -110,29 +110,50 @@ export default function DealsPage() {
   const fetchDealMetrics = useCallback(async () => {
     try {
       setMetricsLoading(true);
-      const response = await apiClient.get('/deals/metrics');
+      
+      // Use the new getDealMetrics method with better error handling
+      const response = await apiClient.getDealMetrics();
+      
       if (response.success && response.data) {
         setMetrics(response.data as DealMetrics);
       } else {
-        // Fallback metrics calculation
-        const dealsRes = await apiClient.get('/deals/count');
-        const data = dealsRes.data as any;
-        setMetrics({
-          totalDeals: data?.total || 0,
-          activeDeals: data?.active || 0,
-          wonDeals: data?.won || 0,
-          lostDeals: data?.lost || 0,
-          totalValue: data?.totalValue || 0,
-          wonValue: data?.wonValue || 0,
-          averageDealValue: data?.averageValue || 0,
-          winRate: data?.winRate || 0,
-          averageSalesCycle: data?.averageCycle || 0,
-          dealsGrowth: data?.dealsGrowth || 0,
-          valueGrowth: data?.valueGrowth || 0,
-        });
+        // Fallback to count-based metrics
+        const countResponse = await apiClient.getDealCount();
+        if (countResponse.success) {
+          setMetrics({
+            totalDeals: countResponse.data?.count || 0,
+            activeDeals: 0,
+            wonDeals: 0,
+            lostDeals: 0,
+            totalValue: 0,
+            wonValue: 0,
+            averageDealValue: 0,
+            winRate: 0,
+            averageSalesCycle: 0,
+            dealsGrowth: 0,
+            valueGrowth: 0,
+          });
+        } else {
+          // Set empty metrics (no deals scenario)
+          setMetrics({
+            totalDeals: 0,
+            activeDeals: 0,
+            wonDeals: 0,
+            lostDeals: 0,
+            totalValue: 0,
+            wonValue: 0,
+            averageDealValue: 0,
+            winRate: 0,
+            averageSalesCycle: 0,
+            dealsGrowth: 0,
+            valueGrowth: 0,
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to fetch deal metrics:', error);
+      
+      // Set empty metrics on any error (graceful degradation)
       setMetrics({
         totalDeals: 0,
         activeDeals: 0,
@@ -152,15 +173,20 @@ export default function DealsPage() {
   }, []);
 
   const loadDeals = useCallback(async () => {
-    const params = {
-      page: currentPage,
-      limit: itemsPerPage,
-      search: searchTerm,
-      sortBy,
-      sortOrder,
-      ...filters,
-    };
-    await fetchDeals(() => apiClient.getDeals(params));
+    try {
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm,
+        sortBy,
+        sortOrder,
+        ...filters,
+      };
+      await fetchDeals(() => apiClient.getDeals(params));
+    } catch (error) {
+      console.error('Failed to load deals:', error);
+      // Don't throw error, let the component handle empty state gracefully
+    }
   }, [currentPage, itemsPerPage, searchTerm, sortBy, sortOrder, filters, fetchDeals]);
 
   useEffect(() => {

@@ -58,7 +58,17 @@ export class ApiClient {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
+        console.error(`API: Request failed to ${endpoint}:`, errorData);
+        
+        // Return error in ApiResponse format instead of throwing
+        return {
+          success: false,
+          error: {
+            code: `HTTP_${response.status}`,
+            message: errorData.message || `HTTP ${response.status}`,
+            details: errorData
+          }
+        };
       }
 
       const data = await response.json();
@@ -69,10 +79,28 @@ export class ApiClient {
         this.requestCache.set(endpoint, { data, timestamp: Date.now() });
       }
       
-      return data;
+      // Ensure we return the data in the expected format
+      if (data.success !== undefined) {
+        return data; // Backend already returns ApiResponse format
+      } else {
+        // Wrap raw data in ApiResponse format
+        return {
+          success: true,
+          data,
+          message: 'Request successful'
+        };
+      }
     } catch (error) {
       console.error(`API: Request failed to ${endpoint}:`, error);
-      throw error;
+      
+      // Return network errors in ApiResponse format instead of throwing
+      return {
+        success: false,
+        error: {
+          code: 'NETWORK_ERROR',
+          message: error instanceof Error ? error.message : 'Network request failed'
+        }
+      };
     }
   }
 
@@ -199,7 +227,60 @@ export class ApiClient {
   // Deals endpoints
   async getDeals(params: any = {}): Promise<ApiResponse<{ data: any[]; pagination: any }>> {
     const query = new URLSearchParams(params).toString();
-    return this.request(`/deals?${query}`);
+    const response = await this.request<{ data: any[]; pagination: any }>(`/deals?${query}`);
+    
+    // Handle empty deals gracefully
+    if (!response.success && response.error?.message?.includes('Deal not found')) {
+      return {
+        success: true,
+        data: { data: [], pagination: { total: 0, page: 1, limit: 20 } },
+        message: 'No deals found'
+      };
+    }
+    
+    return response;
+  }
+
+  async getDealMetrics(): Promise<ApiResponse<any>> {
+    const response = await this.request<any>('/deals/metrics');
+    
+    // Handle empty metrics gracefully
+    if (!response.success && response.error?.message?.includes('Deal not found')) {
+      return {
+        success: true,
+        data: {
+          totalDeals: 0,
+          activeDeals: 0,
+          wonDeals: 0,
+          lostDeals: 0,
+          totalValue: 0,
+          wonValue: 0,
+          averageDealValue: 0,
+          winRate: 0,
+          averageSalesCycle: 0,
+          dealsGrowth: 0,
+          valueGrowth: 0,
+        },
+        message: 'No deals found - showing empty metrics'
+      };
+    }
+    
+    return response;
+  }
+
+  async getDealCount(): Promise<ApiResponse<{ count: number }>> {
+    const response = await this.request<{ count: number }>('/deals/count');
+    
+    // Handle empty count gracefully
+    if (!response.success && response.error?.message?.includes('Deal not found')) {
+      return {
+        success: true,
+        data: { count: 0 },
+        message: 'No deals found'
+      };
+    }
+    
+    return response;
   }
 
   async createDeal(data: any) {

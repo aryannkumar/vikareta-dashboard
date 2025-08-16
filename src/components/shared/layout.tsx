@@ -7,6 +7,7 @@ import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Loading } from '@/components/ui/loading';
 import { Button } from '@/components/ui/button';
+import { AuthErrorHandler } from '@/components/auth/auth-error-handler';
 import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
@@ -108,6 +109,9 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Auth Error Handler */}
+      <AuthErrorHandler />
+      
       {/* Sidebar - Hidden on mobile, shown on desktop */}
       <div className="hidden lg:block">
         <Sidebar />
