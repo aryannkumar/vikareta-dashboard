@@ -289,7 +289,7 @@ export default function WalletPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.location.href = '/dashboard/wallet/transactions'}
+              onClick={() => router.push('/dashboard/wallet/transactions')}
             >
               View All
             </Button>
@@ -339,7 +339,7 @@ export default function WalletPage() {
           <Button
             variant="outline"
             className="h-20 flex-col gap-2"
-            onClick={() => window.location.href = '/dashboard/wallet/withdraw'}
+            onClick={() => router.push('/dashboard/wallet/withdraw')}
           >
             <Minus className="h-6 w-6" />
             Withdraw
@@ -347,7 +347,7 @@ export default function WalletPage() {
           <Button
             variant="outline"
             className="h-20 flex-col gap-2"
-            onClick={() => window.location.href = '/dashboard/wallet/locked-amounts'}
+            onClick={() => router.push('/dashboard/wallet/locked-amounts')}
           >
             <Lock className="h-6 w-6" />
             Locked Amounts
@@ -355,7 +355,7 @@ export default function WalletPage() {
           <Button
             variant="outline"
             className="h-20 flex-col gap-2"
-            onClick={() => window.location.href = '/dashboard/wallet/bank-accounts'}
+            onClick={() => router.push('/dashboard/wallet/bank-accounts')}
           >
             <CreditCard className="h-6 w-6" />
             Bank Accounts

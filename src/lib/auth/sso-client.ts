@@ -68,6 +68,13 @@ export class SSOAuthClient {
       // Also store in legacy locations for compatibility
       localStorage.setItem('dashboard_token', token);
       localStorage.setItem('auth_token', token);
+      
+      // Also set as cookie for cross-domain support
+      const isProduction = process.env.NODE_ENV === 'production';
+      const cookieOptions = isProduction 
+        ? '; domain=.vikareta.com; secure; samesite=none' 
+        : '';
+      document.cookie = `vikareta_access_token=${token}; path=/; max-age=3600${cookieOptions}`;
     }
   }
 
@@ -81,6 +88,13 @@ export class SSOAuthClient {
   private setRefreshToken(token: string): void {
     if (typeof window !== 'undefined') {
       localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
+      
+      // Also set as cookie for cross-domain support
+      const isProduction = process.env.NODE_ENV === 'production';
+      const cookieOptions = isProduction 
+        ? '; domain=.vikareta.com; secure; samesite=none' 
+        : '';
+      document.cookie = `vikareta_refresh_token=${token}; path=/; max-age=604800${cookieOptions}`;
     }
   }
 
@@ -88,6 +102,24 @@ export class SSOAuthClient {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(this.REFRESH_TOKEN_KEY);
     }
+    return null;
+  }
+
+  /**
+   * Get access token from cookies (for cross-domain auth)
+   */
+  private getTokenFromCookie(): string | null {
+    if (typeof window === 'undefined') return null;
+    
+    const cookies = document.cookie.split(';');
+    const tokenCookie = cookies.find(cookie => 
+      cookie.trim().startsWith('vikareta_access_token=')
+    );
+    
+    if (tokenCookie) {
+      return decodeURIComponent(tokenCookie.split('=')[1]);
+    }
+    
     return null;
   }
 
@@ -246,8 +278,18 @@ export class SSOAuthClient {
       ...options,
     };
 
-    // Add access token from localStorage
-    const accessToken = this.getAccessToken();
+    // Add access token from localStorage (primary method)
+    let accessToken = this.getAccessToken();
+    
+    // Fallback to cookie token for cross-domain auth
+    if (!accessToken) {
+      accessToken = this.getTokenFromCookie();
+      // If we found a token in cookies, also store it in localStorage for future use
+      if (accessToken) {
+        this.setAccessToken(accessToken);
+      }
+    }
+    
     if (accessToken) {
       config.headers = {
         ...config.headers,
