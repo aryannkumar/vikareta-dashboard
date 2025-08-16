@@ -17,12 +17,71 @@ import {
   ChevronDownIcon,
   WrenchScrewdriverIcon,
   TruckIcon,
+  UserCircleIcon,
+  UsersIcon,
+  PresentationChartLineIcon,
+  ClipboardDocumentListIcon,
+  BellIcon,
+  Cog6ToothIcon,
+  ShieldCheckIcon,
+  CreditCardIcon,
+  BanknotesIcon,
+  TagIcon,
+  GiftIcon,
+  StarIcon,
+  ChatBubbleLeftRightIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  MapPinIcon,
+  BuildingOfficeIcon,
+  IdentificationIcon,
+  KeyIcon,
+  EyeIcon,
+  ClockIcon,
+  CalendarIcon,
+  FolderIcon,
+  ArchiveBoxIcon,
+  DocumentDuplicateIcon,
+  ChartPieIcon,
+  ArrowTrendingUpIcon,
+  CurrencyDollarIcon,
+  ReceiptPercentIcon,
+  ShoppingCartIcon,
+  InboxIcon,
+  PaperAirplaneIcon,
+  BookmarkIcon,
+  FireIcon,
+  SparklesIcon,
+  LightBulbIcon,
+  RocketLaunchIcon,
+  GlobeAltIcon,
+  WrenchIcon,
+  CogIcon,
+  AdjustmentsHorizontalIcon,
+  QueueListIcon,
+  ChartBarSquareIcon,
+  PlusIcon,
+  MinusIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  InformationCircleIcon,
+  QuestionMarkCircleIcon,
+  ShieldExclamationIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ChevronUpIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
+  ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/stores/auth';
 import { getNavigationMenu } from '@/lib/routing';
 
 const iconMap = {
+  // Main navigation icons
   HomeIcon,
   CubeIcon,
   ShoppingBagIcon,
@@ -33,6 +92,88 @@ const iconMap = {
   MegaphoneIcon,
   WrenchScrewdriverIcon,
   TruckIcon,
+  
+  // User and profile icons
+  UserCircleIcon,
+  UsersIcon,
+  IdentificationIcon,
+  BuildingOfficeIcon,
+  ShieldCheckIcon,
+  
+  // Analytics and reporting icons
+  PresentationChartLineIcon,
+  ChartPieIcon,
+  ArrowTrendingUpIcon,
+  ChartBarSquareIcon,
+  
+  // Communication icons
+  ChatBubbleLeftRightIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  BellIcon,
+  InboxIcon,
+  PaperAirplaneIcon,
+  
+  // Commerce icons
+  CreditCardIcon,
+  BanknotesIcon,
+  CurrencyDollarIcon,
+  ReceiptPercentIcon,
+  ShoppingCartIcon,
+  TagIcon,
+  GiftIcon,
+  
+  // Management icons
+  ClipboardDocumentListIcon,
+  FolderIcon,
+  ArchiveBoxIcon,
+  DocumentDuplicateIcon,
+  QueueListIcon,
+  
+  // Settings and configuration
+  Cog6ToothIcon,
+  CogIcon,
+  AdjustmentsHorizontalIcon,
+  WrenchIcon,
+  KeyIcon,
+  
+  // Status and feedback icons
+  StarIcon,
+  BookmarkIcon,
+  FireIcon,
+  SparklesIcon,
+  LightBulbIcon,
+  RocketLaunchIcon,
+  
+  // Location and mapping
+  MapPinIcon,
+  GlobeAltIcon,
+  
+  // Time and scheduling
+  ClockIcon,
+  CalendarIcon,
+  
+  // Visibility and security
+  EyeIcon,
+  ShieldExclamationIcon,
+  
+  // Generic utility icons
+  PlusIcon,
+  MinusIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
+  InformationCircleIcon,
+  QuestionMarkCircleIcon,
+  
+  // Navigation and arrows
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ChevronUpIcon,
+  ChevronRightIcon,
+  ChevronLeftIcon,
+  ChevronDoubleRightIcon,
 };
 
 interface SidebarProps {

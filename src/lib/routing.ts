@@ -149,7 +149,7 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     title: 'Deals & Communication',
     description: 'Track deals and communicate with partners',
     allowedRoles: ['buyer', 'seller', 'both'],
-    icon: 'ChartBarIcon',
+    icon: 'ClipboardDocumentListIcon',
     children: [
       {
         path: '/dashboard/deals',
@@ -257,7 +257,7 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     title: 'Analytics & Reports',
     description: 'View detailed analytics and generate reports',
     allowedRoles: ['buyer', 'seller', 'both'],
-    icon: 'ChartBarIcon',
+    icon: 'PresentationChartLineIcon',
     children: [
       {
         path: '/dashboard/analytics',
@@ -317,6 +317,215 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
       {
         path: '/settings/security',
         title: 'Security Settings',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+    ],
+  },
+  
+  // Additional important sections for a complete B2B dashboard
+  {
+    path: '/dashboard/customers',
+    title: 'Customers',
+    description: 'Manage your customer relationships',
+    allowedRoles: ['seller', 'both'],
+    icon: 'UsersIcon',
+    children: [
+      {
+        path: '/dashboard/customers',
+        title: 'All Customers',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/customers/leads',
+        title: 'Leads',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/customers/segments',
+        title: 'Customer Segments',
+        allowedRoles: ['seller', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/suppliers',
+    title: 'Suppliers',
+    description: 'Manage your supplier relationships',
+    allowedRoles: ['buyer', 'both'],
+    icon: 'BuildingOfficeIcon',
+    children: [
+      {
+        path: '/dashboard/suppliers',
+        title: 'All Suppliers',
+        allowedRoles: ['buyer', 'both'],
+      },
+      {
+        path: '/dashboard/suppliers/favorites',
+        title: 'Favorite Suppliers',
+        allowedRoles: ['buyer', 'both'],
+      },
+      {
+        path: '/dashboard/suppliers/performance',
+        title: 'Supplier Performance',
+        allowedRoles: ['buyer', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/inventory',
+    title: 'Inventory',
+    description: 'Manage your inventory and stock levels',
+    allowedRoles: ['seller', 'both'],
+    icon: 'ArchiveBoxIcon',
+    children: [
+      {
+        path: '/dashboard/inventory',
+        title: 'Stock Overview',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/inventory/low-stock',
+        title: 'Low Stock Alerts',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/inventory/movements',
+        title: 'Stock Movements',
+        allowedRoles: ['seller', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/reports',
+    title: 'Reports',
+    description: 'Generate and view business reports',
+    allowedRoles: ['buyer', 'seller', 'both'],
+    icon: 'DocumentDuplicateIcon',
+    children: [
+      {
+        path: '/dashboard/reports',
+        title: 'All Reports',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/reports/sales',
+        title: 'Sales Reports',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/reports/purchase',
+        title: 'Purchase Reports',
+        allowedRoles: ['buyer', 'both'],
+      },
+      {
+        path: '/dashboard/reports/financial',
+        title: 'Financial Reports',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/communications',
+    title: 'Communications',
+    description: 'Manage messages and communications',
+    allowedRoles: ['buyer', 'seller', 'both'],
+    icon: 'ChatBubbleLeftRightIcon',
+    children: [
+      {
+        path: '/dashboard/communications/messages',
+        title: 'Messages',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/communications/notifications',
+        title: 'Notifications',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/communications/announcements',
+        title: 'Announcements',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/marketplace',
+    title: 'Marketplace',
+    description: 'Browse and discover products and services',
+    allowedRoles: ['buyer', 'both'],
+    icon: 'GlobeAltIcon',
+    children: [
+      {
+        path: '/dashboard/marketplace/browse',
+        title: 'Browse Products',
+        allowedRoles: ['buyer', 'both'],
+      },
+      {
+        path: '/dashboard/marketplace/categories',
+        title: 'Categories',
+        allowedRoles: ['buyer', 'both'],
+      },
+      {
+        path: '/dashboard/marketplace/trending',
+        title: 'Trending',
+        allowedRoles: ['buyer', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/support',
+    title: 'Support',
+    description: 'Get help and support',
+    allowedRoles: ['buyer', 'seller', 'both'],
+    icon: 'QuestionMarkCircleIcon',
+    children: [
+      {
+        path: '/dashboard/support/tickets',
+        title: 'Support Tickets',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/support/faq',
+        title: 'FAQ',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/support/contact',
+        title: 'Contact Support',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+    ],
+  },
+  {
+    path: '/dashboard/settings',
+    title: 'Settings',
+    description: 'Configure your account and preferences',
+    allowedRoles: ['buyer', 'seller', 'both'],
+    icon: 'Cog6ToothIcon',
+    children: [
+      {
+        path: '/dashboard/settings/account',
+        title: 'Account Settings',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/settings/business',
+        title: 'Business Settings',
+        allowedRoles: ['seller', 'both'],
+      },
+      {
+        path: '/dashboard/settings/notifications',
+        title: 'Notification Preferences',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/settings/security',
+        title: 'Security Settings',
+        allowedRoles: ['buyer', 'seller', 'both'],
+      },
+      {
+        path: '/dashboard/settings/integrations',
+        title: 'Integrations',
         allowedRoles: ['buyer', 'seller', 'both'],
       },
     ],

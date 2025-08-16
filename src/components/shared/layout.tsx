@@ -104,14 +104,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     return <>{children}</>;
   }
 
-  // Debug logging
-  console.log('Dashboard Layout:', {
-    isAuthenticated,
-    user: user ? { id: user.id, role: user.role } : null,
-    pathname,
-    isHydrated,
-    authLoading
-  });
+
 
   return (
     <div className="flex h-screen bg-background">
