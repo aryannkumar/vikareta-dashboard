@@ -58,7 +58,7 @@ export default function WalletPage() {
       }
 
       // Fetch recent transactions
-      const transactionsResponse = await apiClient.get('/wallet/transactions/recent?limit=5');
+      const transactionsResponse = await apiClient.getRecentWalletTransactions(5);
       if (transactionsResponse.success && transactionsResponse.data) {
         setRecentTransactions(transactionsResponse.data as WalletTransaction[]);
       } else {

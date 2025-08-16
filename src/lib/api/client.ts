@@ -18,9 +18,37 @@ export class ApiClient {
   private baseURL: string;
   private requestCache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 30000; // 30 seconds cache
+  private csrfToken: string | null = null;
+  private csrfTokenExpiry: number = 0;
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api';
+  }
+
+  private async getCSRFToken(): Promise<string | null> {
+    // Check if we have a valid cached token
+    if (this.csrfToken && Date.now() < this.csrfTokenExpiry) {
+      return this.csrfToken;
+    }
+
+    try {
+      const response = await fetch('https://api.vikareta.com/csrf-token', {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.csrfToken = data.data?.csrfToken || null;
+        // Set expiry to 50 minutes (tokens expire in 1 hour)
+        this.csrfTokenExpiry = Date.now() + (50 * 60 * 1000);
+        console.log('CSRF token fetched successfully');
+        return this.csrfToken;
+      }
+    } catch (error) {
+      console.error('Failed to fetch CSRF token:', error);
+    }
+
+    return null;
   }
 
   private async request<T>(
@@ -42,11 +70,19 @@ export class ApiClient {
       ? localStorage.getItem('vikareta_access_token')
       : null;
 
+    // Get CSRF token for state-changing requests
+    let csrfToken: string | null = null;
+    const method = options.method?.toUpperCase();
+    if (method && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+      csrfToken = await this.getCSRFToken();
+    }
+
     const config: RequestInit = {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
+        ...(csrfToken && { 'X-XSRF-TOKEN': csrfToken }),
         ...options.headers,
       },
       ...options,
@@ -202,6 +238,17 @@ export class ApiClient {
   async getWalletTransactions(params: any = {}) {
     const query = new URLSearchParams(params).toString();
     return this.request(`/wallet/transactions?${query}`);
+  }
+
+  async getRecentWalletTransactions(limit: number = 5) {
+    return this.request(`/wallet/transactions/recent?limit=${limit}`);
+  }
+
+  async addMoneyToWallet(amount: number, paymentMethod: string) {
+    return this.request('/wallet/add-money', {
+      method: 'POST',
+      body: JSON.stringify({ amount, paymentMethod }),
+    });
   }
 
   // Advertisements endpoints

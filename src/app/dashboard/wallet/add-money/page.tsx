@@ -89,7 +89,7 @@ export default function AddMoneyPage() {
       }
 
       // Fetch recent transactions
-      const transactionsResponse = await apiClient.get('/wallet/transactions/recent?limit=5');
+      const transactionsResponse = await apiClient.getRecentWalletTransactions(5);
       if (transactionsResponse.success && transactionsResponse.data) {
         setRecentTransactions(transactionsResponse.data as WalletTransaction[]);
       } else {
@@ -121,10 +121,7 @@ export default function AddMoneyPage() {
 
     try {
       setProcessing(true);
-      const response = await apiClient.post('/wallet/add-money', {
-        amount: parseFloat(amount),
-        paymentMethod: selectedMethod
-      });
+      const response = await apiClient.addMoneyToWallet(parseFloat(amount), selectedMethod);
 
       if (response.success && response.data) {
         const data = response.data as any;
@@ -137,7 +134,8 @@ export default function AddMoneyPage() {
           router.push('/dashboard/wallet');
         }
       } else {
-        alert('Failed to initiate payment. Please try again.');
+        const errorMessage = response.error?.message || 'Failed to initiate payment. Please try again.';
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Error adding money:', error);
