@@ -67,7 +67,7 @@ export function Sidebar({ className }: SidebarProps) {
 
   return (
     <div className={cn(
-      'flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 flex-shrink-0',
+      'flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 flex-shrink-0 relative z-10',
       sidebarCollapsed ? 'w-16' : 'w-64',
       className
     )}>
@@ -129,8 +129,9 @@ export function Sidebar({ className }: SidebarProps) {
               ) : (
                 <Link
                   href={item.href}
+                  onClick={() => console.log('Sidebar navigation clicked:', item.href)}
                   className={cn(
-                    'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer',
                     active
                       ? 'bg-sidebar-primary text-sidebar-primary-foreground'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
@@ -148,8 +149,9 @@ export function Sidebar({ className }: SidebarProps) {
                     <Link
                       key={child.href}
                       href={child.href}
+                      onClick={() => console.log('Sidebar submenu clicked:', child.href)}
                       className={cn(
-                        'block px-3 py-2 rounded-md text-sm transition-colors',
+                        'block px-3 py-2 rounded-md text-sm transition-colors cursor-pointer',
                         isActive(child.href)
                           ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                           : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'

@@ -104,12 +104,24 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     return <>{children}</>;
   }
 
+  // Debug logging
+  console.log('Dashboard Layout:', {
+    isAuthenticated,
+    user: user ? { id: user.id, role: user.role } : null,
+    pathname,
+    isHydrated,
+    authLoading
+  });
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar - Hidden on mobile, shown on desktop */}
       <div className="hidden lg:block">
         <Sidebar />
       </div>
+      
+      {/* Mobile Sidebar Overlay - TODO: Implement mobile sidebar */}
+      {/* This would show the sidebar on mobile when toggled */}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
