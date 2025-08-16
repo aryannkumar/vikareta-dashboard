@@ -640,9 +640,9 @@ export class SSOAuthClient {
       ? 'http://localhost:3000/auth/login'
       : 'https://vikareta.com/auth/login';
 
-    // Add current URL as redirect parameter
-    const currentUrl = window.location.href;
-    const redirectUrl = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
+    // Add dashboard URL as redirect parameter so user can choose to go to dashboard after login
+    const dashboardUrl = window.location.origin + '/dashboard';
+    const redirectUrl = `${mainAppUrl}?redirect_to=dashboard&dashboard_url=${encodeURIComponent(dashboardUrl)}`;
 
     window.location.href = redirectUrl;
   }

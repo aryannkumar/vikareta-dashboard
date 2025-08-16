@@ -19,10 +19,10 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
   const { user, isAuthenticated, isLoading: authLoading, checkAuth } = useAuthStore();
-  
+
   const redirectToLogin = () => {
-    const mainAppUrl = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000/auth/login' 
+    const mainAppUrl = process.env.NODE_ENV === 'development'
+      ? 'http://localhost:3000/auth/login'
       : 'https://vikareta.com/auth/login';
     window.location.href = mainAppUrl;
   };
@@ -32,13 +32,13 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     if (isHydrated && !isAuthenticated && !authLoading) {
       checkAuth();
     }
-  }, [isHydrated]); // Remove dependencies to prevent infinite loops
+  }, [authLoading, checkAuth, isAuthenticated, isHydrated]); // Remove dependencies to prevent infinite loops
   // const { sidebarCollapsed } = useDashboardStore();
 
   useEffect(() => {
     // Mark as hydrated after first render
     setIsHydrated(true);
-    
+
     // Clean up any URL parameters (no longer needed with HttpOnly cookies)
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -49,11 +49,17 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     }
   }, []);
 
-  // Redirect to dashboard if on root path
+  // Only redirect to dashboard if explicitly requested via URL parameter
   useEffect(() => {
     if (isAuthenticated && user && pathname === '/') {
-      console.log('Dashboard: Redirecting to /dashboard');
-      window.location.replace('/dashboard');
+      const urlParams = new URLSearchParams(window.location.search);
+      const shouldRedirectToDashboard = urlParams.get('redirect') === 'dashboard';
+
+      if (shouldRedirectToDashboard) {
+        console.log('Dashboard: Redirecting to /dashboard as requested');
+        window.location.replace('/dashboard');
+      }
+      // Otherwise, let user stay on landing page or choose where to go
     }
   }, [isAuthenticated, user, pathname]);
 
@@ -111,12 +117,12 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     <div className="flex h-screen bg-background">
       {/* Auth Error Handler */}
       <AuthErrorHandler />
-      
+
       {/* Sidebar - Hidden on mobile, shown on desktop */}
       <div className="hidden lg:block">
         <Sidebar />
       </div>
-      
+
       {/* Mobile Sidebar Overlay - TODO: Implement mobile sidebar */}
       {/* This would show the sidebar on mobile when toggled */}
 

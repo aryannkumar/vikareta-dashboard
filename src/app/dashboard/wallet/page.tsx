@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loading } from '@/components/ui/loading';
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 
 export default function WalletPage() {
+  const router = useRouter();
   const [balance, setBalance] = useState<WalletBalance | null>(null);
   const [analytics, setAnalytics] = useState<WalletAnalytics | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<WalletTransaction[]>([]);
@@ -141,11 +143,11 @@ export default function WalletPage() {
           <p className="text-gray-600 dark:text-gray-400">Manage your wallet balance and transactions</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => window.location.href = '/dashboard/wallet/add-money'}>
+          <Button variant="outline" onClick={() => router.push('/dashboard/wallet/add-money')}>
             <Plus className="h-4 w-4 mr-2" />
             Add Money
           </Button>
-          <Button variant="outline" onClick={() => window.location.href = '/dashboard/wallet/withdraw'}>
+          <Button variant="outline" onClick={() => router.push('/dashboard/wallet/withdraw')}>
             <Minus className="h-4 w-4 mr-2" />
             Withdraw
           </Button>
@@ -329,7 +331,7 @@ export default function WalletPage() {
           <Button
             variant="outline"
             className="h-20 flex-col gap-2"
-            onClick={() => window.location.href = '/dashboard/wallet/add-money'}
+            onClick={() => router.push('/dashboard/wallet/add-money')}
           >
             <Plus className="h-6 w-6" />
             Add Money
