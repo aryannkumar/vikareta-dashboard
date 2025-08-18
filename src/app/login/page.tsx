@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
+import { handlePostLoginRedirect, syncSSOToSubdomains } from '@/lib/utils/cross-domain-auth';
 import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,13 +101,17 @@ function LoginContent() {
       // const response = await apiClient.post('/auth/login', { email, password });
       
       // Mock successful login for now
-      await login({ email, password });
+  await login({ email, password });
       addToast({
         type: 'success',
         title: 'Login Successful',
         description: 'Welcome to your dashboard!',
       });
-      router.push('/dashboard');
+  // Best-effort: sync SSO tokens to configured subdomains
+  try { syncSSOToSubdomains(); } catch {}
+
+  // Return user to where they started, or default per app logic
+  try { handlePostLoginRedirect(); } catch { router.push('/'); }
     } catch (error) {
       addToast({
         type: 'error',

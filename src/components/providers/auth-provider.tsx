@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
 import { SSOAuthClient } from '@/lib/auth/sso-client';
+import { handlePostLoginRedirect } from '@/lib/utils/cross-domain-auth';
 
 function AuthProviderContent({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
@@ -43,10 +44,9 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
           const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
           if (authResult) {
-            // Redirect to dashboard if we're on login page or root
-            if (window.location.pathname === '/login' || window.location.pathname === '/') {
-              router.push('/dashboard');
-            }
+            // If we successfully authenticated because of a token, return the
+            // user to where they started rather than forcing /dashboard.
+            try { handlePostLoginRedirect(); } catch { if (window.location.pathname === '/login' || window.location.pathname === '/') router.push('/'); }
           } else if (error && !error.includes('Network connection')) {
             console.error('Dashboard: Authentication failed after receiving token:', error);
             // Redirect back to main site login instead of dashboard login
@@ -66,10 +66,7 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
           const { isAuthenticated: authResult, error } = useAuthStore.getState();
 
           if (authResult) {
-            // Check if we're on login page and redirect to dashboard
-            if (window.location.pathname === '/login' || window.location.pathname === '/') {
-              router.push('/dashboard');
-            }
+            try { handlePostLoginRedirect(); } catch { if (window.location.pathname === '/login' || window.location.pathname === '/') router.push('/'); }
           } else if (!error || !error.includes('Network connection')) {
             // Don't auto-redirect from login page - let the login page handle its own logic
             if (window.location.pathname !== '/login') {
