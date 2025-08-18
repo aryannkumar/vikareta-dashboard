@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { apiClient } from '@/lib/api/client';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import { 
@@ -247,7 +246,6 @@ export default function OrderDetailPage() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <ThemeToggle />
             <Button variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Download Invoice

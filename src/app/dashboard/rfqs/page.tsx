@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useRFQs } from '@/lib/hooks/use-rfqs';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import {
@@ -141,7 +140,6 @@ export default function RFQsPage() {
             )}
           </div>
           <div className="flex items-center space-x-4">
-            <ThemeToggle />
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export

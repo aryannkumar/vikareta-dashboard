@@ -5,8 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-
-import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { useApi } from '@/lib/hooks/use-api';
 import { usePagination } from '@/lib/hooks/use-pagination';
 import { useLocalStorage } from '@/lib/hooks/use-local-storage';
@@ -302,7 +300,6 @@ export default function DealsPage() {
             <p className="text-muted-foreground">Track and manage your business deals</p>
           </div>
           <div className="flex items-center space-x-4">
-            <ThemeToggle />
             <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
