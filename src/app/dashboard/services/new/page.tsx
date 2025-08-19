@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Wrench, 
   ArrowLeft,
   Save,
   Clock,
@@ -34,8 +33,8 @@ import { toast } from '@/components/ui/use-toast';
 interface ServiceFormData {
   title: string;
   description: string;
-  category: string;
-  subcategory: string;
+  category: string; // holds categoryId
+  subcategory: string; // holds subcategoryId
   serviceType: 'consultation' | 'installation' | 'maintenance' | 'repair' | 'training' | 'other';
   pricing: {
     type: 'fixed' | 'hourly' | 'project' | 'negotiable';
@@ -59,6 +58,8 @@ interface ServiceFormData {
 export default function AddServicePage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [subcategories, setSubcategories] = useState<any[]>([]);
   const [newRequirement, setNewRequirement] = useState('');
   const [newDeliverable, setNewDeliverable] = useState('');
   const [newLocation, setNewLocation] = useState('');
@@ -86,6 +87,28 @@ export default function AddServicePage() {
     deliverables: [],
     status: 'draft',
   });
+
+  // Load categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      const res = await apiClient.get('/categories');
+      if (res.success) setCategories(res.data as any[]);
+    };
+    loadCategories();
+  }, []);
+
+  // Load subcategories when category changes
+  useEffect(() => {
+    if (!formData.category) {
+      setSubcategories([]);
+      return;
+    }
+    const loadSubcategories = async () => {
+      const res = await apiClient.get(`/subcategories/category/${formData.category}`);
+      if (res.success) setSubcategories(res.data as any[]);
+    };
+    loadSubcategories();
+  }, [formData.category]);
 
   const handleInputChange = (field: string, value: any) => {
     const keys = field.split('.');
@@ -173,8 +196,39 @@ export default function AddServicePage() {
         return;
       }
 
-      const submitData = { ...formData, status };
-      const response = await apiClient.post('/services', submitData);
+      // Map frontend form to backend contract
+      const durationToMinutes = (value: number, unit: 'hours' | 'days' | 'weeks' | 'months') => {
+        switch (unit) {
+          case 'hours': return Math.max(15, Math.round(value * 60));
+          case 'days': return Math.max(15, Math.round(value * 24 * 60));
+          case 'weeks': return Math.max(15, Math.round(value * 7 * 24 * 60));
+          case 'months': return Math.max(15, Math.round(value * 30 * 24 * 60));
+        }
+      };
+
+      const location = formData.availability.remote && formData.availability.onsite
+        ? 'both'
+        : formData.availability.remote
+          ? 'online'
+          : formData.availability.onsite
+            ? 'on_site'
+            : 'online';
+
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        categoryId: formData.category,
+        subcategoryId: formData.subcategory || undefined,
+        price: formData.pricing.type === 'negotiable' ? 0 : formData.pricing.amount,
+        currency: formData.pricing.currency || 'INR',
+        serviceType: 'one_time' as const,
+        duration: durationToMinutes(formData.duration.estimated, formData.duration.unit),
+        location,
+        serviceArea: formData.availability.locations,
+        availability: formData.availability,
+      };
+
+      const response = await apiClient.post('/services', payload);
       
       if (response.success) {
         toast({
@@ -252,24 +306,24 @@ export default function AddServicePage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="technology">Technology</SelectItem>
-                      <SelectItem value="consulting">Consulting</SelectItem>
-                      <SelectItem value="maintenance">Maintenance</SelectItem>
-                      <SelectItem value="installation">Installation</SelectItem>
-                      <SelectItem value="training">Training</SelectItem>
-                      <SelectItem value="design">Design</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      {categories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="subcategory">Subcategory</Label>
-                  <Input
-                    id="subcategory"
-                    value={formData.subcategory}
-                    onChange={(e) => handleInputChange('subcategory', e.target.value)}
-                    placeholder="Enter subcategory"
-                  />
+                  <Select value={formData.subcategory} onValueChange={(value) => handleInputChange('subcategory', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select subcategory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subcategories.map((sub) => (
+                        <SelectItem key={sub.id} value={sub.id}>{sub.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

@@ -10,16 +10,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
   Save, 
-  Upload, 
   X, 
   Plus, 
-  Minus, 
-  Eye, 
-  EyeOff,
   Package,
   DollarSign,
-  Tag,
-  FileText,
   Image as ImageIcon,
   Loader2
 } from 'lucide-react';
@@ -95,8 +89,8 @@ interface ProductFormProps {
 
 export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<UploadedFile[]>([]);
-  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedFile[]>([]);
+  const [, setUploadedImages] = useState<UploadedFile[]>([]);
+  const [, setUploadedDocuments] = useState<UploadedFile[]>([]);
   const [tags, setTags] = useState<string[]>(product?.tags || []);
   const [newTag, setNewTag] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
@@ -156,7 +150,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     if (selectedCategory) {
       const loadSubcategories = async () => {
         try {
-          const response = await apiClient.get(`/subcategories?category=${selectedCategory}`);
+          // Backend expects categoryId as path param: /subcategories/category/:categoryId
+          const response = await apiClient.get(`/subcategories/category/${selectedCategory}`);
           if (response.success) {
             setSubcategories(response.data as any[]);
           }
@@ -197,25 +192,22 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const onSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
     try {
-      const productData = {
-        ...data,
-        images: uploadedImages.map(img => ({
-          url: img.url,
-          key: img.key,
-          alt: img.name,
-        })),
-        documents: uploadedDocuments.map(doc => ({
-          url: doc.url,
-          key: doc.key,
-          name: doc.name,
-          type: doc.type,
-        })),
-        tags,
-      };
+      // Map form fields to backend contract
+      const backendPayload = {
+        title: data.name,
+        description: data.description,
+        categoryId: data.category, // category select stores UUID
+        subcategoryId: data.subcategory || undefined, // optional UUID
+        price: data.price,
+        currency: 'INR',
+        stockQuantity: data.quantity,
+        minOrderQuantity: data.minOrderQuantity,
+        isService: false,
+      } as const;
 
       const response = product 
-        ? await apiClient.updateProduct(product.id, productData)
-        : await apiClient.createProduct(productData);
+        ? await apiClient.updateProduct(product.id, backendPayload)
+        : await apiClient.createProduct(backendPayload);
 
       if (response.success) {
         toast({

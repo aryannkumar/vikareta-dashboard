@@ -78,6 +78,16 @@ export interface RFQsResponse {
   stats: RFQStats;
 }
 
+export interface RelevantRFQsResponse {
+  rfqs: RFQ[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
 export interface CreateRFQData {
   title: string;
   description: string;
@@ -326,6 +336,17 @@ class RFQService {
       { responseType: 'blob' }
     );
     return response.data as Blob;
+  }
+
+  async getRelevantRFQs(params: { page?: number; limit?: number; categoryId?: string; subcategoryId?: string; search?: string } = {}): Promise<RelevantRFQsResponse> {
+    const query = new URLSearchParams();
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    if (params.categoryId) query.append('categoryId', params.categoryId);
+    if (params.subcategoryId) query.append('subcategoryId', params.subcategoryId);
+    if (params.search) query.append('search', params.search);
+    const res = await apiClient.get(`${this.baseUrl}/relevant?${query.toString()}`);
+    return res.data as RelevantRFQsResponse;
   }
 }
 
