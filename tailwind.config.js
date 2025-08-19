@@ -92,9 +92,9 @@ export default {
         hard: '0 10px 40px -10px rgba(0, 0, 0, 0.15), 0 2px 8px -2px rgba(0, 0, 0, 0.05)',
       },
       backgroundImage: {
-        'gradient-primary': 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-        'gradient-secondary': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-        'gradient-accent': 'linear-gradient(135deg, #f97316 0%, #3b82f6 100%)',
+        'gradient-primary': 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+        'gradient-secondary': 'linear-gradient(135deg, #64748b 0%, #334155 100%)',
+        'gradient-accent': 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',

@@ -33,7 +33,7 @@ export default function ReportsPage() {
       title: 'Order Report',
       description: 'Order trends and fulfillment metrics',
       icon: ShoppingBagIcon,
-      color: 'bg-orange-100 text-orange-600',
+      color: 'bg-blue-100 text-blue-600',
       lastGenerated: '2024-01-13',
     },
     {
@@ -90,7 +90,7 @@ export default function ReportsPage() {
                 <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
                 <p className="text-2xl font-bold">3</p>
               </div>
-              <CalendarIcon className="h-8 w-8 text-orange-500" />
+              <CalendarIcon className="h-8 w-8 text-blue-500" />
             </div>
           </CardContent>
         </Card>

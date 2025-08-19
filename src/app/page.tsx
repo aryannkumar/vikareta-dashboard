@@ -163,8 +163,8 @@ export default function HomePage() {
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/dashboard/customers')}>
             <CardHeader>
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <Users className="h-6 w-6 text-orange-600" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
                   <CardTitle className="text-lg">Customers</CardTitle>
@@ -242,7 +242,7 @@ export default function HomePage() {
                 <div className="text-sm text-gray-600">Customers</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">₹0</div>
+                <div className="text-2xl font-bold text-blue-600">₹0</div>
                 <div className="text-sm text-gray-600">Revenue</div>
               </div>
             </div>

@@ -8,7 +8,7 @@
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
-  --primary: 24 95% 53%; /* Premium orange */
+  --primary: 221.2 83.2% 53.3%; /* Blue primary */
   --primary-foreground: 0 0% 100%;
   --secondary: 221.2 83.2% 53.3%; /* Premium blue */
   --secondary-foreground: 0 0% 100%;
@@ -20,25 +20,25 @@
   --destructive-foreground: 0 0% 100%;
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 24 95% 53%;
+  --ring: 221.2 83.2% 53.3%;
   --radius: 0.75rem;
   
   /* Dashboard specific - Premium theme */
   --sidebar: 222.2 84% 4.9%;
   --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 24 95% 53%; /* Orange primary */
+  --sidebar-primary: 221.2 83.2% 53.3%; /* Blue primary */
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 221.2 83.2% 53.3%; /* Blue accent */
   --sidebar-accent-foreground: 0 0% 100%;
   --sidebar-border: 217.2 32.6% 17.5%;
-  --sidebar-ring: 24 95% 53%;
+  --sidebar-ring: 221.2 83.2% 53.3%;
   
   /* Premium advertisement theme colors */
   --ad-orange: 24 95% 53%; /* Premium orange */
   --ad-orange-foreground: 0 0% 100%;
   --ad-blue: 221.2 83.2% 53.3%; /* Premium blue */
   --ad-blue-foreground: 0 0% 100%;
-  --ad-active: 24 95% 53%; /* Orange for active */
+  --ad-active: 221.2 83.2% 53.3%; /* Blue for active */
   --ad-paused: 215 16% 47%;
   --ad-pending: 32.6 94.6% 43.7%; /* Orange-yellow for pending */
   --ad-rejected: 0 84% 60%;
@@ -46,9 +46,9 @@
   --ad-success: 142 76% 36%;
   
   /* Premium gradients */
-  --gradient-primary: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  --gradient-secondary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --gradient-accent: linear-gradient(135deg, #f97316 0%, #3b82f6 100%);
+  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --gradient-secondary: linear-gradient(135deg, #64748b 0%, #334155 100%);
+  --gradient-accent: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }
 
 .dark {
@@ -59,36 +59,36 @@
   --card-foreground: 210 40% 98%;
   --popover: 222.2 84% 4.9%;
   --popover-foreground: 210 40% 98%;
-  --primary: 24 95% 53%; /* Orange remains vibrant */
+  --primary: 221.2 83.2% 53.3%;
   --primary-foreground: 0 0% 100%;
   --secondary: 221.2 83.2% 53.3%; /* Blue remains vibrant */
   --secondary-foreground: 0 0% 100%;
   --muted: 217.2 32.6% 17.5%;
   --muted-foreground: 215 20.2% 65.1%;
-  --accent: 24 95% 53%;
+  --accent: 221.2 83.2% 53.3%;
   --accent-foreground: 0 0% 100%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 210 40% 98%;
   --border: 217.2 32.6% 17.5%;
   --input: 217.2 32.6% 17.5%;
-  --ring: 24 95% 53%;
+  --ring: 221.2 83.2% 53.3%;
   
   /* Dashboard specific dark mode - Premium theme */
   --sidebar: 222.2 84% 4.9%;
   --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 24 95% 53%; /* Orange primary */
+  --sidebar-primary: 221.2 83.2% 53.3%; /* Blue primary */
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 221.2 83.2% 53.3%; /* Blue accent */
   --sidebar-accent-foreground: 0 0% 100%;
   --sidebar-border: 217.2 32.6% 17.5%;
-  --sidebar-ring: 24 95% 53%;
+  --sidebar-ring: 221.2 83.2% 53.3%;
   
   /* Premium advertisement theme colors - dark mode */
   --ad-orange: 24 95% 53%;
   --ad-orange-foreground: 0 0% 100%;
   --ad-blue: 221.2 83.2% 53.3%;
   --ad-blue-foreground: 0 0% 100%;
-  --ad-active: 24 95% 53%;
+  --ad-active: 221.2 83.2% 53.3%;
   --ad-paused: 215 16% 47%;
   --ad-pending: 32.6 94.6% 43.7%;
   --ad-rejected: 0 62.8% 30.6%;
@@ -221,7 +221,7 @@ body {
 @layer components {
   .btn-primary {
     background: var(--gradient-primary);
-    @apply inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl shadow-medium text-white hover:shadow-hard transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
+  @apply inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-xl shadow-medium text-white hover:shadow-hard transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
   }
   
   .btn-secondary {
