@@ -41,22 +41,9 @@ function LoginContent() {
       return;
     }
 
-    // Only auto-redirect to main site if not authenticated and no auth error
-    // Also check if we're in the middle of an authentication process
-    const hasStoredToken = typeof window !== 'undefined' && 
-      (localStorage.getItem('vikareta_access_token') || localStorage.getItem('dashboard_token'));
-    
-    if (!isAuthenticated && !error && !hasStoredToken) {
-      const redirectTimer = setTimeout(() => {
-        const mainAppUrl = process.env.NODE_ENV === 'development' 
-          ? 'http://localhost:3000/auth/login' 
-          : 'https://vikareta.com/auth/login';
-        
-        window.location.href = `${mainAppUrl}?redirect=${encodeURIComponent(window.location.origin + '/dashboard')}`;
-      }, 3000); // Give 3 seconds for auth check to complete
-
-      return () => clearTimeout(redirectTimer);
-    }
+    // Disable auto-redirect to main site for now - use direct dashboard login
+    // The dashboard should handle authentication directly via its /api/auth/login proxy
+    console.log('Dashboard Login: Staying on dashboard login page for direct authentication');
   }, [searchParams, isAuthenticated, isLoading, router]);
 
   // Clear auth error when component unmounts or auth state changes

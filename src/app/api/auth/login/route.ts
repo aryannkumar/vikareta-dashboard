@@ -3,6 +3,8 @@ export async function POST(req: Request) {
   const apiBase = process.env.NEXT_PUBLIC_API_BASE || 
     process.env.NEXT_PUBLIC_API_URL_PRIMARY?.replace('/api', '') ||
     (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : 'https://api.vikareta.com');
+  
+  console.log('Dashboard Login Proxy: Forwarding to', `${apiBase}/api/auth/login`);
   const body = await req.text();
 
   const forwardHeaders: Record<string, string> = {
@@ -23,6 +25,13 @@ export async function POST(req: Request) {
     });
 
     const text = await resp.text();
+    console.log('Dashboard Login Proxy: Backend response', { 
+      status: resp.status, 
+      ok: resp.ok,
+      contentLength: text.length,
+      hasSetCookie: !!resp.headers.get('set-cookie')
+    });
+    
     const headers = new Headers();
     const ct = resp.headers.get('content-type');
     if (ct) headers.set('content-type', ct);
@@ -41,7 +50,7 @@ export async function POST(req: Request) {
 
     return new Response(text, { status: resp.status, headers });
   } catch (error) {
-    console.error('Login proxy error:', error);
+    console.error('Dashboard Login Proxy: Error occurred', error);
     return new Response(JSON.stringify({ 
       success: false, 
       error: { 

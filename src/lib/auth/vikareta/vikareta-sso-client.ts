@@ -58,6 +58,7 @@ export class VikaretaSSOClient {
    */
   async login(credentials: { email: string; password: string }): Promise<VikaretaAuthState> {
     try {
+      console.log('SSO Client: Making login request to /api/auth/login');
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         credentials: 'include',
@@ -72,6 +73,19 @@ export class VikaretaSSOClient {
       console.log('Login API response:', { success: response.ok, status: response.status, data });
 
       if (!response.ok) {
+        console.error('Login API failed with status:', response.status, data);
+        return {
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: data.message || data.error?.message || `Login failed (${response.status})`,
+          sessionId: null
+        };
+      }
+
+      // Check if response indicates success
+      if (!data.success) {
+        console.error('Login API returned success=false:', data);
         return {
           user: null,
           isAuthenticated: false,
@@ -81,13 +95,14 @@ export class VikaretaSSOClient {
         };
       }
 
-      // Check if response indicates success
-      if (!data.success) {
+      // Validate required fields
+      if (!data.user || !data.accessToken || !data.refreshToken) {
+        console.error('Login API missing required fields:', data);
         return {
           user: null,
           isAuthenticated: false,
           isLoading: false,
-          error: data.message || data.error?.message || 'Login failed',
+          error: 'Invalid login response: missing required fields',
           sessionId: null
         };
       }
@@ -124,12 +139,12 @@ export class VikaretaSSOClient {
         sessionId: authData.sessionId || null
       };
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('SSO Client: Login failed with error:', error);
       return {
         user: null,
         isAuthenticated: false,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Login failed',
+        error: error instanceof Error ? error.message : 'Login request failed',
         sessionId: null
       };
     }
