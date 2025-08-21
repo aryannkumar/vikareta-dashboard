@@ -20,7 +20,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading, checkAuth } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
 
   const redirectToLogin = () => {
     const mainAppUrl = process.env.NODE_ENV === 'development'
@@ -29,12 +29,13 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     window.location.href = mainAppUrl;
   };
 
-  // Check authentication when layout loads (only once when hydrated)
+  // The auth system automatically handles authentication check
+  // We just need to redirect to login if not authenticated
   useEffect(() => {
     if (isHydrated && !isAuthenticated && !authLoading) {
-      checkAuth();
+      redirectToLogin();
     }
-  }, [authLoading, checkAuth, isAuthenticated, isHydrated]);
+  }, [authLoading, isAuthenticated, isHydrated]);
 
   useEffect(() => {
     // Mark as hydrated after first render

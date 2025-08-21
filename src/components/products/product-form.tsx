@@ -187,17 +187,18 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const onSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
     try {
-      // Map form fields to backend contract
+      // Map form fields to backend contract - FIXED FIELD MAPPINGS
       const backendPayload = {
-        title: data.name,
-        description: data.description,
-        categoryId: data.category, // category select stores UUID
-        subcategoryId: data.subcategory || undefined, // optional UUID
-        price: data.price,
-        currency: 'INR',
-        stockQuantity: data.quantity,
-        minOrderQuantity: data.minOrderQuantity,
-        isService: false,
+        title: data.name,                    // ✅ Map frontend 'name' → backend 'title'
+        description: data.description,       // ✅ Direct mapping
+        categoryId: data.category,           // ✅ Direct mapping (UUID from select)
+        subcategoryId: data.subcategory || undefined, // ✅ Optional UUID
+        price: Number(data.price),           // ✅ Ensure number type
+        currency: 'INR',                     // ✅ Default currency
+        stockQuantity: Number(data.quantity), // ✅ Map frontend 'quantity' → backend 'stockQuantity'
+        minOrderQuantity: Number(data.minOrderQuantity), // ✅ Ensure number type
+        isService: false,                    // ✅ Hard-coded for products
+        // Note: Backend uses 'status' field, but we don't set it here (defaults to 'active')
       } as const;
 
       const response = product 

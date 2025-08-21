@@ -8,39 +8,29 @@ import { useAuthStore } from '@/lib/stores/auth';
 export function useAuth() {
   const {
     user,
-    token,
     isAuthenticated,
     isLoading,
     error,
     login,
     logout,
-    refreshAuth,
-    updateProfile,
-    clearError,
-    checkAuth,
   } = useAuthStore();
 
   return {
     // State
     user,
-    token,
     isAuthenticated,
     isLoading,
     error,
     
     // Computed
-    isAdmin: user?.role === 'admin',
-    isSeller: user?.role === 'seller' || user?.role === 'both',
-    isBuyer: user?.role === 'buyer' || user?.role === 'both',
+    isAdmin: user?.userType === 'admin',
+    isSeller: user?.userType === 'seller' || user?.userType === 'both',
+    isBuyer: user?.userType === 'buyer' || user?.userType === 'both',
     isVerified: user?.isVerified || false,
     verificationTier: user?.verificationTier || 'basic',
     
     // Actions
     login,
     logout,
-    refreshAuth,
-    updateProfile,
-    clearError,
-    checkAuth,
   };
 }

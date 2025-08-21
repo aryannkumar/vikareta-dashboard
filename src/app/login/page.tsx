@@ -3,215 +3,209 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/stores/auth';
-import { handlePostLoginRedirect, syncSSOToSubdomains } from '@/lib/utils/cross-domain-auth';
+import { vikaretaCrossDomainAuth } from '@/lib/auth/vikareta';
 import { useToast } from '@/components/providers/toast-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
-import { APP_CONFIG } from '@/constants';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated, checkAuth } = useAuthStore();
+  const { login, isAuthenticated, isLoading } = useAuthStore();
   const { addToast } = useToast();
 
   useEffect(() => {
     // Check for authentication errors from URL
     const error = searchParams.get('error');
-    const token = searchParams.get('token');
     
     if (error === 'auth_failed') {
       setAuthError('Authentication failed. Please try logging in again.');
     }
 
-    // Force check authentication when login page loads
-    const checkAuthOnLoad = async () => {
-      await checkAuth();
-      
-      // After checking auth, see if we're authenticated
-      setTimeout(() => {
-        const { isAuthenticated: currentAuthState } = useAuthStore.getState();
-        if (currentAuthState) {
-          router.push('/dashboard');
-          return;
-        }
-      }, 100);
-    };
-
-    checkAuthOnLoad();
-
     // If already authenticated, redirect to dashboard
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLoading) {
       router.push('/dashboard');
       return;
     }
 
-    // Don't auto-redirect if there's a token in URL (user was just redirected back)
-    // or if there's an auth error (user needs to see the error)
+    // Don't auto-redirect if there's an auth error (user needs to see the error)
     // or if user is already authenticated
-    if (token || error || isAuthenticated) {
+    if (error || isAuthenticated) {
       return;
     }
 
-    // Only auto-redirect to main site if not authenticated, no token, and no auth error
+    // Only auto-redirect to main site if not authenticated and no auth error
     // Also check if we're in the middle of an authentication process
     const hasStoredToken = typeof window !== 'undefined' && 
       (localStorage.getItem('vikareta_access_token') || localStorage.getItem('dashboard_token'));
     
-    if (!isAuthenticated && !token && !error && !hasStoredToken) {
+    if (!isAuthenticated && !error && !hasStoredToken) {
       const redirectTimer = setTimeout(() => {
         const mainAppUrl = process.env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/auth/login' 
           : 'https://vikareta.com/auth/login';
         
-        // Add current URL as redirect parameter
-        const currentUrl = window.location.href;
-        const redirectUrl = `${mainAppUrl}?redirect=${encodeURIComponent(currentUrl)}`;
-        
-        window.location.href = redirectUrl;
-      }, 5000); // Increased to 5 seconds to give more time for auth processing
+        window.location.href = `${mainAppUrl}?redirect=${encodeURIComponent(window.location.origin + '/dashboard')}`;
+      }, 3000); // Give 3 seconds for auth check to complete
 
       return () => clearTimeout(redirectTimer);
     }
-  }, [searchParams, isAuthenticated, router]);
+  }, [searchParams, isAuthenticated, isLoading, router]);
+
+  // Clear auth error when component unmounts or auth state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      setAuthError(null);
+    }
+  }, [isAuthenticated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email || !password) {
-      addToast({
-        type: 'error',
-        title: 'Validation Error',
-        description: 'Please enter both email and password.',
-      });
+      setAuthError('Please enter both email and password');
       return;
     }
 
-    setIsLoading(true);
+    setLoginLoading(true);
+    setAuthError(null);
 
     try {
-      // TODO: Replace with actual API call for authentication
-      // const response = await apiClient.post('/auth/login', { email, password });
+      const success = await login({ email, password });
       
-      // Mock successful login for now
-  await login({ email, password });
-      addToast({
-        type: 'success',
-        title: 'Login Successful',
-        description: 'Welcome to your dashboard!',
-      });
-  // Best-effort: sync SSO tokens to configured subdomains
-  try { syncSSOToSubdomains(); } catch {}
+      if (success) {
+        addToast({
+          type: 'success',
+          title: 'Login Successful',
+          description: 'Welcome to Vikareta Dashboard!'
+        });
 
-  // Return user to where they started, or default per app logic
-  try { handlePostLoginRedirect(); } catch { router.push('/'); }
+        // Best-effort: sync SSO tokens to configured subdomains
+        try { vikaretaCrossDomainAuth.syncSSOAcrossDomains(); } catch {}
+
+        // Return user to where they started, or default per app logic
+        try { vikaretaCrossDomainAuth.handlePostLoginRedirect(); } catch { router.push('/'); }
+      } else {
+        throw new Error('Login failed');
+      }
     } catch (error) {
       addToast({
         type: 'error',
         title: 'Login Failed',
         description: error instanceof Error ? error.message : 'An error occurred during login.',
       });
+      setAuthError(error instanceof Error ? error.message : 'Login failed');
     } finally {
-      setIsLoading(false);
+      setLoginLoading(false);
     }
   };
 
-  const handleMainAppRedirect = () => {
-    const mainAppUrl = process.env.NODE_ENV === 'development' 
-      ? 'http://localhost:3000' 
-      : 'https://vikareta.com';
-    window.location.href = mainAppUrl;
-  };
+  // Show loading state during authentication check
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              <p>Checking authentication...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">
-            {APP_CONFIG.name}
+            Vikareta Dashboard
           </CardTitle>
           <p className="text-muted-foreground">
-            Sign in to access your business dashboard
+            Access your business dashboard
           </p>
         </CardHeader>
         <CardContent>
           {authError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-center gap-2 text-red-700">
-              <AlertTriangle className="h-4 w-4" />
-              <span className="text-sm">{authError}</span>
-            </div>
-          )}
-          
-          {!searchParams.get('token') && !searchParams.get('error') && !isAuthenticated && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-700">
-                <strong>Redirecting...</strong> You will be redirected to the main Vikareta website to log in. 
-                This ensures secure authentication across all our services.
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-xs text-blue-600">Redirecting in a few seconds...</span>
-              </div>
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="text-sm text-destructive">{authError}</span>
             </div>
           )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              type="email"
-              label="Email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={isLoading}
-            />
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                disabled={loginLoading}
+              />
+            </div>
             
-            <Input
-              type="password"
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={isLoading}
-            />
-
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                disabled={loginLoading}
+              />
+            </div>
+            
             <Button
               type="submit"
               className="w-full"
-              loading={isLoading}
-              disabled={isLoading}
+              disabled={loginLoading}
             >
-              Sign In
+              {loginLoading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Signing in...</span>
+                </div>
+              ) : (
+                'Sign In'
+              )}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
-              <button
-                onClick={handleMainAppRedirect}
-                className="text-primary hover:underline"
-              >
-                Sign up on Vikareta
-              </button>
-            </p>
-          </div>
-
-          <div className="mt-4 text-center">
-            <button
-              onClick={handleMainAppRedirect}
-              className="text-sm text-muted-foreground hover:text-foreground"
+          
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            <p>Don't have access?</p>
+            <a 
+              href={process.env.NODE_ENV === 'development' 
+                ? 'http://localhost:3000/auth/register' 
+                : 'https://vikareta.com/auth/register'
+              }
+              className="text-primary hover:underline"
             >
-              ← Back to main site
-            </button>
+              Contact support for dashboard access
+            </a>
+          </div>
+          
+          <div className="mt-4 text-center text-xs text-muted-foreground">
+            <p>
+              You will be redirected to the main site in a few seconds if not authenticated.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -222,11 +216,8 @@ function LoginContent() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     }>
       <LoginContent />

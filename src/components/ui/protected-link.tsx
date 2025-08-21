@@ -15,7 +15,7 @@ export function ProtectedLink({ href, children, className, prefetch = true, ...p
   const { user } = useAuthStore();
   
   // Only prefetch if user has access to the route
-  const shouldPrefetch = prefetch && user && hasRouteAccess(href, (user.role as 'buyer' | 'seller' | 'both' | 'admin') || 'buyer');
+  const shouldPrefetch = prefetch && user && hasRouteAccess(href, (user.userType as 'buyer' | 'seller' | 'both' | 'admin') || 'buyer');
   
   return (
     <Link 

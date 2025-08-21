@@ -75,11 +75,6 @@ const navigation: NavigationItem[] = [
     badge: '5',
   },
   {
-    name: 'Deals',
-    href: '/dashboard/deals',
-    icon: FileText,
-  },
-  {
     name: 'Advertisements',
     href: '/dashboard/advertisements',
     icon: Megaphone,

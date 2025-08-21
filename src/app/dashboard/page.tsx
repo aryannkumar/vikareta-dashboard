@@ -296,7 +296,13 @@ export default function DashboardPage() {
                   whileTap={{ scale: 0.95 }}
                 >
                   <Link href={action.href}>
-                    <Button className={`w-full h-24 flex-col space-y-2 group bg-gradient-to-r ${action.gradient} hover:shadow-lg transition-all duration-300 text-white border-0`}>
+                    <Button 
+                      className={`w-full h-24 flex-col space-y-2 group bg-gradient-to-r ${action.gradient} hover:shadow-lg transition-all duration-300 text-white border-0`}
+                      onClick={() => {
+                        console.log('Quick action clicked:', action.label, action.href);
+                        // Allow normal Link navigation to proceed
+                      }}
+                    >
                       <motion.div
                         whileHover={{ scale: 1.2, rotate: 5 }}
                         transition={{ duration: 0.2 }}

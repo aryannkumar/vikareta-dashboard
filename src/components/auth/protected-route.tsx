@@ -47,8 +47,9 @@ export function ProtectedRoute({
     );
   }
 
-  // Check role permissions
-  if (!allowedRoles.includes(user.role as 'buyer' | 'seller' | 'both' || 'buyer')) {
+  // Check role permissions (using userType from VikaretaUser)
+  const userRole = user.userType || 'buyer';
+  if (!allowedRoles.includes(userRole as 'buyer' | 'seller' | 'both')) {
     return fallback || (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-md">
@@ -61,7 +62,7 @@ export function ProtectedRoute({
             </p>
             <div className="text-sm space-y-1">
               <p><strong>Required roles:</strong> {allowedRoles.join(', ')}</p>
-              <p><strong>Your role:</strong> {user.role}</p>
+              <p><strong>Your role:</strong> {user.userType || 'buyer'}</p>
             </div>
             <button
               onClick={() => router.push('/dashboard')}

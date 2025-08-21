@@ -196,7 +196,7 @@ export default function AddServicePage() {
         return;
       }
 
-      // Map frontend form to backend contract
+      // Map frontend form to backend contract - FIXED SERVICE TYPE MAPPING
       const durationToMinutes = (value: number, unit: 'hours' | 'days' | 'weeks' | 'months') => {
         switch (unit) {
           case 'hours': return Math.max(15, Math.round(value * 60));
@@ -214,16 +214,19 @@ export default function AddServicePage() {
             ? 'on_site'
             : 'online';
 
+      // Map frontend serviceType to backend serviceType
+      const backendServiceType = 'one_time'; // Default to one_time for all service types
+      
       const payload = {
         title: formData.title,
         description: formData.description,
         categoryId: formData.category,
         subcategoryId: formData.subcategory || undefined,
-        price: formData.pricing.type === 'negotiable' ? 0 : formData.pricing.amount,
+        price: Number(formData.pricing.type === 'negotiable' ? 0 : formData.pricing.amount),
         currency: formData.pricing.currency || 'INR',
-        serviceType: 'one_time' as const,
+        serviceType: backendServiceType, // ✅ Use valid backend enum value
         duration: durationToMinutes(formData.duration.estimated, formData.duration.unit),
-        location,
+        location, // ✅ Required field properly mapped
         serviceArea: formData.availability.locations,
         availability: formData.availability,
       };

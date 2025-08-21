@@ -190,7 +190,7 @@ export function Sidebar({ className, onClose }: SidebarProps) {
   const sidebarCollapsed = false; // TODO: Implement sidebar collapse functionality
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  const navItems = user ? getNavigationMenu((user.role as 'buyer' | 'seller' | 'both' | 'admin') || 'buyer') : [];
+  const navItems = user ? getNavigationMenu((user.userType as 'buyer' | 'seller' | 'both' | 'admin') || 'buyer') : [];
 
   const toggleExpanded = (title: string) => {
     setExpandedItems(prev => 

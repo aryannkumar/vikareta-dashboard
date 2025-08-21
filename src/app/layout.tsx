@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { DashboardSSOProvider } from "@/lib/auth/use-dashboard-sso";
+import { VikaretaAuthProvider } from "@/lib/auth/vikareta";
 import { ToastProvider } from "@/components/providers/toast-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import "./globals.css";
@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Vikareta Dashboard - Business Management Platform",
   description: "Comprehensive business dashboard for managing products, orders, RFQs, and more on the Vikareta marketplace platform.",
-  keywords: "business dashboard, marketplace, B2B, products, orders, RFQ, quotes, deals",
+  keywords: "business dashboard, marketplace, B2B, products, orders, RFQ, quotes",
   authors: [{ name: "Vikareta Team" }],
   creator: "Vikareta",
   publisher: "Vikareta",
@@ -68,11 +68,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <DashboardSSOProvider>
+            <VikaretaAuthProvider>
               <ToastProvider>
                 {children}
               </ToastProvider>
-            </DashboardSSOProvider>
+            </VikaretaAuthProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

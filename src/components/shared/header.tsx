@@ -136,7 +136,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     {user?.firstName} {user?.lastName}
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    {user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'User'}
+                    {user?.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User'}
                   </p>
                 </div>
                 <motion.div

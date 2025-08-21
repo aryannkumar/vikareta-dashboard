@@ -145,30 +145,6 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     ],
   },
   {
-    path: '/dashboard/deals',
-    title: 'Deals & Communication',
-    description: 'Track deals and communicate with partners',
-    allowedRoles: ['buyer', 'seller', 'both'],
-    icon: 'ClipboardDocumentListIcon',
-    children: [
-      {
-        path: '/dashboard/deals',
-        title: 'All Deals',
-        allowedRoles: ['buyer', 'seller', 'both'],
-      },
-      {
-        path: '/dashboard/deals/active',
-        title: 'Active Deals',
-        allowedRoles: ['buyer', 'seller', 'both'],
-      },
-      {
-        path: '/dashboard/deals/completed',
-        title: 'Completed Deals',
-        allowedRoles: ['buyer', 'seller', 'both'],
-      },
-    ],
-  },
-  {
     path: '/dashboard/advertisements',
     title: 'Advertisements',
     description: 'Create and manage your advertisement campaigns',

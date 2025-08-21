@@ -32,7 +32,8 @@ export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) 
   }
 
   // Check if user has required role (both role can access everything)
-  const hasAccess = user.role === 'both' || allowedRoles.includes(user.role as 'buyer' | 'seller' | 'both');
+  const userRole = user.userType || 'buyer';
+  const hasAccess = userRole === 'both' || allowedRoles.includes(userRole as 'buyer' | 'seller' | 'both');
   
   if (!hasAccess) {
     return fallback || (
@@ -46,7 +47,7 @@ export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) 
             Required roles: {allowedRoles.join(', ')}
           </p>
           <p className="text-sm text-muted-foreground">
-            Your role: {user.role}
+            Your role: {user.userType || 'buyer'}
           </p>
         </div>
       </div>

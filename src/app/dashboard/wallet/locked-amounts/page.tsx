@@ -171,7 +171,7 @@ export default function LockedAmountsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/dashboard/deals/${row.original.referenceId}`)}
+            onClick={() => router.push(`/dashboard/orders/${row.original.referenceId}`)}
           >
             <Eye className="h-4 w-4" />
           </Button>
@@ -277,8 +277,8 @@ export default function LockedAmountsPage() {
           <div>
             <h3 className="font-medium text-blue-900">About Locked Amounts</h3>
             <p className="text-sm text-blue-800 mt-1">
-              Locked amounts are funds temporarily held to ensure deal completion. These amounts are automatically
-              released when deals are completed or can be manually released if deals are cancelled. Locked funds
+              Locked amounts are funds temporarily held to ensure transaction completion. These amounts are automatically
+              released when orders are completed or can be manually released if orders are cancelled. Locked funds
               provide assurance to both buyers and sellers in high-value transactions.
             </p>
           </div>
