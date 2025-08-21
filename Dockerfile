@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Use npm install if npm ci fails due to lockfile sync issues
+RUN npm ci || npm install
 
 # Copy source code
 COPY . .
@@ -39,8 +40,8 @@ USER nextjs
 # Expose port
 EXPOSE 5741
 
-ENV PORT 5741
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=5741
+ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
