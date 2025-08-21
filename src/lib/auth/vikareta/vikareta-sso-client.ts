@@ -128,8 +128,8 @@ export class VikaretaSSOClient {
       // Store auth data securely
       vikaretaCrossDomainAuth.storeAuthData(authData);
 
-      // Sync across domains
-      await vikaretaCrossDomainAuth.syncSSOAcrossDomains(authData);
+  // Sync across domains
+  await vikaretaCrossDomainAuth.syncSSOAcrossDomains();
 
       return {
         user: authData.user,
