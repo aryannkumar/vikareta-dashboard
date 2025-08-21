@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   HomeIcon,
   CubeIcon,
@@ -178,9 +179,10 @@ const iconMap = {
 
 interface SidebarProps {
   className?: string;
+  onClose?: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -249,123 +251,178 @@ export function Sidebar({ className }: SidebarProps) {
 
   return (
     <div className={cn(
-      'flex flex-col h-full bg-sidebar border-r border-sidebar-border transition-all duration-300 flex-shrink-0 relative z-10',
+      'flex flex-col h-full bg-gradient-to-b from-amber-900 via-amber-950 to-gray-900 border-r border-amber-800/30 transition-all duration-300 flex-shrink-0 relative z-10 shadow-2xl',
       sidebarCollapsed ? 'w-16' : 'w-64',
       className
     )}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
+      <div className="flex items-center justify-between p-4 border-b border-amber-800/30">
         {!sidebarCollapsed && (
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">V</span>
-            </div>
-            <span className="font-semibold text-sidebar-foreground">Vikareta</span>
+          <Link href="/dashboard" className="flex items-center space-x-3 group">
+            <motion.div 
+              className="w-10 h-10 bg-gradient-to-r from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span className="text-white font-bold text-lg">V</span>
+            </motion.div>
+            <motion.span 
+              className="font-bold text-xl text-amber-100 group-hover:text-amber-200 transition-colors"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              Vikareta
+            </motion.span>
           </Link>
         )}
-        <button
-          onClick={() => {/* TODO: Implement sidebar collapse */}}
-          className="p-1 rounded-md hover:bg-sidebar-accent text-sidebar-foreground"
-        >
-          {sidebarCollapsed ? (
-            <Bars3Icon className="w-5 h-5" />
-          ) : (
+        {onClose && (
+          <motion.button
+            onClick={onClose}
+            className="lg:hidden p-2 rounded-lg hover:bg-amber-800/30 text-amber-200 hover:text-amber-100 transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+          >
             <XMarkIcon className="w-5 h-5" />
-          )}
-        </button>
+          </motion.button>
+        )}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const Icon = iconMap[item.icon as keyof typeof iconMap];
           const hasChildren = item.children && item.children.length > 0;
           const expanded = isExpanded(item.title);
           const active = isActive(item.href);
 
           return (
-            <div key={item.title}>
+            <motion.div
+              key={item.title}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
               {hasChildren ? (
-                <button
+                <motion.button
                   onClick={() => toggleExpanded(item.title)}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    'w-full flex items-center justify-between px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group',
                     active
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg'
+                      : 'text-amber-200 hover:bg-amber-800/30 hover:text-amber-100'
                   )}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <div className="flex items-center space-x-3">
-                    <Icon className="w-5 h-5 flex-shrink-0" />
+                    <Icon className={cn(
+                      'w-5 h-5 flex-shrink-0 transition-colors',
+                      active ? 'text-white' : 'text-amber-300 group-hover:text-amber-200'
+                    )} />
                     {!sidebarCollapsed && <span>{item.title}</span>}
                   </div>
                   {!sidebarCollapsed && (
-                    <ChevronDownIcon 
-                      className={cn(
-                        'w-4 h-4 transition-transform',
-                        expanded && 'transform rotate-180'
-                      )} 
-                    />
+                    <motion.div
+                      animate={{ rotate: expanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDownIcon className="w-4 h-4" />
+                    </motion.div>
                   )}
-                </button>
+                </motion.button>
               ) : (
-                <button
+                <motion.button
                   onClick={() => handleNavigation(item.href)}
                   className={cn(
-                    'w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+                    'w-full flex items-center space-x-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer group',
                     active
-                      ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                      ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg'
+                      : 'text-amber-200 hover:bg-amber-800/30 hover:text-amber-100'
                   )}
+                  whileHover={{ scale: 1.02, x: 2 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <Icon className={cn(
+                    'w-5 h-5 flex-shrink-0 transition-colors',
+                    active ? 'text-white' : 'text-amber-300 group-hover:text-amber-200'
+                  )} />
                   {!sidebarCollapsed && <span>{item.title}</span>}
-                </button>
+                </motion.button>
               )}
 
               {/* Submenu */}
-              {hasChildren && expanded && !sidebarCollapsed && (
-                <div className="ml-8 mt-2 space-y-1">
-                  {item.children?.map((child) => (
-                    <button
-                      key={child.href}
-                      onClick={() => handleNavigation(child.href)}
-                      className={cn(
-                        'w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer',
-                        isActive(child.href)
-                          ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                          : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                      )}
-                    >
-                      {child.title}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              <AnimatePresence>
+                {hasChildren && expanded && !sidebarCollapsed && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="ml-8 mt-2 space-y-1 overflow-hidden"
+                  >
+                    {item.children?.map((child, childIndex) => (
+                      <motion.button
+                        key={child.href}
+                        onClick={() => handleNavigation(child.href)}
+                        className={cn(
+                          'w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 cursor-pointer group',
+                          isActive(child.href)
+                            ? 'bg-amber-600/50 text-amber-100 font-medium shadow-md'
+                            : 'text-amber-300 hover:bg-amber-800/20 hover:text-amber-200'
+                        )}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: childIndex * 0.03 }}
+                        whileHover={{ x: 4 }}
+                      >
+                        <span className="relative">
+                          {child.title}
+                          {isActive(child.href) && (
+                            <motion.div
+                              className="absolute -left-3 top-1/2 w-1 h-4 bg-amber-300 rounded-full"
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              style={{ transform: 'translateY(-50%)' }}
+                            />
+                          )}
+                        </span>
+                      </motion.button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
           );
         })}
       </nav>
 
       {/* User Info */}
       {!sidebarCollapsed && user && (
-        <div className="p-4 border-t border-sidebar-border">
+        <motion.div
+          className="p-4 border-t border-amber-800/30 bg-gradient-to-r from-amber-900/50 to-gray-900/50"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground text-sm font-medium">
+            <motion.div 
+              className="w-10 h-10 bg-gradient-to-r from-amber-400 to-amber-600 rounded-full flex items-center justify-center shadow-lg"
+              whileHover={{ scale: 1.1 }}
+            >
+              <span className="text-white text-sm font-bold">
                 {user.firstName?.charAt(0) || 'U'}{user.lastName?.charAt(0) || 'S'}
               </span>
-            </div>
+            </motion.div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
+              <p className="text-sm font-semibold text-amber-100 truncate">
                 {user.firstName} {user.lastName}
               </p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">
+              <p className="text-xs text-amber-300 truncate">
                 {user.businessName || user.email}
               </p>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );

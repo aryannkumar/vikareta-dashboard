@@ -7,6 +7,7 @@ export interface UseOrdersOptions {
   autoLoad?: boolean;
   limit?: number;
   status?: string;
+  orderType?: string;
   search?: string;
 }
 
@@ -32,6 +33,7 @@ export function useOrders(options: UseOrdersOptions = {}): UseOrdersReturn {
     autoLoad = true, 
     limit = 10, 
     status, 
+    orderType,
     search 
   } = options;
 
@@ -54,6 +56,7 @@ export function useOrders(options: UseOrdersOptions = {}): UseOrdersReturn {
         page: pagination.current,
         limit: pagination.pageSize,
         status,
+        orderType,
         search,
         ...params
       };
@@ -65,7 +68,7 @@ export function useOrders(options: UseOrdersOptions = {}): UseOrdersReturn {
         }
       });
 
-      // Mock orders data
+      // Mock orders data with both product and service orders
       const mockOrders: Order[] = [
         {
           id: '1',
@@ -101,13 +104,101 @@ export function useOrders(options: UseOrdersOptions = {}): UseOrdersReturn {
           createdAt: new Date(Date.now() - 86400000).toISOString(),
           updatedAt: new Date(Date.now() - 86400000).toISOString(),
         },
+        {
+          id: '3',
+          buyerId: 'buyer3',
+          sellerId: 'seller1',
+          orderNumber: 'ORD-003',
+          orderType: 'product',
+          subtotal: 750,
+          taxAmount: 135,
+          shippingAmount: 50,
+          discountAmount: 25,
+          totalAmount: 910,
+          status: 'shipped',
+          paymentStatus: 'paid',
+          items: [],
+          createdAt: new Date(Date.now() - 172800000).toISOString(),
+          updatedAt: new Date(Date.now() - 86400000).toISOString(),
+        },
+        {
+          id: '4',
+          buyerId: 'buyer4',
+          sellerId: 'seller1',
+          orderNumber: 'ORD-004',
+          orderType: 'service',
+          subtotal: 1200,
+          taxAmount: 216,
+          shippingAmount: 0,
+          discountAmount: 0,
+          totalAmount: 1416,
+          status: 'delivered',
+          paymentStatus: 'paid',
+          items: [],
+          createdAt: new Date(Date.now() - 259200000).toISOString(),
+          updatedAt: new Date(Date.now() - 172800000).toISOString(),
+        },
+        {
+          id: '5',
+          buyerId: 'buyer5',
+          sellerId: 'seller1',
+          orderNumber: 'ORD-005',
+          orderType: 'product',
+          subtotal: 3200,
+          taxAmount: 576,
+          shippingAmount: 150,
+          discountAmount: 200,
+          totalAmount: 3726,
+          status: 'pending',
+          paymentStatus: 'pending',
+          items: [],
+          createdAt: new Date(Date.now() - 345600000).toISOString(),
+          updatedAt: new Date(Date.now() - 345600000).toISOString(),
+        },
+        {
+          id: '6',
+          buyerId: 'buyer6',
+          sellerId: 'seller1',
+          orderNumber: 'ORD-006',
+          orderType: 'service',
+          subtotal: 800,
+          taxAmount: 144,
+          shippingAmount: 0,
+          discountAmount: 50,
+          totalAmount: 894,
+          status: 'cancelled',
+          paymentStatus: 'refunded',
+          items: [],
+          createdAt: new Date(Date.now() - 432000000).toISOString(),
+          updatedAt: new Date(Date.now() - 259200000).toISOString(),
+        },
       ];
+
+      // Apply filters to mock data
+      let filteredOrders = mockOrders;
       
-      setOrders(mockOrders);
+      if (queryParams.status) {
+        filteredOrders = filteredOrders.filter(order => order.status === queryParams.status);
+      }
+      
+      if (queryParams.orderType) {
+        filteredOrders = filteredOrders.filter(order => order.orderType === queryParams.orderType);
+      }
+      
+      if (queryParams.search) {
+        const searchLower = queryParams.search.toLowerCase();
+        filteredOrders = filteredOrders.filter(order => 
+          order.orderNumber.toLowerCase().includes(searchLower) ||
+          order.buyerId.toLowerCase().includes(searchLower) ||
+          order.id.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      setOrders(filteredOrders);
       setPagination(prev => ({
         ...prev,
-        total: mockOrders.length,
-        totalPages: Math.ceil(mockOrders.length / prev.pageSize)
+        total: filteredOrders.length,
+        totalPages: Math.ceil(filteredOrders.length / prev.pageSize)
       }));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load orders';
@@ -116,7 +207,7 @@ export function useOrders(options: UseOrdersOptions = {}): UseOrdersReturn {
     } finally {
       setLoading(false);
     }
-  }, [pagination, status, search]);
+  }, [pagination, status, orderType, search]);
 
   const updateOrderStatus = useCallback(async (orderId: string, newStatus: string): Promise<Order | null> => {
     try {

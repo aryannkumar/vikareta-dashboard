@@ -62,8 +62,6 @@ export const API_ENDPOINTS = {
   },
   users: {
     profile: '/users/profile',
-    following: '/users/following',
-    followers: '/users/followers',
     follow: (id: string) => `/users/${id}/follow`,
   },
 } as const;
@@ -278,11 +276,6 @@ export const BUYER_NAV_ITEMS = [
     title: 'Deals',
     href: '/deals',
     icon: 'HandshakeIcon',
-  },
-  {
-    title: 'Following',
-    href: '/following',
-    icon: 'HeartIcon',
   },
   {
     title: 'Wallet',

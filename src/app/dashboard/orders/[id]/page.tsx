@@ -42,6 +42,7 @@ interface OrderItem {
 interface Order {
   id: string;
   orderNumber: string;
+  orderType: 'product' | 'service';
   status: string;
   paymentStatus: string;
   totalAmount: number;

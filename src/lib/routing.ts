@@ -169,25 +169,6 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
     ],
   },
   {
-    path: '/dashboard/following',
-    title: 'Following',
-    description: 'Manage your followed sellers and buyers',
-    allowedRoles: ['buyer', 'both'],
-    icon: 'HeartIcon',
-    children: [
-      {
-        path: '/dashboard/following',
-        title: 'Following',
-        allowedRoles: ['buyer', 'both'],
-      },
-      {
-        path: '/dashboard/followers',
-        title: 'Followers',
-        allowedRoles: ['seller', 'both'],
-      },
-    ],
-  },
-  {
     path: '/dashboard/advertisements',
     title: 'Advertisements',
     description: 'Create and manage your advertisement campaigns',
@@ -445,30 +426,6 @@ export const DASHBOARD_ROUTES: RouteConfig[] = [
         path: '/dashboard/communications/announcements',
         title: 'Announcements',
         allowedRoles: ['buyer', 'seller', 'both'],
-      },
-    ],
-  },
-  {
-    path: '/dashboard/marketplace',
-    title: 'Marketplace',
-    description: 'Browse and discover products and services',
-    allowedRoles: ['buyer', 'both'],
-    icon: 'GlobeAltIcon',
-    children: [
-      {
-        path: '/dashboard/marketplace/browse',
-        title: 'Browse Products',
-        allowedRoles: ['buyer', 'both'],
-      },
-      {
-        path: '/dashboard/marketplace/categories',
-        title: 'Categories',
-        allowedRoles: ['buyer', 'both'],
-      },
-      {
-        path: '/dashboard/marketplace/trending',
-        title: 'Trending',
-        allowedRoles: ['buyer', 'both'],
       },
     ],
   },

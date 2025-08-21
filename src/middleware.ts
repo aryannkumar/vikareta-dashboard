@@ -11,8 +11,6 @@ const protectedRoutes = {
   '/deals': ['buyer', 'seller', 'both'],
   '/wallet': ['buyer', 'seller', 'both'],
   '/analytics': ['seller', 'both'],
-  '/following': ['buyer', 'both'],
-
 };
 
 // Check if path matches any protected route pattern

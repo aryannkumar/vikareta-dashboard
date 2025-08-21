@@ -1,99 +1,116 @@
 @import "tailwindcss";
 
 :root {
-  /* Premium Orange/White/Blue theme - Light mode */
+  /* Premium Amber/White/Dark theme - Light mode */
   --background: 0 0% 100%;
   --foreground: 222.2 84% 4.9%;
   --card: 0 0% 100%;
   --card-foreground: 222.2 84% 4.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 84% 4.9%;
-  --primary: 221.2 83.2% 53.3%; /* Blue primary */
-  --primary-foreground: 0 0% 100%;
-  --secondary: 221.2 83.2% 53.3%; /* Premium blue */
-  --secondary-foreground: 0 0% 100%;
-  --muted: 220 14.3% 95.9%;
-  --muted-foreground: 220 8.9% 46.1%;
-  --accent: 24 95% 53%;
-  --accent-foreground: 0 0% 100%;
+  --primary: 45 96% 64%; /* Amber primary */
+  --primary-foreground: 26 83% 14%;
+  --secondary: 45 96% 64%; /* Premium amber */
+  --secondary-foreground: 26 83% 14%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --accent: 45 96% 64%;
+  --accent-foreground: 26 83% 14%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 100%;
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
-  --ring: 221.2 83.2% 53.3%;
+  --border: 43 13% 90%;
+  --input: 43 13% 90%;
+  --ring: 45 96% 64%;
   --radius: 0.75rem;
   
-  /* Dashboard specific - Premium theme */
-  --sidebar: 222.2 84% 4.9%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 221.2 83.2% 53.3%; /* Blue primary */
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 221.2 83.2% 53.3%; /* Blue accent */
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-border: 217.2 32.6% 17.5%;
-  --sidebar-ring: 221.2 83.2% 53.3%;
+  /* Dashboard specific - Premium amber theme */
+  --sidebar: 26 83% 14%;
+  --sidebar-foreground: 45 96% 95%;
+  --sidebar-primary: 45 96% 64%; /* Amber primary */
+  --sidebar-primary-foreground: 26 83% 14%;
+  --sidebar-accent: 45 96% 64%; /* Amber accent */
+  --sidebar-accent-foreground: 26 83% 14%;
+  --sidebar-border: 25 31% 25%;
+  --sidebar-ring: 45 96% 64%;
   
-  /* Premium advertisement theme colors */
-  --ad-orange: 24 95% 53%; /* Premium orange */
-  --ad-orange-foreground: 0 0% 100%;
-  --ad-blue: 221.2 83.2% 53.3%; /* Premium blue */
-  --ad-blue-foreground: 0 0% 100%;
-  --ad-active: 221.2 83.2% 53.3%; /* Blue for active */
-  --ad-paused: 215 16% 47%;
-  --ad-pending: 32.6 94.6% 43.7%; /* Orange-yellow for pending */
-  --ad-rejected: 0 84% 60%;
-  --ad-metrics: 221.2 83.2% 53.3%; /* Blue for metrics */
-  --ad-success: 142 76% 36%;
+  /* Premium seller dashboard theme colors */
+  --seller-primary: 45 96% 64%; /* Amber for primary actions */
+  --seller-primary-foreground: 26 83% 14%;
+  --seller-secondary: 220 13% 18%; /* Dark for secondary */
+  --seller-secondary-foreground: 0 0% 100%;
+  --seller-success: 142 76% 36%;
+  --seller-warning: 32.6 94.6% 43.7%;
+  --seller-error: 0 84% 60%;
+  --seller-info: 217 91% 60%;
+  --seller-accent: 280 100% 70%; /* Purple accent */
+  
+  /* Status colors for seller features */
+  --status-active: 142 76% 36%;
+  --status-pending: 45 96% 64%;
+  --status-suspended: 0 84% 60%;
+  --status-draft: 220 13% 69%;
+  --status-published: 142 76% 36%;
+  --status-sold: 45 96% 64%;
+  --status-low-stock: 32.6 94.6% 43.7%;
   
   /* Premium gradients */
-  --gradient-primary: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --gradient-secondary: linear-gradient(135deg, #64748b 0%, #334155 100%);
-  --gradient-accent: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  --gradient-primary: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  --gradient-secondary: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  --gradient-accent: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  --gradient-warm: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
 }
 
 .dark {
-  /* Premium Orange/White/Blue theme - Dark mode */
+  /* Premium Amber/Dark theme - Dark mode */
   --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
+  --foreground: 45 96% 95%;
   --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
+  --card-foreground: 45 96% 95%;
   --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 221.2 83.2% 53.3%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 221.2 83.2% 53.3%; /* Blue remains vibrant */
-  --secondary-foreground: 0 0% 100%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 221.2 83.2% 53.3%;
-  --accent-foreground: 0 0% 100%;
+  --popover-foreground: 45 96% 95%;
+  --primary: 45 96% 64%;
+  --primary-foreground: 26 83% 14%;
+  --secondary: 45 96% 64%; /* Amber remains vibrant */
+  --secondary-foreground: 26 83% 14%;
+  --muted: 25 31% 15%;
+  --muted-foreground: 45 7% 65%;
+  --accent: 45 96% 64%;
+  --accent-foreground: 26 83% 14%;
   --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 221.2 83.2% 53.3%;
+  --destructive-foreground: 45 96% 95%;
+  --border: 25 31% 25%;
+  --input: 25 31% 25%;
+  --ring: 45 96% 64%;
   
-  /* Dashboard specific dark mode - Premium theme */
-  --sidebar: 222.2 84% 4.9%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 221.2 83.2% 53.3%; /* Blue primary */
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 221.2 83.2% 53.3%; /* Blue accent */
-  --sidebar-accent-foreground: 0 0% 100%;
-  --sidebar-border: 217.2 32.6% 17.5%;
-  --sidebar-ring: 221.2 83.2% 53.3%;
+  /* Dashboard specific dark mode - Premium amber theme */
+  --sidebar: 26 83% 14%;
+  --sidebar-foreground: 45 96% 95%;
+  --sidebar-primary: 45 96% 64%; /* Amber primary */
+  --sidebar-primary-foreground: 26 83% 14%;
+  --sidebar-accent: 45 96% 64%; /* Amber accent */
+  --sidebar-accent-foreground: 26 83% 14%;
+  --sidebar-border: 25 31% 25%;
+  --sidebar-ring: 45 96% 64%;
   
-  /* Premium advertisement theme colors - dark mode */
-  --ad-orange: 24 95% 53%;
-  --ad-orange-foreground: 0 0% 100%;
-  --ad-blue: 221.2 83.2% 53.3%;
-  --ad-blue-foreground: 0 0% 100%;
-  --ad-active: 221.2 83.2% 53.3%;
-  --ad-paused: 215 16% 47%;
-  --ad-pending: 32.6 94.6% 43.7%;
-  --ad-rejected: 0 62.8% 30.6%;
-  --ad-metrics: 221.2 83.2% 53.3%;
-  --ad-success: 142.1 70.6% 45.3%;
+  /* Premium seller dashboard theme colors - dark mode */
+  --seller-primary: 45 96% 64%;
+  --seller-primary-foreground: 26 83% 14%;
+  --seller-secondary: 220 13% 18%;
+  --seller-secondary-foreground: 0 0% 100%;
+  --seller-success: 142.1 70.6% 45.3%;
+  --seller-warning: 32.6 94.6% 43.7%;
+  --seller-error: 0 62.8% 30.6%;
+  --seller-info: 217 91% 60%;
+  --seller-accent: 280 100% 70%;
+  
+  /* Status colors for seller features - dark mode */
+  --status-active: 142.1 70.6% 45.3%;
+  --status-pending: 45 96% 64%;
+  --status-suspended: 0 62.8% 30.6%;
+  --status-draft: 220 13% 69%;
+  --status-published: 142.1 70.6% 45.3%;
+  --status-sold: 45 96% 64%;
+  --status-low-stock: 32.6 94.6% 43.7%;
 }
 
 @theme inline {
