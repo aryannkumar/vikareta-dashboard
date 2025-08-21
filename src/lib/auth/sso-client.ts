@@ -210,7 +210,7 @@ export class SSOAuthClient {
     }
 
     try {
-      const response = await fetch(`${this.baseURL}/csrf-token`, {
+  const response = await fetch(`/csrf-token`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -267,7 +267,10 @@ export class SSOAuthClient {
       throw new Error('Rate limited - please wait before making more requests');
     }
 
-    const url = `${this.baseURL}${endpoint}`;
+    // For auth endpoints, use same-origin proxy routes to ensure cookies/CSRF
+    const url = endpoint.startsWith('/api/auth/')
+      ? endpoint
+      : `${this.baseURL}${endpoint}`;
 
     const config: RequestInit = {
       credentials: 'include', // Still include for CSRF cookies
@@ -568,55 +571,19 @@ export class SSOAuthClient {
       // Ensure we have a CSRF token before making the request
       await this.ensureCSRFToken();
 
-      // Make refresh request without retry logic to avoid infinite loops
-      const url = `${this.baseURL}/api/auth/refresh`;
-      const config: RequestInit = {
+      // Use same-origin proxy via unified request handler
+      const data = await this.request<AuthResponse>('/api/auth/refresh', {
         method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      };
-
-      // Add CSRF token
-      const csrfToken = this.getCSRFToken();
-      if (csrfToken) {
-        config.headers = {
-          ...config.headers,
-          'X-XSRF-TOKEN': csrfToken,
-        };
-      }
-
-      const response = await fetch(url, config);
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          this.setRateLimited();
-          throw new Error('Too many refresh attempts');
-        }
-
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
+      }, true);
 
       if (data.success) {
         // Update stored tokens
-        if (data.accessToken) {
-          this.setAccessToken(data.accessToken);
-        }
-        if (data.refreshToken) {
-          this.setRefreshToken(data.refreshToken);
-        }
-        if (data.user) {
-          this.setUser(data.user);
-        }
-
-        return data;
-      } else {
-        return data;
+        if (data.accessToken) this.setAccessToken(data.accessToken);
+        if (data.refreshToken) this.setRefreshToken(data.refreshToken);
+        if (data.user) this.setUser(data.user);
       }
+
+      return data;
     } catch (error) {
       console.error('SSO: Token refresh error:', error);
       return {
