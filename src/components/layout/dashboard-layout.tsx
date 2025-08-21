@@ -23,11 +23,11 @@ export function DashboardLayout({
   description, 
   actions 
 }: DashboardLayoutProps) {
-  const { user, isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    redirect('/login');
+  redirect('/login');
   }
 
   return (

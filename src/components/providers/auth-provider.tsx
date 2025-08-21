@@ -37,7 +37,7 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
           if (isAuthenticated) {
             // If we successfully authenticated because of a token, return the
             // user to where they started rather than forcing /dashboard.
-            try { vikaretaCrossDomainAuth.handlePostLoginRedirect(); } catch { if (window.location.pathname === '/login' || window.location.pathname === '/') router.push('/'); }
+            try { vikaretaCrossDomainAuth.handlePostLoginRedirect(); } catch { if (window.location.pathname === '/auth/login' || window.location.pathname === '/') router.push('/'); }
           } else {
             console.error('Dashboard: Authentication failed after receiving token');
             // Redirect back to main site login instead of dashboard login
@@ -52,10 +52,10 @@ function AuthProviderContent({ children }: { children: React.ReactNode }) {
         // Wait for the unified auth hook to complete its initialization
         setTimeout(() => {
           if (isAuthenticated && !isLoading) {
-            try { vikaretaCrossDomainAuth.handlePostLoginRedirect(); } catch { if (window.location.pathname === '/login' || window.location.pathname === '/') router.push('/'); }
+            try { vikaretaCrossDomainAuth.handlePostLoginRedirect(); } catch { if (window.location.pathname === '/auth/login' || window.location.pathname === '/') router.push('/'); }
           } else if (!isLoading) {
             // Don't auto-redirect from login page - let the login page handle its own logic
-            if (window.location.pathname !== '/login') {
+            if (window.location.pathname !== '/auth/login') {
               const mainAppUrl = process.env.NODE_ENV === 'development' 
                 ? 'http://localhost:3000/auth/login' 
                 : 'https://vikareta.com/auth/login';
