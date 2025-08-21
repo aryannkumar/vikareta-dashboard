@@ -195,7 +195,16 @@ export const useAuthStore = create<AuthState>()(
         // Stop automatic token refresh
         stopTokenRefreshInterval();
         
-        await ssoClient.logout();
+        try {
+          // Import and use cross-domain logout
+          const { performSecureLogout } = await import('../auth/cross-domain-logout');
+          await performSecureLogout();
+        } catch (error) {
+          console.error('Dashboard logout error:', error);
+          // Fallback to regular logout
+          await ssoClient.logout();
+        }
+        
         set({ 
           user: null, 
           token: null,
