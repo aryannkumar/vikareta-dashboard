@@ -69,34 +69,59 @@ export class VikaretaSSOClient {
       });
 
       const data = await response.json();
+      console.log('Login API response:', { success: response.ok, status: response.status, data });
 
       if (!response.ok) {
         return {
           user: null,
           isAuthenticated: false,
           isLoading: false,
-          error: data.message || 'Login failed',
+          error: data.message || data.error?.message || 'Login failed',
           sessionId: null
         };
       }
 
-      // Validate response data
-      if (!isVikaretaAuthData(data)) {
-        throw new Error('Invalid authentication response');
+      // Check if response indicates success
+      if (!data.success) {
+        return {
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: data.message || data.error?.message || 'Login failed',
+          sessionId: null
+        };
+      }
+
+      // Transform backend response to expected format
+      const authData: VikaretaAuthData = {
+        user: data.user,
+        tokens: {
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          tokenType: 'Bearer' as const
+        },
+        domain: 'dashboard' as const,
+        sessionId: data.sessionId
+      };
+
+      // Validate transformed data
+      if (!isVikaretaAuthData(authData)) {
+        console.error('Invalid auth data after transformation:', { original: data, transformed: authData });
+        throw new Error('Invalid authentication response structure');
       }
 
       // Store auth data securely
-      vikaretaCrossDomainAuth.storeAuthData(data);
+      vikaretaCrossDomainAuth.storeAuthData(authData);
 
       // Sync across domains
-      await vikaretaCrossDomainAuth.syncSSOAcrossDomains(data);
+      await vikaretaCrossDomainAuth.syncSSOAcrossDomains(authData);
 
       return {
-        user: data.user,
+        user: authData.user,
         isAuthenticated: true,
         isLoading: false,
         error: null,
-        sessionId: data.sessionId || null
+        sessionId: authData.sessionId || null
       };
     } catch (error) {
       console.error('Login failed:', error);

@@ -78,9 +78,12 @@ function LoginContent() {
     setAuthError(null);
 
     try {
+      console.log('Attempting login with credentials:', { email: email.substring(0, 5) + '***' });
       const success = await login({ email, password });
+      console.log('Login result:', { success });
       
       if (success) {
+        console.log('SUCCESS: Login Successful! - Redirecting...');
         addToast({
           type: 'success',
           title: 'Login Successful',
@@ -88,10 +91,21 @@ function LoginContent() {
         });
 
         // Best-effort: sync SSO tokens to configured subdomains
-        try { vikaretaCrossDomainAuth.syncSSOAcrossDomains(); } catch {}
+        try { 
+          console.log('SSO Login: Syncing tokens across domains...');
+          vikaretaCrossDomainAuth.syncSSOAcrossDomains(); 
+        } catch (e) {
+          console.warn('SSO sync failed:', e);
+        }
 
-        // Return user to where they started, or default per app logic
-        try { vikaretaCrossDomainAuth.handlePostLoginRedirect(); } catch { router.push('/'); }
+        // Handle redirect based on user role/type
+        const redirectPath = '/dashboard';
+        console.log('SSO Login: Using role-based redirect:', redirectPath);
+        console.log('SSO Login: Redirecting to:', redirectPath);
+        
+        // Use Next.js router for SPA navigation
+        router.push(redirectPath);
+        return;
       } else {
         throw new Error('Login failed');
       }
