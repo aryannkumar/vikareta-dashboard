@@ -6,8 +6,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { 
   Save, 
   X, 
@@ -46,40 +44,38 @@ import { FileUpload, UploadedFile } from '@/components/ui/file-upload';
 import { apiClient } from '@/lib/api/client';
 import { toast } from '@/components/ui/use-toast';
 
-const productSchema = z.object({
-  name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(10, 'Description must be at least 10 characters'),
-  shortDescription: z.string().optional(),
-  category: z.string().min(1, 'Category is required'),
-  subcategory: z.string().optional(),
-  brand: z.string().optional(),
-  model: z.string().optional(),
-  sku: z.string().min(1, 'SKU is required'),
-  price: z.number().min(0, 'Price must be positive'),
-  comparePrice: z.number().optional(),
-  costPrice: z.number().optional(),
-  quantity: z.number().min(0, 'Quantity must be positive'),
-  minOrderQuantity: z.number().min(1, 'Minimum order quantity must be at least 1'),
-  maxOrderQuantity: z.number().optional(),
-  weight: z.number().optional(),
-  dimensions: z.object({
-    length: z.number().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-  }).optional(),
-  tags: z.array(z.string()).optional(),
-  isActive: z.boolean().default(true),
-  isFeatured: z.boolean().default(false),
-  trackInventory: z.boolean().default(true),
-  allowBackorder: z.boolean().default(false),
-  requiresShipping: z.boolean().default(true),
-  taxable: z.boolean().default(true),
-  seoTitle: z.string().optional(),
-  seoDescription: z.string().optional(),
-  seoKeywords: z.string().optional(),
-});
-
-type ProductFormData = z.infer<typeof productSchema>;
+interface ProductFormData {
+  name: string;
+  description: string;
+  shortDescription?: string;
+  category: string;
+  subcategory?: string;
+  brand?: string;
+  model?: string;
+  sku: string;
+  price: number;
+  comparePrice?: number;
+  costPrice?: number;
+  quantity: number;
+  minOrderQuantity: number;
+  maxOrderQuantity?: number;
+  weight?: number;
+  dimensions?: {
+    length?: number;
+    width?: number;
+    height?: number;
+  };
+  tags?: string[];
+  isActive: boolean;
+  isFeatured: boolean;
+  trackInventory: boolean;
+  allowBackorder: boolean;
+  requiresShipping: boolean;
+  taxable: boolean;
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
+}
 
 interface ProductFormProps {
   product?: any;
@@ -97,7 +93,6 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const [subcategories, setSubcategories] = useState<any[]>([]);
 
   const form = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
     defaultValues: {
       name: product?.name || '',
       description: product?.description || '',

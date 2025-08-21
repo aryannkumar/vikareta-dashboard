@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { 
   PlusIcon, 
   TrashIcon, 
@@ -17,20 +15,8 @@ import { CreateCampaignRequest, CreateAdRequest, AdTargetingConfig } from '@/typ
 import { useWalletStore } from '@/lib/stores/wallet';
 import { formatCurrency } from '@/lib/utils';
 
-const campaignSchema = z.object({
-  name: z.string().min(1, 'Campaign name is required'),
-  description: z.string().optional(),
-  campaignType: z.enum(['product', 'service', 'brand']),
-  budget: z.number().min(100, 'Minimum budget is ₹100'),
-  dailyBudget: z.number().optional(),
-  bidAmount: z.number().min(0.1, 'Minimum bid amount is ₹0.10'),
-  biddingStrategy: z.enum(['cpc', 'cpm', 'cpa']),
-  startDate: z.string().min(1, 'Start date is required'),
-  endDate: z.string().optional(),
-});
-
 interface CampaignFormProps {
-  initialData?: CreateCampaignRequest;
+  initialData?: Partial<CreateCampaignRequest>;
   onSubmit: (data: CreateCampaignRequest) => void;
   onSaveDraft?: (data: CreateCampaignRequest) => void;
   loading?: boolean;
@@ -59,7 +45,6 @@ export function CampaignForm({
     watch,
     formState: { errors },
   } = useForm<CreateCampaignRequest>({
-    resolver: zodResolver(campaignSchema),
     defaultValues: initialData,
   });
 
