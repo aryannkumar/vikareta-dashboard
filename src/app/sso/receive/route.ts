@@ -25,7 +25,7 @@ export async function GET(req: Request) {
     // Validate token with backend before trusting it
     const backend = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : 'https://api.vikareta.com');
     try {
-      const validateRes = await fetch(`${backend}/auth/validate-sso`, {
+      const validateRes = await fetch(`${backend}/api/auth/validate-sso`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token })
@@ -44,7 +44,8 @@ export async function GET(req: Request) {
     const cookieValue = token; // we can store a short-lived token as access_token cookie
     const domainPart = process.env.NODE_ENV === 'production' ? '; Domain=.vikareta.com' : '';
     const securePart = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-    const cookie = `access_token=${cookieValue}; Path=/; HttpOnly; SameSite=None; Max-Age=${60 * 60}${domainPart}${securePart}`;
+  // Align cookie name with platform convention
+  const cookie = `vikareta_access_token=${cookieValue}; Path=/; HttpOnly; SameSite=None; Max-Age=${60 * 60}${domainPart}${securePart}`;
 
     const html = `<!doctype html>
 <html><body>
