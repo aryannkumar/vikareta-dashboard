@@ -151,18 +151,26 @@ export class VikaretaCrossDomainAuth {
     if (typeof window === 'undefined') return;
 
     const currentDomain = this.getCurrentDomain();
+    console.log('SSO Sync: Starting sync from domain:', currentDomain);
+    
     const targetDomains = Object.entries(this.domains)
       .filter(([key]) => key.toLowerCase() !== currentDomain)
       .map(([, domain]) => domain);
 
-    const syncPromises = targetDomains.map(domain => 
-  this.syncSingleDomain(domain)
-    );
+    console.log('SSO Sync: Target domains:', targetDomains);
+
+    const syncPromises = targetDomains.map(domain => this.syncSingleDomain(domain));
 
     try {
-      await Promise.allSettled(syncPromises);
+      const results = await Promise.allSettled(syncPromises);
+      const failures = results.filter(r => r.status === 'rejected');
+      if (failures.length > 0) {
+        console.warn('SSO Sync: Some domains failed to sync:', failures);
+      } else {
+        console.log('SSO Sync: All domains synced successfully');
+      }
     } catch (error) {
-      console.error('SSO sync failed:', error);
+      console.error('SSO Sync: Critical sync failure:', error);
     }
   }
 
@@ -297,8 +305,14 @@ export class VikaretaCrossDomainAuth {
 
   private async syncSingleDomain(domain: string): Promise<void> {
     try {
-  // Skip API domain for SSO sync
-  if (domain === this.domains.API) return;
+      console.log('SSO Sync: Syncing domain:', domain);
+      
+      // Skip API domain for SSO sync
+      if (domain === this.domains.API) {
+        console.log('SSO Sync: Skipping API domain');
+        return;
+      }
+      
       // Get SSO token for target domain
       const response = await fetch('/api/auth/sso-token', {
         method: 'POST',
@@ -310,16 +324,26 @@ export class VikaretaCrossDomainAuth {
         body: JSON.stringify({ target: domain })
       });
 
-      if (!response.ok) return;
+      console.log('SSO Sync: Token request response for', domain, ':', response.status);
 
-  const data = await response.json();
-  const token = data?.token;
-  if (!token) return;
+      if (!response.ok) {
+        console.warn('SSO Sync: Failed to get token for domain:', domain, response.status);
+        return;
+      }
 
-  // Use image beacon to sync authentication
-  await this.createSSOBeacon(domain, token);
+      const data = await response.json();
+      const token = data?.token;
+      if (!token) {
+        console.warn('SSO Sync: No token received for domain:', domain);
+        return;
+      }
+
+      console.log('SSO Sync: Creating SSO beacon for domain:', domain);
+      // Use image beacon to sync authentication
+      await this.createSSOBeacon(domain, token);
+      console.log('SSO Sync: Successfully synced domain:', domain);
     } catch (error) {
-      console.error(`Failed to sync domain ${domain}:`, error);
+      console.error(`SSO Sync: Failed to sync domain ${domain}:`, error);
     }
   }
 

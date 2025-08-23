@@ -3,14 +3,14 @@ import type { NextRequest } from 'next/server';
 
 // Define protected routes and their required roles
 const protectedRoutes = {
-  '/dashboard': ['buyer', 'seller', 'both', 'admin'],
-  '/products': ['seller', 'both'],
-  '/orders': ['buyer', 'seller', 'both'],
-  '/rfqs': ['buyer', 'seller', 'both'],
-  '/quotes': ['buyer', 'seller', 'both'],
-  '/deals': ['buyer', 'seller', 'both'],
-  '/wallet': ['buyer', 'seller', 'both'],
-  '/analytics': ['seller', 'both'],
+  '/dashboard': ['buyer', 'seller', 'both', 'admin', 'super_admin'],
+  '/products': ['seller', 'both', 'admin', 'super_admin'],
+  '/orders': ['buyer', 'seller', 'both', 'admin', 'super_admin'],
+  '/rfqs': ['buyer', 'seller', 'both', 'admin', 'super_admin'],
+  '/quotes': ['buyer', 'seller', 'both', 'admin', 'super_admin'],
+  '/deals': ['buyer', 'seller', 'both', 'admin', 'super_admin'],
+  '/wallet': ['buyer', 'seller', 'both', 'admin', 'super_admin'],
+  '/analytics': ['seller', 'both', 'admin', 'super_admin'],
 };
 
 // Check if path matches any protected route pattern
@@ -20,14 +20,14 @@ function isProtectedRoute(pathname: string): boolean {
 }
 
 // Public routes that don't require authentication
-const publicRoutes = ['/login', '/health', '/'];
+const publicRoutes = ['/login', '/health', '/', '/sso/receive'];
 
 // Helper function to decode JWT token and extract user role
 function getUserRoleFromToken(token: string): string | null {
   try {
     // Simple JWT decode (in production, use a proper JWT library)
     const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.role || null;
+    return payload.role || payload.userType || null;
   } catch {
     return null;
   }
@@ -35,6 +35,8 @@ function getUserRoleFromToken(token: string): string | null {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  console.log('Middleware: Processing request for:', pathname);
 
   // Handle manifest.json request
   if (pathname === '/manifest.json') {
@@ -73,23 +75,31 @@ export function middleware(request: NextRequest) {
 
   // Check if route is public
   if (publicRoutes.includes(pathname)) {
+    console.log('Middleware: Public route, allowing access');
     return NextResponse.next();
   }
 
   // Only protect routes that actually need protection
   if (!isProtectedRoute(pathname)) {
+    console.log('Middleware: Non-protected route, allowing access');
     return NextResponse.next();
   }
 
-  // Get auth token from cookies, headers, or URL parameters
-  const authToken = request.cookies.get('access_token')?.value ||
+  // Get auth token from various sources
+  const authToken = request.cookies.get('vikareta_access_token')?.value ||
+    request.cookies.get('access_token')?.value ||
     request.cookies.get('auth-token')?.value ||
     request.headers.get('authorization')?.replace('Bearer ', '') ||
     request.nextUrl.searchParams.get('token');
 
-  // If no token, allow the request to proceed for client-side auth handling
+  console.log('Middleware: Auth token present:', !!authToken);
+
+  // If no token found, allow client-side auth handling but add a flag
   if (!authToken) {
-    return NextResponse.next();
+    console.log('Middleware: No token found, allowing client-side auth handling');
+    const response = NextResponse.next();
+    response.headers.set('x-auth-required', 'true');
+    return response;
   }
 
   // For dashboard routes, check if the route requires specific roles
@@ -99,17 +109,22 @@ export function middleware(request: NextRequest) {
     try {
       // Decode JWT token to get user role (simplified version)
       const userRole = getUserRoleFromToken(authToken);
+      console.log('Middleware: User role:', userRole, 'Required roles:', requiredRoles);
 
       // Check if user has required role
       if (userRole && !requiredRoles.includes(userRole)) {
+        console.log('Middleware: User lacks required role, redirecting to unauthorized');
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
     } catch {
-      // If token is invalid, redirect to dashboard login
-      return NextResponse.redirect(new URL('/login', request.url));
+      console.log('Middleware: Token invalid, allowing client-side handling');
+      const response = NextResponse.next();
+      response.headers.set('x-auth-invalid', 'true');
+      return response;
     }
   }
 
+  console.log('Middleware: Auth check passed, allowing access');
   return NextResponse.next();
 }
 

@@ -25,30 +25,42 @@ export class VikaretaSSOClient {
    */
   async initialize(): Promise<VikaretaAuthState> {
     try {
+      console.log('SSO Client: Initializing authentication state...');
+      
       // Get stored auth state
       const storedState = vikaretaCrossDomainAuth.getStoredAuthData();
+      console.log('SSO Client: Stored auth state:', { 
+        isAuthenticated: storedState.isAuthenticated, 
+        hasUser: !!storedState.user 
+      });
       
       if (storedState.isAuthenticated && storedState.user) {
         // Validate stored user data
         if (!isVikaretaUser(storedState.user)) {
-          console.warn('Invalid stored user data, clearing auth state');
+          console.warn('SSO Client: Invalid stored user data, clearing auth state');
           vikaretaCrossDomainAuth.clearAuthData();
           return { user: null, isAuthenticated: false, isLoading: false, error: null, sessionId: null };
         }
 
-        // Try to refresh token to validate session
+        // Try to validate session with backend
+        console.log('SSO Client: Validating session with backend...');
         const isValid = await this.validateSession();
+        console.log('SSO Client: Session validation result:', isValid);
+        
         if (!isValid) {
+          console.warn('SSO Client: Session validation failed, clearing auth state');
           vikaretaCrossDomainAuth.clearAuthData();
           return { user: null, isAuthenticated: false, isLoading: false, error: 'Session expired', sessionId: null };
         }
 
+        console.log('SSO Client: Initialization successful with valid session');
         return storedState;
       }
 
+      console.log('SSO Client: No valid stored auth state found');
       return { user: null, isAuthenticated: false, isLoading: false, error: null, sessionId: null };
     } catch (error) {
-      console.error('Failed to initialize SSO client:', error);
+      console.error('SSO Client: Failed to initialize:', error);
       return { user: null, isAuthenticated: false, isLoading: false, error: 'Initialization failed', sessionId: null };
     }
   }

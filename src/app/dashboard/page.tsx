@@ -26,6 +26,7 @@ import { RecentOrders } from '@/components/dashboard/recent-orders';
 import { ProductPerformance } from '@/components/dashboard/product-performance';
 import { useDashboard } from '@/lib/hooks/use-dashboard';
 import { formatCurrency, formatNumber } from '@/lib/utils';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
 interface MetricCardProps {
   title: string;
@@ -135,6 +136,14 @@ const itemVariants = {
 };
 
 export default function DashboardPage() {
+  return (
+    <AuthGuard requiredRoles={['seller', 'both', 'admin', 'super_admin']}>
+      <DashboardContent />
+    </AuthGuard>
+  );
+}
+
+function DashboardContent() {
   const {
     metrics,
     recentOrders,
