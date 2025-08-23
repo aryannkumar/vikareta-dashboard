@@ -26,7 +26,7 @@ export default function HomePage() {
     setIsHydrated(true);
   }, []);
 
-  // Check for SSO authentication on mount
+  // Check for SSO authentication on mount with extended timeout
   useEffect(() => {
     const checkSSOAuth = async () => {
       if (!isHydrated) return;
@@ -36,6 +36,17 @@ export default function HomePage() {
       // If already authenticated via store, no need to check API
       if (isAuthenticated && user) {
         console.log('Dashboard Home: Already authenticated via store');
+        setCheckingSSO(false);
+        return;
+      }
+
+      // Wait a bit longer for SSO to sync from main domain
+      console.log('Dashboard Home: Waiting for potential SSO sync...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Check if auth state updated during wait
+      if (isAuthenticated && user) {
+        console.log('Dashboard Home: Authentication detected during SSO wait');
         setCheckingSSO(false);
         return;
       }
@@ -54,9 +65,16 @@ export default function HomePage() {
         console.log('Dashboard Home: Auth check response:', response.status);
 
         if (response.ok) {
-          console.log('Dashboard Home: Auth check successful, user found');
-          // Don't redirect - just let the auth system handle the state update
-          // The page will re-render when auth state changes
+          const userData = await response.json();
+          console.log('Dashboard Home: Auth check successful, user found:', !!userData.user);
+          // Force a page refresh to pick up the authentication cookies
+          if (userData.user) {
+            console.log('Dashboard Home: Refreshing page to sync auth state...');
+            window.location.reload();
+            return;
+          }
+        } else {
+          console.log('Dashboard Home: Auth check failed with status:', response.status);
         }
       } catch (error) {
         console.error('Dashboard Home: Auth check failed:', error);
@@ -300,24 +318,25 @@ export default function HomePage() {
           <Button 
             className="w-full" 
             onClick={() => {
-              // Try the dashboard's own login first
-              router.push('/login');
+              // Redirect to main site login with proper return URL
+              const mainAppUrl = process.env.NODE_ENV === 'development'
+                ? 'http://localhost:3000/auth/login' 
+                : 'https://vikareta.com/auth/login';
+              const returnUrl = encodeURIComponent(window.location.origin);
+              window.location.href = `${mainAppUrl}?returnUrl=${returnUrl}`;
             }}
           >
-            Login to Dashboard
+            Login via Main Site
           </Button>
           <Button 
             variant="outline" 
             className="w-full"
             onClick={() => {
-              const mainAppUrl = process.env.NODE_ENV === 'development'
-                ? 'http://localhost:3000/auth/login' 
-                : 'https://vikareta.com/auth/login';
-              const returnUrl = encodeURIComponent(window.location.href);
-              window.location.href = `${mainAppUrl}?returnUrl=${returnUrl}`;
+              // Try the dashboard's own login as secondary option
+              router.push('/login');
             }}
           >
-            Login via Main Site
+            Dashboard Login
           </Button>
           <Button 
             variant="ghost" 

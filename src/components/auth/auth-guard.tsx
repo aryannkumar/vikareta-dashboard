@@ -34,6 +34,13 @@ export function AuthGuard({
         return;
       }
 
+      // Give more time for SSO authentication to complete
+      if (checkingAuth) {
+        console.log('AuthGuard: Waiting for SSO check to complete...');
+        setTimeout(() => setCheckingAuth(false), 3000);
+        return;
+      }
+
       // If not authenticated, redirect to login
       if (!isAuthenticated || !user) {
         console.log('AuthGuard: User not authenticated, redirecting to:', fallbackUrl);
@@ -57,7 +64,7 @@ export function AuthGuard({
     };
 
     checkAuthentication();
-  }, [isAuthenticated, isLoading, user, router, fallbackUrl, requiredRoles, hasRole]);
+  }, [isAuthenticated, isLoading, user, router, fallbackUrl, requiredRoles, hasRole, checkingAuth]);
 
   // Show loading state while checking authentication
   if (isLoading || checkingAuth) {
