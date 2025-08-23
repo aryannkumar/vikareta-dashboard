@@ -213,18 +213,35 @@ export function useVikaretaAuth(): UseVikaretaAuthReturn {
   }, [initializeAuth]);
 
   /**
-   * Listen for storage changes (cross-tab sync)
+   * Listen for storage changes (cross-tab sync) and SSO completion
    */
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE) {
+        console.log('Vikareta Auth: Storage change detected, reinitializing auth state...');
         // Auth state changed in another tab, update current state
         initializeAuth();
       }
     };
 
+    const handlePostMessage = (event: MessageEvent) => {
+      // Listen for SSO completion from iframe
+      if (event.data?.sso === 'ok') {
+        console.log('Vikareta Auth: SSO completion message received, reinitializing auth state...');
+        // Small delay to ensure localStorage is updated
+        setTimeout(() => {
+          initializeAuth();
+        }, 100);
+      }
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('message', handlePostMessage);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('message', handlePostMessage);
+    };
   }, [initializeAuth]);
 
   return {

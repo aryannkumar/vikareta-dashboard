@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, user, isLoading } = useAuthStore();
+  const { isAuthenticated, user, isLoading } = useVikaretaAuthContext();
   const [isHydrated, setIsHydrated] = useState(false);
   const [checkingSSO, setCheckingSSO] = useState(true);
 
@@ -26,58 +26,91 @@ export default function HomePage() {
     setIsHydrated(true);
   }, []);
 
-  // Check for SSO authentication on mount with extended timeout
+  // Check for SSO authentication on mount with extended timeout and retries
   useEffect(() => {
     const checkSSOAuth = async () => {
       if (!isHydrated) return;
 
-      console.log('Dashboard Home: Checking SSO authentication...', { isAuthenticated, user: !!user });
+      console.log('Dashboard Home: Starting comprehensive auth check...', { 
+        isAuthenticated, 
+        user: !!user,
+        hasUserId: user?.id,
+        userType: user?.userType 
+      });
       
       // If already authenticated via store, no need to check API
-      if (isAuthenticated && user) {
-        console.log('Dashboard Home: Already authenticated via store');
+      if (isAuthenticated && user?.id) {
+        console.log('Dashboard Home: Already authenticated via store with valid user');
         setCheckingSSO(false);
         return;
       }
 
-      // Wait a bit longer for SSO to sync from main domain
+      // Extended wait for SSO sync with retries
       console.log('Dashboard Home: Waiting for potential SSO sync...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        console.log(`Dashboard Home: SSO wait attempt ${attempt}/3`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Check if auth state updated during wait
-      if (isAuthenticated && user) {
-        console.log('Dashboard Home: Authentication detected during SSO wait');
-        setCheckingSSO(false);
-        return;
+        // Check if auth state updated during wait
+        if (isAuthenticated && user?.id) {
+          console.log('Dashboard Home: Authentication detected during SSO wait, attempt:', attempt);
+          setCheckingSSO(false);
+          return;
+        }
       }
 
-      // Try to check authentication via API call (for SSO)
-      try {
-        console.log('Dashboard Home: Making auth check request...');
-        const response = await fetch('/api/auth/me', {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Accept': 'application/json'
-          }
-        });
+      // Try to check authentication via API call (for SSO) with retries
+      let apiSuccess = false;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          console.log(`Dashboard Home: Making auth check request, attempt ${attempt}/2...`);
+          const response = await fetch('/api/auth/me', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
 
-        console.log('Dashboard Home: Auth check response:', response.status);
+          console.log('Dashboard Home: Auth check response:', {
+            status: response.status,
+            ok: response.ok,
+            attempt
+          });
 
-        if (response.ok) {
-          const userData = await response.json();
-          console.log('Dashboard Home: Auth check successful, user found:', !!userData.user);
-          // Force a page refresh to pick up the authentication cookies
-          if (userData.user) {
-            console.log('Dashboard Home: Refreshing page to sync auth state...');
-            window.location.reload();
-            return;
+          if (response.ok) {
+            const userData = await response.json();
+            console.log('Dashboard Home: Auth check successful, user found:', {
+              hasUser: !!userData.user,
+              userId: userData.user?.id,
+              userType: userData.user?.userType,
+              success: userData.success
+            });
+            
+            if (userData.user?.id) {
+              apiSuccess = true;
+              console.log('Dashboard Home: Valid user data received, refreshing page to sync auth state...');
+              // Small delay to ensure cookies are set, then refresh
+              setTimeout(() => {
+                window.location.reload();
+              }, 500);
+              return;
+            }
+          } else {
+            console.log(`Dashboard Home: Auth check failed with status: ${response.status}, attempt: ${attempt}`);
           }
-        } else {
-          console.log('Dashboard Home: Auth check failed with status:', response.status);
+        } catch (error) {
+          console.error(`Dashboard Home: Auth check failed, attempt ${attempt}:`, error);
         }
-      } catch (error) {
-        console.error('Dashboard Home: Auth check failed:', error);
+
+        // Wait before retry
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      if (!apiSuccess) {
+        console.log('Dashboard Home: All auth checks failed, user needs to login');
       }
       
       setCheckingSSO(false);

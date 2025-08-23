@@ -12,7 +12,7 @@ import {
   ChevronDownIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useVikaretaAuthContext();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 

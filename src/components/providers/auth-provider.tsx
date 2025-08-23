@@ -2,14 +2,14 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { vikaretaCrossDomainAuth } from '@/lib/auth/vikareta';
 
 function AuthProviderContent({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading } = useVikaretaAuthContext();
 
   useEffect(() => {
     // Mark as hydrated after first render

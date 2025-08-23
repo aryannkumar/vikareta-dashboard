@@ -17,7 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 
 interface DashboardHeaderProps {
   title?: string;
@@ -26,7 +26,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ title, description, actions }: DashboardHeaderProps) {
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useVikaretaAuthContext();
 
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

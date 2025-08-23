@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Loading } from '@/components/ui/loading';
@@ -20,7 +20,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user, isAuthenticated, isLoading: authLoading } = useAuthStore();
+  const { user, isAuthenticated, isLoading: authLoading } = useVikaretaAuthContext();
 
   const redirectToLogin = () => {
     const mainAppUrl = process.env.NODE_ENV === 'development'

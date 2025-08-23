@@ -78,7 +78,7 @@ import {
   ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { getNavigationMenu } from '@/lib/routing';
 
 const iconMap = {
@@ -185,7 +185,7 @@ interface SidebarProps {
 export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user } = useVikaretaAuthContext();
   // const { sidebarCollapsed, setSidebarCollapsed } = useDashboardStore();
   const sidebarCollapsed = false; // TODO: Implement sidebar collapse functionality
   const [expandedItems, setExpandedItems] = useState<string[]>([]);

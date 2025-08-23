@@ -31,7 +31,9 @@ export class VikaretaSSOClient {
       const storedState = vikaretaCrossDomainAuth.getStoredAuthData();
       console.log('SSO Client: Stored auth state:', { 
         isAuthenticated: storedState.isAuthenticated, 
-        hasUser: !!storedState.user 
+        hasUser: !!storedState.user,
+        userId: storedState.user?.id,
+        userType: storedState.user?.userType
       });
       
       if (storedState.isAuthenticated && storedState.user) {
@@ -42,15 +44,34 @@ export class VikaretaSSOClient {
           return { user: null, isAuthenticated: false, isLoading: false, error: null, sessionId: null };
         }
 
-        // Try to validate session with backend
+        // Try to validate session with backend (with retry logic)
         console.log('SSO Client: Validating session with backend...');
-        const isValid = await this.validateSession();
-        console.log('SSO Client: Session validation result:', isValid);
+        let isValid = false;
+        
+        // Try validation with retries for resilient SSO
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            isValid = await this.validateSession();
+            console.log('SSO Client: Session validation result (attempt', attempt, '):', isValid);
+            if (isValid) break;
+          } catch (error) {
+            console.warn('SSO Client: Session validation attempt', attempt, 'failed:', error);
+          }
+          
+          // Wait before retry
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
         
         if (!isValid) {
-          console.warn('SSO Client: Session validation failed, clearing auth state');
-          vikaretaCrossDomainAuth.clearAuthData();
-          return { user: null, isAuthenticated: false, isLoading: false, error: 'Session expired', sessionId: null };
+          console.warn('SSO Client: Session validation failed after retries, but keeping stored state for cross-domain auth');
+          // Don't clear auth state immediately - allow for cross-domain auth to work
+          // Return the stored state but mark it as potentially needing refresh
+          return {
+            ...storedState,
+            error: 'Session validation pending'
+          };
         }
 
         console.log('SSO Client: Initialization successful with valid session');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { Loading } from '@/components/ui/loading';
 
 interface RoleGuardProps {
@@ -10,7 +10,7 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) {
-  const { user, isLoading, isAuthenticated } = useAuthStore();
+  const { user, isLoading, isAuthenticated } = useVikaretaAuthContext();
 
   if (isLoading) {
     return (

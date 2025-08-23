@@ -7,7 +7,7 @@
 import React from 'react';
 import { ModernSidebar } from './modern-sidebar';
 import { DashboardHeader } from './dashboard-header';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { redirect } from 'next/navigation';
 
 interface DashboardLayoutProps {
@@ -23,7 +23,7 @@ export function DashboardLayout({
   description, 
   actions 
 }: DashboardLayoutProps) {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated } = useVikaretaAuthContext();
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {

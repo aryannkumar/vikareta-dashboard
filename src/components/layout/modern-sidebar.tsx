@@ -31,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 
 interface NavigationItem {
   name: string;
@@ -124,7 +124,7 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout } = useVikaretaAuthContext();
 
   const toggleExpanded = (itemName: string) => {
     setExpandedItems(prev => 

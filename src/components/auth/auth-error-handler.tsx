@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/lib/stores/auth';
+import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { ExclamationTriangleIcon, ClockIcon } from '@heroicons/react/24/outline';
 
 export function AuthErrorHandler() {
-  const { error, clearError } = useAuthStore();
+  const { error, clearError } = useVikaretaAuthContext();
   const [countdown, setCountdown] = useState(0);
 
   // Handle rate limiting countdown
