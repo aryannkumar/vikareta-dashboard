@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth';
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  const { isAuthenticated, user, isLoading } = useVikaretaAuthContext();
+  const { isAuthenticated, user, isLoading } = useAuth();
   const [isHydrated, setIsHydrated] = useState(false);
   const [checkingSSO, setCheckingSSO] = useState(true);
 
@@ -35,7 +35,7 @@ export default function HomePage() {
         isAuthenticated, 
         user: !!user,
         hasUserId: user?.id,
-        userType: user?.userType 
+        roles: user?.roles 
       });
       
       // If already authenticated via store, no need to check API
@@ -83,7 +83,7 @@ export default function HomePage() {
             console.log('Dashboard Home: Auth check successful, user found:', {
               hasUser: !!userData.user,
               userId: userData.user?.id,
-              userType: userData.user?.userType,
+              roles: userData.user?.roles,
               success: userData.success
             });
             
@@ -146,7 +146,7 @@ export default function HomePage() {
                 </div>
               </div>
               <h1 className="text-4xl font-bold text-gray-900 mb-4">
-                Welcome back, {user.firstName || 'User'}!
+                Welcome back, {user.name || user.username || 'User'}!
               </h1>
               <p className="text-xl text-gray-600 mb-2">
                 Ready to manage your business?

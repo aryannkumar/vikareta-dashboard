@@ -12,7 +12,7 @@ import {
   ChevronDownIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
-import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +23,7 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter();
-  const { user, logout } = useVikaretaAuthContext();
+  const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -128,15 +128,15 @@ export function Header({ onMenuClick }: HeaderProps) {
                   whileHover={{ scale: 1.1 }}
                 >
                   <span className="text-white text-sm font-bold">
-                    {user?.firstName?.charAt(0) || 'U'}{user?.lastName?.charAt(0) || 'S'}
+                    {user?.name?.charAt(0) || user?.username?.charAt(0) || 'U'}
                   </span>
                 </motion.div>
                 <div className="hidden md:block text-left">
                   <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {user?.firstName} {user?.lastName}
+                    {user?.name || user?.username}
                   </p>
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    {user?.userType ? user.userType.charAt(0).toUpperCase() + user.userType.slice(1) : 'User'}
+                    {user?.roles.includes('seller') ? 'Seller' : 'Buyer'}
                   </p>
                 </div>
                 <motion.div
@@ -158,14 +158,14 @@ export function Header({ onMenuClick }: HeaderProps) {
               >
                 <div className="p-4 border-b border-amber-200 dark:border-amber-800/50">
                   <p className="font-semibold text-gray-900 dark:text-gray-100">
-                    {user?.firstName} {user?.lastName}
+                    {user?.name || user?.username}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">{user?.email}</p>
                   <div className="flex items-center space-x-2 mt-2">
                     <Badge variant="outline" className="border-amber-300 text-amber-700 dark:border-amber-600 dark:text-amber-400">
-                      {user?.verificationTier ? user.verificationTier.charAt(0).toUpperCase() + user.verificationTier.slice(1) : 'Basic'}
+                      {user?.roles.includes('verified') ? 'Verified' : 'Basic'}
                     </Badge>
-                    {user?.isVerified && (
+                    {user?.roles.includes('verified') && (
                       <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white">
                         Verified
                       </Badge>

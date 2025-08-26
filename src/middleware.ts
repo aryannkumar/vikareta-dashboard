@@ -85,47 +85,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get auth token from various sources
-  const authToken = request.cookies.get('vikareta_access_token')?.value ||
-    request.cookies.get('access_token')?.value ||
-    request.cookies.get('auth-token')?.value ||
-    request.headers.get('authorization')?.replace('Bearer ', '') ||
-    request.nextUrl.searchParams.get('token');
+  // For protected routes, redirect to centralized login
+  console.log('Middleware: Protected route, redirecting to centralized login');
+  const returnUrl = encodeURIComponent(request.url);
+  const centralLoginUrl = `https://vikareta.com/login?returnUrl=${returnUrl}`;
+  return NextResponse.redirect(centralLoginUrl);
 
-  console.log('Middleware: Auth token present:', !!authToken);
 
-  // If no token found, allow client-side auth handling but add a flag
-  if (!authToken) {
-    console.log('Middleware: No token found, allowing client-side auth handling');
-    const response = NextResponse.next();
-    response.headers.set('x-auth-required', 'true');
-    return response;
-  }
-
-  // For dashboard routes, check if the route requires specific roles
-  const requiredRoles = protectedRoutes[pathname as keyof typeof protectedRoutes];
-
-  if (requiredRoles) {
-    try {
-      // Decode JWT token to get user role (simplified version)
-      const userRole = getUserRoleFromToken(authToken);
-      console.log('Middleware: User role:', userRole, 'Required roles:', requiredRoles);
-
-      // Check if user has required role
-      if (userRole && !requiredRoles.includes(userRole)) {
-        console.log('Middleware: User lacks required role, redirecting to unauthorized');
-        return NextResponse.redirect(new URL('/unauthorized', request.url));
-      }
-    } catch {
-      console.log('Middleware: Token invalid, allowing client-side handling');
-      const response = NextResponse.next();
-      response.headers.set('x-auth-invalid', 'true');
-      return response;
-    }
-  }
-
-  console.log('Middleware: Auth check passed, allowing access');
-  return NextResponse.next();
 }
 
 export const config = {

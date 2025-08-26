@@ -47,8 +47,8 @@ export function ProtectedRoute({
     );
   }
 
-  // Check role permissions (using userType from VikaretaUser)
-  const userRole = user.userType || 'buyer';
+  // Check role permissions (using roles from Keycloak)
+  const userRole = user.roles.includes('seller') ? 'seller' : 'buyer';
   if (!allowedRoles.includes(userRole as 'buyer' | 'seller' | 'both')) {
     return fallback || (
       <div className="flex items-center justify-center min-h-screen p-4">
@@ -62,7 +62,7 @@ export function ProtectedRoute({
             </p>
             <div className="text-sm space-y-1">
               <p><strong>Required roles:</strong> {allowedRoles.join(', ')}</p>
-              <p><strong>Your role:</strong> {user.userType || 'buyer'}</p>
+              <p><strong>Your roles:</strong> {user.roles.join(', ') || 'buyer'}</p>
             </div>
             <button
               onClick={() => router.push('/dashboard')}
@@ -76,8 +76,8 @@ export function ProtectedRoute({
     );
   }
 
-  // Check verification requirement
-  if (requireVerification && !user.isVerified) {
+  // Check verification requirement (Keycloak handles verification)
+  if (requireVerification && !user.roles.includes('verified')) {
     return fallback || (
       <div className="flex items-center justify-center min-h-screen p-4">
         <Card className="w-full max-w-md">
@@ -89,8 +89,8 @@ export function ProtectedRoute({
               This page requires account verification. Please complete your verification process.
             </p>
             <div className="text-sm space-y-1">
-              <p><strong>Current tier:</strong> {user.verificationTier}</p>
-              <p><strong>Status:</strong> {user.isVerified ? 'Verified' : 'Pending'}</p>
+              <p><strong>Current roles:</strong> {user.roles.join(', ')}</p>
+              <p><strong>Status:</strong> {user.roles.includes('verified') ? 'Verified' : 'Pending'}</p>
             </div>
             <div className="space-y-2">
               <button

@@ -1,6 +1,6 @@
 'use client';
 
-import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth';
 import { Loading } from '@/components/ui/loading';
 
 interface RoleGuardProps {
@@ -10,7 +10,7 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) {
-  const { user, isLoading, isAuthenticated } = useVikaretaAuthContext();
+  const { user, isLoading, isAuthenticated } = useAuth();
 
   if (isLoading) {
     return (
@@ -31,9 +31,10 @@ export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) 
     );
   }
 
-  // Check if user has required role (both role can access everything)
-  const userRole = user.userType || 'buyer';
-  const hasAccess = userRole === 'both' || allowedRoles.includes(userRole as 'buyer' | 'seller' | 'both');
+  // Check if user has required role (users with both buyer and seller roles can access everything)
+  const userRole = user.roles.includes('seller') ? 'seller' : 'buyer';
+  const hasBothRoles = user.roles.includes('buyer') && user.roles.includes('seller');
+  const hasAccess = hasBothRoles || allowedRoles.includes(userRole as 'buyer' | 'seller' | 'both');
   
   if (!hasAccess) {
     return fallback || (
@@ -47,7 +48,7 @@ export function RoleGuard({ children, allowedRoles, fallback }: RoleGuardProps) 
             Required roles: {allowedRoles.join(', ')}
           </p>
           <p className="text-sm text-muted-foreground">
-            Your role: {user.userType || 'buyer'}
+            Your roles: {user.roles.join(', ') || 'buyer'}
           </p>
         </div>
       </div>

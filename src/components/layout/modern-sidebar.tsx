@@ -31,7 +31,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth';
 
 interface NavigationItem {
   name: string;
@@ -124,7 +124,7 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const pathname = usePathname();
-  const { user, logout } = useVikaretaAuthContext();
+  const { user, logout } = useAuth();
 
   const toggleExpanded = (itemName: string) => {
     setExpandedItems(prev => 
@@ -237,7 +237,7 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
               <User className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user.firstName || user.email}</p>
+              <p className="text-sm font-medium truncate">{user.name || user.username || user.email}</p>
               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
             </div>
           </div>

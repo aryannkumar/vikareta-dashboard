@@ -78,7 +78,7 @@ import {
   ChevronDoubleRightIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
-import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth';
 import { getNavigationMenu } from '@/lib/routing';
 
 const iconMap = {
@@ -185,12 +185,13 @@ interface SidebarProps {
 export function Sidebar({ className, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useVikaretaAuthContext();
+  const { user } = useAuth();
   // const { sidebarCollapsed, setSidebarCollapsed } = useDashboardStore();
   const sidebarCollapsed = false; // TODO: Implement sidebar collapse functionality
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  const navItems = user ? getNavigationMenu((user.userType as 'buyer' | 'seller' | 'both' | 'admin') || 'buyer') : [];
+  const userRole = user?.roles.includes('seller') ? 'seller' : user?.roles.includes('admin') ? 'admin' : 'buyer';
+  const navItems = user ? getNavigationMenu(userRole as 'buyer' | 'seller' | 'both' | 'admin') : [];
 
   const toggleExpanded = (title: string) => {
     setExpandedItems(prev => 
@@ -410,15 +411,15 @@ export function Sidebar({ className, onClose }: SidebarProps) {
               whileHover={{ scale: 1.1 }}
             >
               <span className="text-white text-sm font-bold">
-                {user.firstName?.charAt(0) || 'U'}{user.lastName?.charAt(0) || 'S'}
+                {user.name?.charAt(0) || user.username?.charAt(0) || 'U'}
               </span>
             </motion.div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-amber-100 truncate">
-                {user.firstName} {user.lastName}
+                {user.name || user.username}
               </p>
               <p className="text-xs text-amber-300 truncate">
-                {user.businessName || user.email}
+                {user.email}
               </p>
             </div>
           </div>

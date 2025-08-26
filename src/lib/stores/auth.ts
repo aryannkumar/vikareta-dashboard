@@ -3,10 +3,7 @@
  * Direct implementation with the new vikareta authentication
  */
 
-import { useVikaretaAuth } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth/use-auth';
 
 // Re-export the unified auth hook as store for backward compatibility
-export const useAuthStore = useVikaretaAuth;
-
-// Export the types we need
-export type { UseVikaretaAuthReturn } from '@/lib/auth/vikareta';
+export const useAuthStore = useAuth;

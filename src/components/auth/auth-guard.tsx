@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useVikaretaAuthContext } from '@/lib/auth/vikareta';
+import { useAuth } from '@/lib/auth';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface AuthGuardProps {
@@ -17,7 +17,7 @@ export function AuthGuard({
   requiredRoles 
 }: AuthGuardProps) {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, hasRole } = useVikaretaAuthContext();
+  const { user, isAuthenticated, isLoading, hasRole } = useAuth();
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export function AuthGuard({
       if (requiredRoles && requiredRoles.length > 0) {
         const hasRequiredRole = requiredRoles.some(role => hasRole(role));
         if (!hasRequiredRole) {
-          console.log('AuthGuard: User lacks required roles:', requiredRoles, 'User type:', user.userType);
+          console.log('AuthGuard: User lacks required roles:', requiredRoles, 'User roles:', user.roles);
           router.push('/unauthorized?error=insufficient_permissions');
           return;
         }
