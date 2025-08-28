@@ -22,7 +22,7 @@ export async function GET(req: Request) {
         const tokenRes = await fetch(`${backend}/api/auth/oauth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri: `https://${process.env.NEXT_PUBLIC_DASHBOARD_HOST || 'dashboard.vikareta.com'}/sso/receive`, client_id: process.env.NEXT_PUBLIC_DASHBOARD_CLIENT_ID || 'dashboard' })
+          body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri: `https://${process.env.NEXT_PUBLIC_DASHBOARD_HOST || 'dashboard.vikareta.com'}/sso/receive`, client_id: 'dashboard' })
         });
 
         // Read text first so we can log non-JSON responses
