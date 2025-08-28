@@ -62,8 +62,10 @@ export async function GET(req: Request) {
         // If backend didn't forward cookies but returned tokens in JSON, use them to set cookies ourselves below
         // We'll attach forwardedSetCookies to the response headers later.
 
-        // Attach forwardedSetCookies to a local variable on the outer scope so we can use it below
-        (req as any)._forwardedSetCookies = forwardedSetCookies;
+  // Keep forwardedSetCookies in a local variable to use when building response headers below
+  // (Do not mutate `req` which may be immutable in some runtimes)
+  // forwardedSetCookies will be captured by the outer scope via closure
+  (globalThis as any).__lastForwardedSetCookies = forwardedSetCookies;
 
       } catch (err) {
         console.error('SSO: Token exchange call failed:', err);
@@ -121,7 +123,7 @@ export async function GET(req: Request) {
     }
 
     // Also forward Set-Cookie headers returned by the backend token endpoint, if any
-    const forwarded: string[] = (req as any)._forwardedSetCookies || [];
+    const forwarded: string[] = (globalThis as any).__lastForwardedSetCookies || [];
     for (const fc of forwarded) {
       try { hdrs.append('Set-Cookie', fc); } catch { /* ignore header append failures */ }
     }
