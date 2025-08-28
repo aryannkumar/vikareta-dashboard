@@ -91,14 +91,12 @@ export default function ServicesPage() {
   const loadServices = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/services/my', {
-        params: {
-          search: searchTerm,
-          category: categoryFilter,
-          status: statusFilter,
-          type: typeFilter,
-          limit: 50
-        }
+      const response = await apiClient.getServices({
+        search: searchTerm,
+        category: categoryFilter,
+        status: statusFilter,
+        type: typeFilter,
+        limit: 50
       });
 
       if (response.success && response.data) {

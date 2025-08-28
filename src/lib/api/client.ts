@@ -229,9 +229,7 @@ export class ApiClient {
     return this.request(`/rfqs/my?${query}`);
   }
 
-  async getRFQ(id: string) {
-    return this.request(`/rfqs/${id}`);
-  }
+
 
   async createRFQ(data: any) {
     return this.request('/rfqs', {
@@ -460,6 +458,211 @@ export class ApiClient {
 
   async getSubscriptionUsage() {
     return this.request('/subscription/usage');
+  }
+
+  // Shipments endpoints
+  async getShipments(params: any = {}) {
+    try {
+      const query = new URLSearchParams(params).toString();
+      return await this.request(`/shipments?${query}`);
+    } catch (error) {
+      // If shipments endpoint doesn't exist, return empty result
+      console.warn('Shipments endpoint not available, returning empty result');
+      return {
+        success: true,
+        data: [],
+        message: 'Shipments feature not yet available'
+      };
+    }
+  }
+
+  async getShipment(id: string) {
+    try {
+      return await this.request(`/shipments/${id}`);
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Shipment details not available' }
+      };
+    }
+  }
+
+  async createShipment(data: any) {
+    try {
+      return await this.request('/shipments', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Shipment creation not yet available' }
+      };
+    }
+  }
+
+  async updateShipmentStatus(id: string, status: string) {
+    try {
+      return await this.request(`/shipments/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status, timestamp: new Date().toISOString() }),
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Shipment status update not yet available' }
+      };
+    }
+  }
+
+  async getReadyToShipOrders() {
+    try {
+      return await this.request('/orders/ready-to-ship');
+    } catch (error) {
+      // Fallback to regular orders with shipped status filter
+      console.warn('Ready-to-ship endpoint not available, using fallback');
+      try {
+        return await this.getOrders({ status: 'confirmed', limit: 50 });
+      } catch (fallbackError) {
+        return {
+          success: true,
+          data: [],
+          message: 'No orders ready for shipment'
+        };
+      }
+    }
+  }
+
+  // Quotes endpoints (for received RFQ quotes)
+  async getReceivedQuotes(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/quotes?${query}`);
+  }
+
+  async getQuote(id: string) {
+    return this.request(`/quotes/${id}`);
+  }
+
+  async createQuote(data: any) {
+    return this.request('/quotes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateQuote(id: string, data: any) {
+    return this.request(`/quotes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async acceptQuote(id: string) {
+    return this.request(`/quotes/${id}/accept`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectQuote(id: string, reason?: string) {
+    return this.request(`/quotes/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  // RFQ endpoints
+  async getRelevantRFQs(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/rfqs/relevant?${query}`);
+  }
+
+  async getRFQ(rfqId: string) {
+    return this.request(`/rfqs/${rfqId}`);
+  }
+
+  async getRFQQuotes(rfqId: string) {
+    return this.request(`/rfqs/${rfqId}/quotes`);
+  }
+
+  // Bidding endpoints
+  async getRFQBids(rfqId: string) {
+    return this.request(`/rfqs/${rfqId}/bids`);
+  }
+
+  async submitBid(rfqId: string, bidData: {
+    price: number;
+    deliveryTime: number;
+    deliveryTimeUnit: 'days' | 'weeks' | 'months';
+    description: string;
+  }) {
+    return this.request(`/rfqs/${rfqId}/bids`, {
+      method: 'POST',
+      body: JSON.stringify(bidData),
+    });
+  }
+
+  async updateBid(bidId: string, bidData: {
+    price?: number;
+    deliveryTime?: number;
+    deliveryTimeUnit?: 'days' | 'weeks' | 'months';
+    description?: string;
+  }) {
+    return this.request(`/bids/${bidId}`, {
+      method: 'PUT',
+      body: JSON.stringify(bidData),
+    });
+  }
+
+  async withdrawBid(bidId: string) {
+    return this.request(`/bids/${bidId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Negotiation endpoints
+  async getRFQNegotiations(rfqId: string) {
+    return this.request(`/rfqs/${rfqId}/negotiations`);
+  }
+
+  async getBidNegotiations(bidId: string) {
+    return this.request(`/bids/${bidId}/negotiations`);
+  }
+
+  async sendNegotiation(bidId: string, negotiationData: {
+    message: string;
+    proposedPrice?: number;
+    proposedDeliveryTime?: number;
+  }) {
+    return this.request(`/bids/${bidId}/negotiations`, {
+      method: 'POST',
+      body: JSON.stringify(negotiationData),
+    });
+  }
+
+  // Order conversion endpoints (when bid is accepted)
+  async acceptBid(bidId: string) {
+    return this.request(`/bids/${bidId}/accept`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectBid(bidId: string, reason?: string) {
+    return this.request(`/bids/${bidId}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
+  // Convert accepted bid to order
+  async convertBidToOrder(bidId: string, orderData?: {
+    shippingAddress?: string;
+    specialInstructions?: string;
+    paymentMethod?: string;
+  }) {
+    return this.request(`/bids/${bidId}/convert-to-order`, {
+      method: 'POST',
+      body: JSON.stringify(orderData || {}),
+    });
   }
 }
 

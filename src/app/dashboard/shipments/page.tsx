@@ -112,13 +112,11 @@ export default function ShipmentsPage() {
   const loadShipments = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/shipments', {
-        params: {
-          search: searchTerm,
-          status: statusFilter,
-          courier: courierFilter,
-          limit: 50
-        }
+      const response = await apiClient.getShipments({
+        search: searchTerm,
+        status: statusFilter,
+        courier: courierFilter,
+        limit: 50
       });
 
       if (response.success && response.data) {
@@ -143,10 +141,7 @@ export default function ShipmentsPage() {
 
   const handleUpdateStatus = async (shipmentId: string, newStatus: string) => {
     try {
-      const response = await apiClient.put(`/shipments/${shipmentId}/status`, {
-        status: newStatus,
-        timestamp: new Date().toISOString(),
-      });
+      const response = await apiClient.updateShipmentStatus(shipmentId, newStatus);
       
       if (response.success) {
         toast({

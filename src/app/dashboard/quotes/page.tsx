@@ -83,14 +83,12 @@ export default function QuotesPage() {
   const loadQuotes = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/quotes/received', {
-        params: {
-          search: searchTerm,
-          status: statusFilter,
-          sortBy,
-          sortOrder,
-          limit: 50
-        }
+      const response = await apiClient.getReceivedQuotes({
+        search: searchTerm,
+        status: statusFilter,
+        sortBy,
+        sortOrder,
+        limit: 50
       });
 
       if (response.success && response.data) {

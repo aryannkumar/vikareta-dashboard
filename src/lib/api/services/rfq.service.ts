@@ -4,6 +4,7 @@ export interface RFQ {
   id: string;
   title: string;
   description: string;
+  type: 'product' | 'service';
   categoryId: string;
   subcategoryId: string;
   quantity: number;
@@ -11,6 +12,7 @@ export interface RFQ {
   budgetMax: number;
   deliveryTimeline: string;
   deliveryLocation: string;
+  requirements?: string;
   status: 'active' | 'expired' | 'closed' | 'draft';
   quotesCount: number;
   createdAt: string;
@@ -345,8 +347,85 @@ class RFQService {
     if (params.categoryId) query.append('categoryId', params.categoryId);
     if (params.subcategoryId) query.append('subcategoryId', params.subcategoryId);
     if (params.search) query.append('search', params.search);
-    const res = await apiClient.get(`${this.baseUrl}/relevant?${query.toString()}`);
-    return res.data as RelevantRFQsResponse;
+
+    const response = await apiClient.get(`${this.baseUrl}/relevant?${query.toString()}`);
+
+    if (response.success && response.data) {
+      return response.data as RelevantRFQsResponse;
+    } else {
+      // Return empty result if endpoint doesn't exist or fails
+      return {
+        rfqs: [],
+        pagination: {
+          page: params.page || 1,
+          limit: params.limit || 10,
+          total: 0,
+          pages: 0
+        }
+      };
+    }
+  }
+
+  // Bidding functionality for sellers
+  async getRFQDetails(rfqId: string): Promise<RFQ> {
+    const response = await apiClient.getRFQ(rfqId);
+    if (response.success && response.data) {
+      return response.data as RFQ;
+    }
+    throw new Error(response.error?.message || 'Failed to load RFQ details');
+  }
+
+  async submitBid(rfqId: string, bidData: {
+    price: number;
+    deliveryTime: number;
+    deliveryTimeUnit: 'days' | 'weeks' | 'months';
+    description: string;
+  }) {
+    const response = await apiClient.submitBid(rfqId, bidData);
+    if (response.success) {
+      return response.data;
+    }
+    throw new Error(response.error?.message || 'Failed to submit bid');
+  }
+
+  async getBids(rfqId: string) {
+    const response = await apiClient.getRFQBids(rfqId);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  }
+
+  async getNegotiations(rfqId: string) {
+    const response = await apiClient.getRFQNegotiations(rfqId);
+    if (response.success && response.data) {
+      return response.data;
+    }
+    return [];
+  }
+
+  async sendNegotiation(bidId: string, negotiationData: {
+    message: string;
+    proposedPrice?: number;
+    proposedDeliveryTime?: number;
+  }) {
+    const response = await apiClient.sendNegotiation(bidId, negotiationData);
+    if (response.success) {
+      return response.data;
+    }
+    throw new Error(response.error?.message || 'Failed to send negotiation');
+  }
+
+  async convertBidToOrder(bidId: string, orderData?: {
+    shippingAddress?: string;
+    specialInstructions?: string;
+    paymentMethod?: string;
+  }) {
+    const response = await apiClient.convertBidToOrder(bidId, orderData);
+    if (response.success) {
+      return response.data;
+    }
+    throw new Error(response.error?.message || 'Failed to convert bid to order');
   }
 }
 

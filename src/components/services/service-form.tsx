@@ -132,10 +132,11 @@ export function ServiceForm({ service, onSave, onCancel }: ServiceFormProps) {
   }, [formData.categoryId]);
 
   const isValidId = (str: string) => {
-    // Accept both UUID and CUID formats
+    // Accept UUID, CUID, and string slug formats
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const cuidRegex = /^c[a-z0-9]{24}$/i; // CUID format: c + 24 alphanumeric chars
-    return uuidRegex.test(str) || cuidRegex.test(str);
+    const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i; // String slug format: letters, numbers, hyphens
+    return uuidRegex.test(str) || cuidRegex.test(str) || slugRegex.test(str);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

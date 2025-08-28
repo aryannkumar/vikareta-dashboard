@@ -124,7 +124,7 @@ export default function CreateShipmentPage() {
   const loadReadyToShipOrders = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/orders/ready-to-ship');
+      const response = await apiClient.getReadyToShipOrders();
       
       if (response.success && response.data) {
         const data = response.data as any;
@@ -225,7 +225,7 @@ export default function CreateShipmentPage() {
         return;
       }
 
-      const response = await apiClient.post('/shipments', formData);
+      const response = await apiClient.createShipment(formData);
       
       if (response.success) {
         toast({
