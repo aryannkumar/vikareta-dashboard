@@ -299,25 +299,68 @@ export class VikaretaCrossDomainAuth {
         return;
       }
 
-      console.log('SSO Sync: Creating SSO beacon for domain:', domain);
-      // Use image beacon to sync authentication
-      await this.createSSOBeacon(domain, token);
+  console.log('SSO Sync: Initiating SSO popup for domain:', domain);
+  // Use OAuth authorize popup flow to sync authentication
+  await this.createSSOPopup(domain);
+  console.log('SSO Sync: Successfully synced domain via popup:', domain);
       console.log('SSO Sync: Successfully synced domain:', domain);
     } catch (error) {
       console.error(`SSO Sync: Failed to sync domain ${domain}:`, error);
     }
   }
 
-  private createSSOBeacon(domain: string, token: string): Promise<void> {
+  private createSSOBeacon(domain: string): Promise<void> {
+    // Deprecated: keep a minimal fallback but prefer OAuth popup flow
+    return this.createSSOPopup(domain).catch(() => Promise.resolve());
+  }
+
+  private createSSOPopup(domain: string): Promise<void> {
     return new Promise((resolve) => {
       try {
-        const img = new Image();
-        const url = `https://${domain}/sso/receive?token=${encodeURIComponent(token)}&t=${Date.now()}`;
-        const done = () => resolve();
-        img.onload = done;
-        img.onerror = done;
-        img.src = url;
-        setTimeout(done, 5000);
+        const authBase = '/api/auth/oauth/authorize';
+        const clientId = (window as any)?.VIKARETA_CLIENT_ID || 'dashboard';
+        const redirectUri = `https://${domain}/sso/receive`;
+        const state = Math.random().toString(36).substring(2, 15);
+        const url = `${authBase}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
+
+        const w = 600, h = 700;
+        const left = window.screenX + Math.round((window.outerWidth - w) / 2);
+        const top = window.screenY + Math.round((window.outerHeight - h) / 2);
+        const popup = window.open(url, `_blank`, `toolbar=0,location=0,status=0,menubar=0,scrollbars=1,resizable=1,width=${w},height=${h},top=${top},left=${left}`);
+
+        if (!popup) return resolve();
+
+        const timer = setInterval(() => {
+          try {
+            if (popup.closed) {
+              clearInterval(timer);
+              return resolve();
+            }
+          } catch {
+            // ignore cross-origin
+          }
+        }, 500);
+
+        const onMessage = (ev: MessageEvent) => {
+          try {
+            if (!ev.data || ev.data.type !== 'SSO_USER') return;
+            if (ev.origin !== `https://${domain}`) return;
+            window.removeEventListener('message', onMessage);
+            try { popup.close(); } catch {}
+            clearInterval(timer);
+            return resolve();
+          } catch {
+            // ignore
+          }
+        };
+
+        window.addEventListener('message', onMessage);
+
+        setTimeout(() => {
+          try { window.removeEventListener('message', onMessage); } catch {}
+          try { if (!popup.closed) popup.close(); } catch {}
+          resolve();
+        }, 10000);
       } catch {
         resolve();
       }

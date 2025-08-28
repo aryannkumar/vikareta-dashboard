@@ -1,70 +1,42 @@
 import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const token = url.searchParams.get('token');
-    if (!token) {
-      console.error('SSO: No token provided');
-      return NextResponse.redirect('/login?error=missing_token');
+    const code = url.searchParams.get('code');
+    const state = url.searchParams.get('state');
+
+    if (!code) {
+      console.error('SSO: No code provided');
+      return NextResponse.redirect('/login?error=missing_code');
     }
 
-    const SSO_SECRET = process.env.SSO_SECRET || process.env.JWT_SECRET || 'sso-secret';
-
-    let payload: any;
-    try {
-      payload = jwt.verify(token, SSO_SECRET) as any;
-      console.log('SSO: Token validated successfully for user:', payload.sub);
-    } catch (error) {
-      console.error('SSO: Token validation failed:', error);
-      return NextResponse.redirect('/login?error=invalid_token');
-    }
-
-    // Validate audience claim
-    const expectedHost = process.env.NEXT_PUBLIC_DASHBOARD_HOST || 'dashboard.vikareta.com';
-    if (payload.aud && !payload.aud.includes(expectedHost)) {
-      console.error('SSO: Invalid audience claim:', payload.aud, 'expected:', expectedHost);
-      return NextResponse.redirect('/login?error=invalid_audience');
-    }
-
-    // Validate SSO token with backend and get fresh tokens
     const backend = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : 'https://api.vikareta.com');
-    let accessToken = '';
-    let refreshToken = '';
+  const accessToken = '';
+  const refreshToken = '';
     let user: any = null;
-    
+
     try {
-      console.log('SSO: Validating token with backend...');
-      const validateRes = await fetch(`${backend}/api/auth/validate-sso`, {
+      console.log('SSO: Exchanging code with backend...');
+      const tokenRes = await fetch(`${backend}/api/auth/oauth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
+        body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri: `https://${process.env.NEXT_PUBLIC_DASHBOARD_HOST || 'dashboard.vikareta.com'}/sso/receive`, client_id: process.env.NEXT_PUBLIC_DASHBOARD_CLIENT_ID || 'dashboard' })
       });
-      
-      const data = await validateRes.json();
-      console.log('SSO: Backend validation response:', { 
-        ok: validateRes.ok, 
-        status: validateRes.status,
-        success: data?.success,
-        userType: data?.user?.userType 
-      });
-      
-      if (!validateRes.ok || !data?.success) {
-        console.error('SSO: Backend validation failed:', data);
-        return NextResponse.redirect('/login?error=validation_failed');
+
+      const data = await tokenRes.json();
+      console.log('SSO: Backend token exchange response:', { ok: tokenRes.ok, status: tokenRes.status, success: data?.success });
+
+      if (!tokenRes.ok || !data?.success) {
+        console.error('SSO: Token exchange failed:', data);
+        return NextResponse.redirect('/login?error=exchange_failed');
       }
-      
-      accessToken = data.accessToken || '';
-      refreshToken = data.refreshToken || '';
+
+      // The backend sets cookies via the token endpoint; but some responses may include user info
       user = data.user;
-      
-      if (!accessToken || !refreshToken) {
-        console.error('SSO: Backend did not return tokens');
-        return NextResponse.redirect('/login?error=no_tokens');
-      }
+
     } catch (err) {
-      console.error('SSO: Backend validation call failed:', err);
+      console.error('SSO: Token exchange call failed:', err);
       return NextResponse.redirect('/login?error=backend_error');
     }
 
@@ -72,17 +44,16 @@ export async function GET(req: Request) {
 <html><body>
 <script>
   try {
-    // Notify parent window that SSO completed successfully with user info
-    window.parent.postMessage({ 
-      type: 'SSO_USER',
-      host: location.hostname,
-      user: ${JSON.stringify(user)}
-    }, '*');
+    // Notify opener (popup) or parent (iframe) that SSO completed successfully with user info
+    const msg = { type: 'SSO_USER', host: location.hostname, user: ${JSON.stringify(user)}, state: ${JSON.stringify(state)} };
+    try { if (window.opener && !window.opener.closed) window.opener.postMessage(msg, '*'); } catch(e){}
+    try { window.parent.postMessage(msg, '*'); } catch(e){}
 
     document.write('<p>SSO authentication successful. You may close this window.</p>');
   } catch (e) {
     console.error('SSO completion error:', e);
-    window.parent.postMessage({ type: 'SSO_ERROR', error: e.message }, '*');
+    try { if (window.opener && !window.opener.closed) window.opener.postMessage({ type: 'SSO_ERROR', error: e.message }, '*'); } catch(e){}
+    try { window.parent.postMessage({ type: 'SSO_ERROR', error: e.message }, '*'); } catch(e){}
   }
 </script>
 </body></html>`;
