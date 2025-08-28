@@ -4,13 +4,13 @@
  * Security: JWT validation, token refresh, CSRF protection
  */
 
-import { 
-  VikaretaAuthData, 
-  VikaretaAuthState, 
+import {
+  VikaretaAuthData,
+  VikaretaAuthState,
   VikaretaUser,
   VIKARETA_AUTH_CONSTANTS,
   isVikaretaAuthData,
-  isVikaretaUser 
+  isVikaretaUser
 } from './vikareta-auth-types';
 import { vikaretaCrossDomainAuth } from './vikareta-cross-domain';
 
@@ -26,16 +26,16 @@ export class VikaretaSSOClient {
   async initialize(): Promise<VikaretaAuthState> {
     try {
       console.log('SSO Client: Initializing authentication state...');
-      
+
       // Get stored auth state
       const storedState = vikaretaCrossDomainAuth.getStoredAuthData();
-      console.log('SSO Client: Stored auth state:', { 
-        isAuthenticated: storedState.isAuthenticated, 
+      console.log('SSO Client: Stored auth state:', {
+        isAuthenticated: storedState.isAuthenticated,
         hasUser: !!storedState.user,
         userId: storedState.user?.id,
         userType: storedState.user?.userType
       });
-      
+
       if (storedState.isAuthenticated && storedState.user) {
         // Validate stored user data
         if (!isVikaretaUser(storedState.user)) {
@@ -47,7 +47,7 @@ export class VikaretaSSOClient {
         // Try to validate session with backend (with retry logic)
         console.log('SSO Client: Validating session with backend...');
         let isValid = false;
-        
+
         // Try validation with retries for resilient SSO
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
@@ -57,13 +57,13 @@ export class VikaretaSSOClient {
           } catch (error) {
             console.warn('SSO Client: Session validation attempt', attempt, 'failed:', error);
           }
-          
+
           // Wait before retry
           if (attempt < 2) {
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
-        
+
         if (!isValid) {
           console.warn('SSO Client: Session validation failed after retries, but keeping stored state for cross-domain auth');
           // Don't clear auth state immediately - allow for cross-domain auth to work
@@ -80,7 +80,7 @@ export class VikaretaSSOClient {
 
       // No stored state found, but check if user is authenticated via cookies
       console.log('SSO Client: No stored auth state, checking authentication via cookies...');
-      
+
       try {
         const isValid = await this.validateSession();
         if (isValid) {
@@ -90,26 +90,33 @@ export class VikaretaSSOClient {
             credentials: 'include',
             headers: { 'Accept': 'application/json' }
           });
-          
+
           if (response.ok) {
             const data = await response.json();
             if (data && data.user && isVikaretaUser(data.user)) {
               console.log('SSO Client: Found valid authentication via cookies');
-              
-              // Store the auth data for future use
-              const authData: VikaretaAuthData = {
-                user: data.user,
-                tokens: {
-                  accessToken: '', // Will be read from HttpOnly cookies
-                  refreshToken: '',
-                  tokenType: 'Bearer' as const
-                },
-                domain: 'dashboard' as const,
-                sessionId: data.sessionId || null
-              };
-              
-              await vikaretaCrossDomainAuth.storeAuthData(authData);
-              
+              console.log('SSO Client: User data:', { id: data.user.id, email: data.user.email, userType: data.user.userType });
+
+              try {
+                // Store the auth data for future use
+                const authData: VikaretaAuthData = {
+                  user: data.user,
+                  tokens: {
+                    accessToken: data.accessToken || '', // Use token from response if available
+                    refreshToken: data.refreshToken || '',
+                    tokenType: 'Bearer' as const
+                  },
+                  domain: 'dashboard' as const,
+                  sessionId: data.sessionId || null
+                };
+
+                await vikaretaCrossDomainAuth.storeAuthData(authData);
+                console.log('SSO Client: Successfully stored auth data');
+              } catch (storeError) {
+                console.warn('SSO Client: Failed to store auth data, but continuing with authentication:', storeError);
+                // Don't fail the authentication just because storage failed
+              }
+
               return {
                 user: data.user,
                 isAuthenticated: true,
@@ -204,11 +211,11 @@ export class VikaretaSSOClient {
         throw new Error('Invalid authentication response structure');
       }
 
-  // Store auth data securely
-  await vikaretaCrossDomainAuth.storeAuthData(authData);
+      // Store auth data securely
+      await vikaretaCrossDomainAuth.storeAuthData(authData);
 
-  // Sync across domains
-  await vikaretaCrossDomainAuth.syncSSOAcrossDomains();
+      // Sync across domains
+      await vikaretaCrossDomainAuth.syncSSOAcrossDomains();
 
       return {
         user: authData.user,
@@ -363,7 +370,7 @@ export class VikaretaSSOClient {
         domain: vikaretaCrossDomainAuth.getCurrentDomain()
       };
 
-  await vikaretaCrossDomainAuth.storeAuthData(authData);
+      await vikaretaCrossDomainAuth.storeAuthData(authData);
       return true;
     } catch (error) {
       console.error('Token refresh failed:', error);
