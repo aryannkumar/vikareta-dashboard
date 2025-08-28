@@ -11,34 +11,64 @@ export async function GET(req: Request) {
       return NextResponse.redirect('/login?error=missing_code');
     }
 
-    const backend = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : 'https://api.vikareta.com');
-  const accessToken = '';
-  const refreshToken = '';
-    let user: any = null;
+      const backend = process.env.NEXT_PUBLIC_API_BASE || (process.env.NODE_ENV === 'development' ? 'http://localhost:5001' : 'https://api.vikareta.com');
+      let user: any = null;
+      // tokens returned explicitly in JSON (fallback) - may remain undefined
+      let accessToken: string | undefined;
+      let refreshToken: string | undefined;
 
-    try {
-      console.log('SSO: Exchanging code with backend...');
-      const tokenRes = await fetch(`${backend}/api/auth/oauth/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri: `https://${process.env.NEXT_PUBLIC_DASHBOARD_HOST || 'dashboard.vikareta.com'}/sso/receive`, client_id: process.env.NEXT_PUBLIC_DASHBOARD_CLIENT_ID || 'dashboard' })
-      });
+      try {
+        console.log('SSO: Exchanging code with backend...', { backend });
+        const tokenRes = await fetch(`${backend}/api/auth/oauth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ grant_type: 'authorization_code', code, redirect_uri: `https://${process.env.NEXT_PUBLIC_DASHBOARD_HOST || 'dashboard.vikareta.com'}/sso/receive`, client_id: process.env.NEXT_PUBLIC_DASHBOARD_CLIENT_ID || 'dashboard' })
+        });
 
-      const data = await tokenRes.json();
-      console.log('SSO: Backend token exchange response:', { ok: tokenRes.ok, status: tokenRes.status, success: data?.success });
+        // Read text first so we can log non-JSON responses
+        const text = await tokenRes.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_err) { console.warn('SSO: Token exchange returned non-JSON response'); }
 
-      if (!tokenRes.ok || !data?.success) {
-        console.error('SSO: Token exchange failed:', data);
-        return NextResponse.redirect('/login?error=exchange_failed');
+        console.log('SSO: Backend token exchange response:', { ok: tokenRes.ok, status: tokenRes.status, body: data ?? text?.slice?.(0, 200) });
+
+        if (!tokenRes.ok) {
+          console.error('SSO: Token exchange failed (non-OK status):', { status: tokenRes.status, body: data ?? text });
+          return NextResponse.redirect('/login?error=exchange_failed');
+        }
+
+        // Prefer structured JSON fields when provided
+        if (data) {
+          user = data.user ?? null;
+          accessToken = data.accessToken ?? data.access_token ?? data.token ?? accessToken;
+          refreshToken = data.refreshToken ?? data.refresh_token ?? data.refresh ?? refreshToken;
+        }
+
+        // Forward any Set-Cookie headers from the backend response to the browser by copying them into our response later
+        // We'll attach them to the response headers below when sending the HTML page.
+        const forwardedSetCookies: string[] = [];
+        try {
+          // tokenRes.headers may contain one or many Set-Cookie entries; iterate through headers
+          tokenRes.headers?.forEach?.((value, key) => {
+            if (key.toLowerCase() === 'set-cookie') {
+              // value may contain one or multiple cookies; preserve as-is
+              forwardedSetCookies.push(value);
+            }
+          });
+        } catch (_err) {
+          // If headers iteration not available or fails, ignore — we'll still try to set cookies from JSON tokens
+        }
+
+        // If backend didn't forward cookies but returned tokens in JSON, use them to set cookies ourselves below
+        // We'll attach forwardedSetCookies to the response headers later.
+
+        // Attach forwardedSetCookies to a local variable on the outer scope so we can use it below
+        (req as any)._forwardedSetCookies = forwardedSetCookies;
+
+      } catch (err) {
+        console.error('SSO: Token exchange call failed:', err);
+        return NextResponse.redirect('/login?error=backend_error');
       }
-
-      // The backend sets cookies via the token endpoint; but some responses may include user info
-      user = data.user;
-
-    } catch (err) {
-      console.error('SSO: Token exchange call failed:', err);
-      return NextResponse.redirect('/login?error=backend_error');
-    }
 
     const html = `<!doctype html>
 <html><body>
@@ -82,6 +112,12 @@ export async function GET(req: Request) {
     hdrs.set('Content-Type', 'text/html');
     for (const c of cookies) {
       hdrs.append('Set-Cookie', c);
+    }
+
+    // Also forward Set-Cookie headers returned by the backend token endpoint, if any
+    const forwarded: string[] = (req as any)._forwardedSetCookies || [];
+    for (const fc of forwarded) {
+      try { hdrs.append('Set-Cookie', fc); } catch { /* ignore header append failures */ }
     }
 
     console.log('SSO: Successfully set cookies and returning success page');
