@@ -77,7 +77,7 @@ export default function WalletPage() {
       setAnalyticsLoading(true);
 
       // Load analytics from backend
-      const analyticsResponse = await apiClient.get('/wallet/analytics');
+      const analyticsResponse = await apiClient.getWalletAnalytics();
       let walletAnalytics: WalletAnalytics;
       
       if (analyticsResponse.success && analyticsResponse.data) {

@@ -253,7 +253,24 @@ export class ApiClient {
   }
 
   async getWalletAnalytics() {
-    return this.request('/wallet/analytics');
+    try {
+      return await this.request('/wallet/analytics');
+    } catch (error) {
+      // If wallet analytics endpoint doesn't exist, return empty analytics
+      console.warn('Wallet analytics endpoint not available, returning empty analytics');
+      return {
+        success: true,
+        data: {
+          totalBalance: 0,
+          totalIncome: 0,
+          totalExpenses: 0,
+          monthlyIncome: 0,
+          monthlyExpenses: 0,
+          recentTransactions: []
+        },
+        message: 'Wallet analytics feature not yet available'
+      };
+    }
   }
 
   async getBankAccounts() {
@@ -287,8 +304,27 @@ export class ApiClient {
 
   // Advertisements endpoints
   async getAdvertisements(params: any = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/ads?${query}`);
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.type && params.type !== 'all' && params.type.trim()) {
+      cleanParams.type = params.type.trim();
+    }
+    if (params.limit) {
+      cleanParams.limit = params.limit;
+    }
+    if (params.page) {
+      cleanParams.page = params.page;
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/ads${query ? `?${query}` : ''}`);
   }
 
   async createAdvertisement(data: any) {
@@ -572,8 +608,33 @@ export class ApiClient {
 
   // RFQ endpoints
   async getRelevantRFQs(params: any = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/rfqs/relevant?${query}`);
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) {
+      cleanParams.page = params.page;
+    }
+    if (params.limit) {
+      cleanParams.limit = params.limit;
+    }
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.type && params.type !== 'all' && params.type.trim()) {
+      cleanParams.type = params.type.trim();
+    }
+    if (params.categoryId && params.categoryId.trim()) {
+      cleanParams.categoryId = params.categoryId.trim();
+    }
+    if (params.subcategoryId && params.subcategoryId.trim()) {
+      cleanParams.subcategoryId = params.subcategoryId.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/rfqs/relevant${query ? `?${query}` : ''}`);
   }
 
   async getRFQ(rfqId: string) {

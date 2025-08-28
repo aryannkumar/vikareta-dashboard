@@ -78,12 +78,36 @@ export default function AnalyticsPage() {
         apiClient.get('/analytics/products/performance?limit=10')
       ]);
 
-      if (revenueResponse.success) {
+      if (revenueResponse.success && revenueResponse.data) {
         setRevenueData(revenueResponse.data as RevenueData);
+      } else {
+        // Set default revenue data if API fails
+        setRevenueData({
+          period: selectedPeriod,
+          totalRevenue: 0,
+          growthRate: 0,
+          chartData: [],
+          summary: {
+            currentPeriod: 0,
+            previousPeriod: 0,
+            change: 0
+          }
+        });
       }
 
-      if (performanceResponse.success) {
+      if (performanceResponse.success && performanceResponse.data) {
         setProductPerformance(performanceResponse.data as ProductPerformance);
+      } else {
+        // Set default performance data if API fails
+        setProductPerformance({
+          products: [],
+          summary: {
+            totalProducts: 0,
+            totalRevenue: 0,
+            totalOrders: 0,
+            averageConversion: 0
+          }
+        });
       }
     } catch (err) {
       console.error('Failed to load analytics data:', err);
@@ -106,8 +130,9 @@ export default function AnalyticsPage() {
     }).format(amount);
   };
 
-  const formatPercentage = (value: number) => {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  const formatPercentage = (value: number | undefined | null) => {
+    const safeValue = value || 0;
+    return `${safeValue >= 0 ? '+' : ''}${safeValue.toFixed(1)}%`;
   };
 
   if (loading) {
@@ -174,15 +199,15 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(revenueData.totalRevenue)}
+                {formatCurrency(revenueData.totalRevenue || 0)}
               </div>
               <div className="flex items-center text-xs text-muted-foreground">
-                {revenueData.growthRate >= 0 ? (
+                {(revenueData.growthRate || 0) >= 0 ? (
                   <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
                 ) : (
                   <TrendingDown className="h-3 w-3 mr-1 text-red-500" />
                 )}
-                <span className={revenueData.growthRate >= 0 ? 'text-green-500' : 'text-red-500'}>
+                <span className={(revenueData.growthRate || 0) >= 0 ? 'text-green-500' : 'text-red-500'}>
                   {formatPercentage(revenueData.growthRate)}
                 </span>
                 <span className="ml-1">from last period</span>
@@ -227,7 +252,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {productPerformance?.summary.averageConversion.toFixed(1) || 0}%
+                {(productPerformance?.summary.averageConversion || 0).toFixed(1)}%
               </div>
               <p className="text-xs text-muted-foreground">
                 Product conversion rate
@@ -320,8 +345,8 @@ export default function AnalyticsPage() {
                           <p className="text-muted-foreground">Views</p>
                         </div>
                         <div className="text-center">
-                          <Badge variant={product.conversionRate > 5 ? 'default' : 'secondary'}>
-                            {product.conversionRate.toFixed(1)}%
+                          <Badge variant={(product.conversionRate || 0) > 5 ? 'default' : 'secondary'}>
+                            {(product.conversionRate || 0).toFixed(1)}%
                           </Badge>
                           <p className="text-muted-foreground">Conversion</p>
                         </div>
@@ -353,7 +378,7 @@ export default function AnalyticsPage() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                          label={({ name, percent }) => `${name} ${(percent ? (percent * 100).toFixed(0) : 0)}%`}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="revenue"

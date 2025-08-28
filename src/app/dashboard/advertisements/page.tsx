@@ -91,13 +91,11 @@ export default function AdvertisementsPage() {
   const loadAdvertisements = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/advertisements', {
-        params: {
-          search: searchTerm,
-          status: statusFilter,
-          type: typeFilter,
-          limit: 50
-        }
+      const response = await apiClient.getAdvertisements({
+        search: searchTerm,
+        status: statusFilter,
+        type: typeFilter,
+        limit: 50
       });
 
       if (response.success && response.data) {
