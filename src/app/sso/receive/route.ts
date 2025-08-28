@@ -72,28 +72,17 @@ export async function GET(req: Request) {
 <html><body>
 <script>
   try {
-    // Store user data in localStorage for immediate access
-    if (typeof Storage !== "undefined") {
-      const authData = {
-        user: ${JSON.stringify(user)},
-        sessionId: '${payload.sub}',
-        domain: 'dashboard',
-        timestamp: ${Date.now()}
-      };
-      localStorage.setItem('vikareta_auth_state', JSON.stringify(authData));
-    }
-    
-    // Notify parent window that SSO completed successfully
+    // Notify parent window that SSO completed successfully with user info
     window.parent.postMessage({ 
-      sso: 'ok', 
+      type: 'SSO_USER',
       host: location.hostname,
       user: ${JSON.stringify(user)}
     }, '*');
-    
+
     document.write('<p>SSO authentication successful. You may close this window.</p>');
   } catch (e) {
     console.error('SSO completion error:', e);
-    window.parent.postMessage({ sso: 'error', error: e.message }, '*');
+    window.parent.postMessage({ type: 'SSO_ERROR', error: e.message }, '*');
   }
 </script>
 </body></html>`;

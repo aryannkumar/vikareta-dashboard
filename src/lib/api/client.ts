@@ -14,6 +14,8 @@ export interface ApiResponse<T = any> {
   message?: string;
 }
 
+import { vikaretaSSOClient } from '@/lib/auth/vikareta';
+
 export class ApiClient {
   private baseURL: string;
   private requestCache: Map<string, { data: any; timestamp: number }> = new Map();
@@ -65,10 +67,11 @@ export class ApiClient {
 
     const url = `${this.baseURL}${endpoint}`;
     
-    // Get access token from localStorage
-    const accessToken = typeof window !== 'undefined' 
-      ? localStorage.getItem('vikareta_access_token')
-      : null;
+    // Get access token from unified SSO client
+    let accessToken: string | null = null;
+    if (typeof window !== 'undefined') {
+      accessToken = vikaretaSSOClient?.getAccessToken?.() || null;
+    }
 
     // Get CSRF token for state-changing requests
     let csrfToken: string | null = null;

@@ -158,8 +158,8 @@ export class VikaretaSSOClient {
         throw new Error('Invalid authentication response structure');
       }
 
-      // Store auth data securely
-      vikaretaCrossDomainAuth.storeAuthData(authData);
+  // Store auth data securely
+  await vikaretaCrossDomainAuth.storeAuthData(authData);
 
   // Sync across domains
   await vikaretaCrossDomainAuth.syncSSOAcrossDomains();
@@ -317,7 +317,7 @@ export class VikaretaSSOClient {
         domain: vikaretaCrossDomainAuth.getCurrentDomain()
       };
 
-      vikaretaCrossDomainAuth.storeAuthData(authData);
+  await vikaretaCrossDomainAuth.storeAuthData(authData);
       return true;
     } catch (error) {
       console.error('Token refresh failed:', error);

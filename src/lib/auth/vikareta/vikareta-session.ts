@@ -8,6 +8,7 @@ import {
   VikaretaSession, 
   VIKARETA_AUTH_CONSTANTS 
 } from './vikareta-auth-types';
+import { vikaretaCrossDomainAuth } from './vikareta-cross-domain';
 
 export class VikaretaSessionManager {
   private activityTimer: NodeJS.Timeout | null = null;
@@ -68,18 +69,17 @@ export class VikaretaSessionManager {
     if (typeof window === 'undefined') return null;
 
     try {
-      const stored = localStorage.getItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE);
-      if (!stored) return null;
+      const authState = vikaretaCrossDomainAuth.getStoredAuthData();
+      if (!authState || !authState.sessionId) return null;
 
-      const data = JSON.parse(stored);
-      return data.sessionId ? {
-        id: data.sessionId,
-        userId: data.user?.id || '',
-        domain: data.domain || 'main',
-        createdAt: data.timestamp ? new Date(data.timestamp).toISOString() : new Date().toISOString(),
+      return {
+        id: authState.sessionId,
+        userId: authState.user?.id || '',
+        domain: 'main',
+        createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + VIKARETA_AUTH_CONSTANTS.TOKEN_EXPIRY.REFRESH_TOKEN * 1000).toISOString(),
         lastActivityAt: new Date().toISOString()
-      } : null;
+      };
     } catch (error) {
       console.error('Failed to get session info:', error);
       return null;
@@ -93,12 +93,8 @@ export class VikaretaSessionManager {
     if (typeof window === 'undefined') return;
 
     try {
-      const stored = localStorage.getItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE);
-      if (stored) {
-        const data = JSON.parse(stored);
-        data.lastActivity = Date.now();
-        localStorage.setItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE, JSON.stringify(data));
-      }
+      // Update server-side via heartbeat; keep client lightweight
+      // No persistent client-side writes to localStorage
     } catch (error) {
       console.error('Failed to update activity:', error);
     }
@@ -113,16 +109,9 @@ export class VikaretaSessionManager {
     if (typeof window === 'undefined') return true;
 
     try {
-      const stored = localStorage.getItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE);
-      if (!stored) return true;
-
-      const data = JSON.parse(stored);
-      const lastActivity = data.lastActivity || data.timestamp;
-      
-      if (!lastActivity) return true;
-
-      const timeSinceActivity = Date.now() - lastActivity;
-      return timeSinceActivity > this.ACTIVITY_TIMEOUT;
+      const authState = vikaretaCrossDomainAuth.getStoredAuthData();
+      if (!authState || !authState.isAuthenticated) return true;
+      return false; // rely on server-side session expiry
     } catch (error) {
       console.error('Failed to check session expiry:', error);
       return true;
@@ -191,8 +180,7 @@ export class VikaretaSessionManager {
     
     // Clear auth data
     if (typeof window !== 'undefined') {
-      localStorage.removeItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE);
-      
+      vikaretaCrossDomainAuth.clearAuthData();
       // Redirect to login
       window.location.href = '/login?reason=timeout';
     }
