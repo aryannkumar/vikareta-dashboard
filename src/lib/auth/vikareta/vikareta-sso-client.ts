@@ -78,7 +78,53 @@ export class VikaretaSSOClient {
         return storedState;
       }
 
-      console.log('SSO Client: No valid stored auth state found');
+      // No stored state found, but check if user is authenticated via cookies
+      console.log('SSO Client: No stored auth state, checking authentication via cookies...');
+      
+      try {
+        const isValid = await this.validateSession();
+        if (isValid) {
+          // Get user data from the validation response
+          const response = await fetch('/api/auth/me', {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.user && isVikaretaUser(data.user)) {
+              console.log('SSO Client: Found valid authentication via cookies');
+              
+              // Store the auth data for future use
+              const authData: VikaretaAuthData = {
+                user: data.user,
+                tokens: {
+                  accessToken: '', // Will be read from HttpOnly cookies
+                  refreshToken: '',
+                  tokenType: 'Bearer' as const
+                },
+                domain: 'dashboard' as const,
+                sessionId: data.sessionId || null
+              };
+              
+              await vikaretaCrossDomainAuth.storeAuthData(authData);
+              
+              return {
+                user: data.user,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+                sessionId: data.sessionId || null
+              };
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('SSO Client: Cookie-based auth check failed:', error);
+      }
+
+      console.log('SSO Client: No valid authentication found');
       return { user: null, isAuthenticated: false, isLoading: false, error: null, sessionId: null };
     } catch (error) {
       console.error('SSO Client: Failed to initialize:', error);
