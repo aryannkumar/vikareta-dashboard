@@ -70,20 +70,26 @@ export async function GET(req: Request) {
         return NextResponse.redirect('/login?error=backend_error');
       }
 
+    // Safely stringify user and state for embedding into the client-side script
+    let safeUserJson: string;
+    try { safeUserJson = JSON.stringify(user ?? null); } catch (_err) { console.error('SSO: Failed to stringify user for client message', _err); safeUserJson = 'null'; }
+    let safeStateJson: string;
+  try { safeStateJson = JSON.stringify(state ?? null); } catch { safeStateJson = 'null'; }
+
     const html = `<!doctype html>
 <html><body>
 <script>
   try {
     // Notify opener (popup) or parent (iframe) that SSO completed successfully with user info
-    const msg = { type: 'SSO_USER', host: location.hostname, user: ${JSON.stringify(user)}, state: ${JSON.stringify(state)} };
+    const msg = { type: 'SSO_USER', host: location.hostname, user: ${safeUserJson}, state: ${safeStateJson} };
     try { if (window.opener && !window.opener.closed) window.opener.postMessage(msg, '*'); } catch(e){}
     try { window.parent.postMessage(msg, '*'); } catch(e){}
 
     document.write('<p>SSO authentication successful. You may close this window.</p>');
   } catch (e) {
     console.error('SSO completion error:', e);
-    try { if (window.opener && !window.opener.closed) window.opener.postMessage({ type: 'SSO_ERROR', error: e.message }, '*'); } catch(e){}
-    try { window.parent.postMessage({ type: 'SSO_ERROR', error: e.message }, '*'); } catch(e){}
+    try { if (window.opener && !window.opener.closed) window.opener.postMessage({ type: 'SSO_ERROR', error: e?.message ?? String(e) }, '*'); } catch(e){}
+    try { window.parent.postMessage({ type: 'SSO_ERROR', error: e?.message ?? String(e) }, '*'); } catch(e){}
   }
 </script>
 </body></html>`;
