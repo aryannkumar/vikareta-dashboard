@@ -1,14 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { 
-  Crown, Calendar, CreditCard, CheckCircle, 
-  AlertCircle, Zap, Star, ArrowRight 
+import {
+  Crown, Calendar, CreditCard, CheckCircle,
+  AlertCircle, Zap, Star, ArrowRight, Loader2
 } from 'lucide-react';
 import Link from 'next/link';
+import { apiClient } from '@/lib/api/client';
+import { toast } from '@/components/ui/use-toast';
 
 interface SubscriptionPlan {
   id: string;
@@ -30,23 +32,24 @@ interface SubscriptionPlan {
   };
 }
 
-const mockSubscription: SubscriptionPlan = {
-  id: 'sub_1',
-  name: 'Professional Plan',
-  tier: 'professional',
-  price: 2999,
+// Default subscription for fallback
+const defaultSubscription: SubscriptionPlan = {
+  id: 'free',
+  name: 'Free Plan',
+  tier: 'free',
+  price: 0,
   billingCycle: 'monthly',
   status: 'active',
-  currentPeriodStart: '2024-01-01',
-  currentPeriodEnd: '2024-02-01',
+  currentPeriodStart: new Date().toISOString(),
+  currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
   features: {
-    rfqsPerMonth: 100,
-    rfqsUsed: 67,
-    adsAllowed: 10,
-    adsUsed: 5,
-    prioritySupport: true,
-    analyticsAccess: true,
-    whatsappIntegration: true
+    rfqsPerMonth: 5,
+    rfqsUsed: 0,
+    adsAllowed: 1,
+    adsUsed: 0,
+    prioritySupport: false,
+    analyticsAccess: false,
+    whatsappIntegration: false
   }
 };
 
@@ -77,9 +80,45 @@ const getDaysRemaining = (endDate: string) => {
 };
 
 export function SubscriptionStatus() {
-  const daysRemaining = getDaysRemaining(mockSubscription.currentPeriodEnd);
-  const rfqUsagePercentage = (mockSubscription.features.rfqsUsed / mockSubscription.features.rfqsPerMonth) * 100;
-  const adUsagePercentage = (mockSubscription.features.adsUsed / mockSubscription.features.adsAllowed) * 100;
+  const [subscription, setSubscription] = useState<SubscriptionPlan>(defaultSubscription);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSubscription = async () => {
+      try {
+        const response = await apiClient.getSubscription();
+        if (response.success && response.data) {
+          setSubscription(response.data as SubscriptionPlan);
+        } else {
+          console.warn('No subscription data found, using default');
+        }
+      } catch (error) {
+        console.error('Failed to load subscription:', error);
+        toast({
+          title: 'Warning',
+          description: 'Failed to load subscription data',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSubscription();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading subscription...</span>
+      </div>
+    );
+  }
+
+  const daysRemaining = getDaysRemaining(subscription.currentPeriodEnd);
+  const rfqUsagePercentage = (subscription.features.rfqsUsed / subscription.features.rfqsPerMonth) * 100;
+  const adUsagePercentage = (subscription.features.adsUsed / subscription.features.adsAllowed) * 100;
 
   return (
     <div className="space-y-4">
@@ -87,10 +126,10 @@ export function SubscriptionStatus() {
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <Crown className="w-5 h-5 text-yellow-600" />
-          <span className="font-semibold">{mockSubscription.name}</span>
+          <span className="font-semibold">{subscription.name}</span>
         </div>
-        <Badge className={`text-xs ${getStatusColor(mockSubscription.status)}`}>
-          {mockSubscription.status.toUpperCase()}
+        <Badge className={`text-xs ${getStatusColor(subscription.status)}`}>
+          {subscription.status.toUpperCase()}
         </Badge>
       </div>
 
@@ -98,19 +137,19 @@ export function SubscriptionStatus() {
       <div className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600 dark:text-gray-300">Plan Tier</span>
-          <Badge className={`text-xs ${getTierColor(mockSubscription.tier)}`}>
-            {mockSubscription.tier.toUpperCase()}
+          <Badge className={`text-xs ${getTierColor(subscription.tier)}`}>
+            {subscription.tier.toUpperCase()}
           </Badge>
         </div>
-        
+
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600 dark:text-gray-300">Monthly Cost</span>
-          <span className="font-semibold">₹{mockSubscription.price.toLocaleString()}</span>
+          <span className="font-semibold">₹{subscription.price.toLocaleString()}</span>
         </div>
-        
+
         <div className="flex justify-between items-center">
           <span className="text-sm text-gray-600 dark:text-gray-300">Billing Cycle</span>
-          <span className="text-sm font-medium capitalize">{mockSubscription.billingCycle}</span>
+          <span className="text-sm font-medium capitalize">{subscription.billingCycle}</span>
         </div>
       </div>
 
@@ -123,7 +162,7 @@ export function SubscriptionStatus() {
           </span>
         </div>
         <div className="text-sm text-blue-700 dark:text-blue-300">
-          {new Date(mockSubscription.currentPeriodEnd).toLocaleDateString()}
+          {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
         </div>
         <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
           {daysRemaining} days remaining
@@ -135,18 +174,18 @@ export function SubscriptionStatus() {
         <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
           Usage This Month
         </div>
-        
+
         {/* RFQ Usage */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-300">RFQs</span>
             <span className="font-medium">
-              {mockSubscription.features.rfqsUsed} / {mockSubscription.features.rfqsPerMonth}
+              {subscription.features.rfqsUsed} / {subscription.features.rfqsPerMonth}
             </span>
           </div>
           <Progress value={rfqUsagePercentage} className="h-2" />
           <div className="text-xs text-gray-500">
-            {mockSubscription.features.rfqsPerMonth - mockSubscription.features.rfqsUsed} remaining
+            {subscription.features.rfqsPerMonth - subscription.features.rfqsUsed} remaining
           </div>
         </div>
 
@@ -155,12 +194,12 @@ export function SubscriptionStatus() {
           <div className="flex justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-300">Active Ads</span>
             <span className="font-medium">
-              {mockSubscription.features.adsUsed} / {mockSubscription.features.adsAllowed}
+              {subscription.features.adsUsed} / {subscription.features.adsAllowed}
             </span>
           </div>
           <Progress value={adUsagePercentage} className="h-2" />
           <div className="text-xs text-gray-500">
-            {mockSubscription.features.adsAllowed - mockSubscription.features.adsUsed} slots available
+            {subscription.features.adsAllowed - subscription.features.adsUsed} slots available
           </div>
         </div>
       </div>
@@ -170,28 +209,28 @@ export function SubscriptionStatus() {
         <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
           Plan Features
         </div>
-        
+
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            {mockSubscription.features.prioritySupport ? (
+            {subscription.features.prioritySupport ? (
               <CheckCircle className="w-4 h-4 text-green-600" />
             ) : (
               <AlertCircle className="w-4 h-4 text-gray-400" />
             )}
             <span className="text-sm">Priority Support</span>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            {mockSubscription.features.analyticsAccess ? (
+            {subscription.features.analyticsAccess ? (
               <CheckCircle className="w-4 h-4 text-green-600" />
             ) : (
               <AlertCircle className="w-4 h-4 text-gray-400" />
             )}
             <span className="text-sm">Advanced Analytics</span>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            {mockSubscription.features.whatsappIntegration ? (
+            {subscription.features.whatsappIntegration ? (
               <CheckCircle className="w-4 h-4 text-green-600" />
             ) : (
               <AlertCircle className="w-4 h-4 text-gray-400" />
@@ -209,7 +248,7 @@ export function SubscriptionStatus() {
             Upgrade Plan
           </Button>
         </Link>
-        
+
         <Link href="/dashboard/subscription/manage">
           <Button variant="outline" className="w-full">
             <CreditCard className="w-4 h-4 mr-2" />

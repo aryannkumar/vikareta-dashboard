@@ -76,19 +76,27 @@ export default function WalletPage() {
     try {
       setAnalyticsLoading(true);
 
-      // Mock analytics data
-      const mockAnalytics: WalletAnalytics = {
-        totalInflow: 125000,
-        totalOutflow: 68000,
-        monthlyInflow: 45000,
-        monthlyOutflow: 23000,
-        inflowChange: 12.5,
-        outflowChange: -8.3,
-        transactionCount: 45,
-        averageTransactionAmount: 2800
-      };
+      // Load analytics from backend
+      const analyticsResponse = await apiClient.get('/wallet/analytics');
+      let walletAnalytics: WalletAnalytics;
+      
+      if (analyticsResponse.success && analyticsResponse.data) {
+        walletAnalytics = analyticsResponse.data as WalletAnalytics;
+      } else {
+        // Fallback analytics data
+        walletAnalytics = {
+          totalInflow: 0,
+          totalOutflow: 0,
+          monthlyInflow: 0,
+          monthlyOutflow: 0,
+          inflowChange: 0,
+          outflowChange: 0,
+          transactionCount: 0,
+          averageTransactionAmount: 0
+        };
+      }
 
-      setAnalytics(mockAnalytics);
+      setAnalytics(walletAnalytics);
     } catch (error) {
       console.error('Error loading analytics:', error);
     } finally {

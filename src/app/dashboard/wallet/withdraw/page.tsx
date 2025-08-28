@@ -11,6 +11,8 @@ import { Badge } from '../../../../components/ui/badge';
 // import { WalletService } from '../../../../lib/api/services/wallet.service';
 import { formatCurrency, formatDate } from '../../../../lib/utils';
 import type { WalletBalance, BankAccount, WithdrawalRequest } from '../../../../types';
+import { apiClient } from '../../../../lib/api/client';
+import { toast } from '../../../../components/ui/use-toast';
 import { 
   ArrowLeft, 
   CreditCard, 
@@ -48,72 +50,44 @@ export default function WithdrawPage() {
     try {
       setLoading(true);
       
-      // TODO: Replace with actual API calls when backend is ready
-      // Mock wallet balance
-      const mockBalance: WalletBalance = {
-        availableBalance: 125000,
-        lockedBalance: 25000,
-        negativeBalance: 0,
-        totalBalance: 150000
-      };
+      // Load wallet balance from backend
+      const balanceResponse = await apiClient.getWalletBalance();
+      let walletBalance: WalletBalance;
+      
+      if (balanceResponse.success && balanceResponse.data) {
+        walletBalance = balanceResponse.data as WalletBalance;
+      } else {
+        // Fallback balance
+        walletBalance = {
+          availableBalance: 0,
+          lockedBalance: 0,
+          negativeBalance: 0,
+          totalBalance: 0
+        };
+      }
 
-      // Mock bank accounts
-      const mockBankAccounts: BankAccount[] = [
-        {
-          id: 'bank-1',
-          userId: 'user-1',
-          accountHolderName: 'John Doe',
-          accountNumber: '1234567890',
-          ifscCode: 'HDFC0001234',
-          bankName: 'HDFC Bank',
-          branchName: 'Main Branch',
-          accountType: 'savings',
-          isVerified: true,
-          isPrimary: true,
-          createdAt: '2024-01-01T00:00:00Z'
-        },
-        {
-          id: 'bank-2',
-          userId: 'user-1',
-          accountHolderName: 'John Doe',
-          accountNumber: '0987654321',
-          ifscCode: 'ICIC0001234',
-          bankName: 'ICICI Bank',
-          branchName: 'Secondary Branch',
-          accountType: 'current',
-          isVerified: true,
-          isPrimary: false,
-          createdAt: '2024-01-02T00:00:00Z'
-        }
-      ];
+      // Load bank accounts from backend
+      const bankAccountsResponse = await apiClient.get('/wallet/bank-accounts');
+      let bankAccounts: BankAccount[] = [];
+      
+      if (bankAccountsResponse.success && Array.isArray(bankAccountsResponse.data)) {
+        bankAccounts = bankAccountsResponse.data;
+      }
 
-      // Mock withdrawal requests
-      const mockWithdrawals: WithdrawalRequest[] = [
-        {
-          id: 'withdraw-1',
-          walletId: 'wallet-1',
-          bankAccountId: 'bank-1',
-          amount: 10000,
-          status: 'completed',
-          processedAt: '2024-01-10T00:00:00Z',
-          createdAt: '2024-01-10T00:00:00Z'
-        },
-        {
-          id: 'withdraw-2',
-          walletId: 'wallet-1',
-          bankAccountId: 'bank-1',
-          amount: 5000,
-          status: 'pending',
-          createdAt: '2024-01-15T00:00:00Z'
-        }
-      ];
+      // Load withdrawal requests from backend
+      const withdrawalsResponse = await apiClient.get('/wallet/withdrawals');
+      let withdrawalRequests: WithdrawalRequest[] = [];
+      
+      if (withdrawalsResponse.success && Array.isArray(withdrawalsResponse.data)) {
+        withdrawalRequests = withdrawalsResponse.data;
+      }
 
-      setBalance(mockBalance);
-      setBankAccounts(mockBankAccounts);
-      setWithdrawals(mockWithdrawals);
+      setBalance(walletBalance);
+      setBankAccounts(bankAccounts);
+      setWithdrawals(withdrawalRequests);
       
       // Auto-select primary bank account
-      const primaryAccount = mockBankAccounts.find(acc => acc.isPrimary);
+      const primaryAccount = bankAccounts.find(acc => acc.isPrimary);
       if (primaryAccount) {
         setSelectedBankAccount(primaryAccount.id);
       }
@@ -134,17 +108,16 @@ export default function WithdrawPage() {
       // TODO: Implement actual bank account addition
       // const response = await WalletService.addBankAccount(newBankAccount);
       
-      // Mock success for now
-      const mockBankAccount: BankAccount = {
-        id: `bank-${Date.now()}`,
-        userId: 'user-1',
-        ...newBankAccount,
-        isVerified: false,
-        isPrimary: false,
-        createdAt: new Date().toISOString()
-      };
+      // Add bank account via API
+      const response = await apiClient.addBankAccount(newBankAccount);
       
-      setBankAccounts([...bankAccounts, mockBankAccount]);
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to add bank account');
+      }
+      
+      const addedBankAccount: BankAccount = response.data as BankAccount;
+      
+      setBankAccounts([...bankAccounts, addedBankAccount]);
       setNewBankAccount({
         accountHolderName: '',
         accountNumber: '',
@@ -154,8 +127,11 @@ export default function WithdrawPage() {
         accountType: 'savings'
       });
       setShowAddBank(false);
-      setSelectedBankAccount(mockBankAccount.id);
-      alert('Bank account added successfully');
+      setSelectedBankAccount(addedBankAccount.id);
+      toast({
+        title: 'Success',
+        description: 'Bank account added successfully',
+      });
     } catch (error) {
       console.error('Error adding bank account:', error);
       alert('Failed to add bank account');
@@ -189,8 +165,20 @@ export default function WithdrawPage() {
       // TODO: Implement actual withdrawal request
       // const response = await WalletService.requestWithdrawal(amountValue, selectedBankAccount);
       
-      // Mock success for now
-      alert('Withdrawal request submitted successfully');
+      // Submit withdrawal request via API
+      const response = await apiClient.createWithdrawal({
+        amount: amountValue,
+        bankAccountId: selectedBankAccount
+      });
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Withdrawal request failed');
+      }
+      
+      toast({
+        title: 'Success',
+        description: 'Withdrawal request submitted successfully',
+      });
       setAmount('');
       loadData(); // Reload data to show new withdrawal request
     } catch (error) {
@@ -206,8 +194,17 @@ export default function WithdrawPage() {
       // TODO: Implement actual withdrawal cancellation
       // const response = await WalletService.cancelWithdrawal(withdrawalId);
       
-      // Mock success for now
-      alert(`Withdrawal ${withdrawalId} cancelled successfully`);
+      // Cancel withdrawal via API
+      const response = await apiClient.delete(`/wallet/withdrawals/${withdrawalId}`);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to cancel withdrawal');
+      }
+      
+      toast({
+        title: 'Success',
+        description: `Withdrawal cancelled successfully`,
+      });
       loadData();
     } catch (error) {
       console.error('Error cancelling withdrawal:', error);

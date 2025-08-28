@@ -216,6 +216,13 @@ export class ApiClient {
     });
   }
 
+  async bulkOrderAction(orderIds: string[], action: string) {
+    return this.request('/orders/bulk-action', {
+      method: 'POST',
+      body: JSON.stringify({ orderIds, action }),
+    });
+  }
+
   // RFQs endpoints
   async getRFQs(params: any = {}) {
     const query = new URLSearchParams(params).toString();
@@ -245,6 +252,32 @@ export class ApiClient {
 
   async getRecentWalletTransactions(limit: number = 5) {
     return this.request(`/wallet/transactions/recent?limit=${limit}`);
+  }
+
+  async getWalletAnalytics() {
+    return this.request('/wallet/analytics');
+  }
+
+  async getBankAccounts() {
+    return this.request('/wallet/bank-accounts');
+  }
+
+  async addBankAccount(data: any) {
+    return this.request('/wallet/bank-accounts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWithdrawals() {
+    return this.request('/wallet/withdrawals');
+  }
+
+  async createWithdrawal(data: any) {
+    return this.request('/wallet/withdrawals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   async addMoneyToWallet(amount: number, paymentMethod: string) {
@@ -314,6 +347,119 @@ export class ApiClient {
       method: 'DELETE',
       ...options,
     });
+  }
+
+  // Services endpoints
+  async getServices(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/services?${query}`);
+  }
+
+  async getService(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/services/${id}`);
+  }
+
+  async createService(data: any) {
+    return this.request('/services', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateService(id: string, data: any) {
+    return this.request(`/services/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteService(id: string) {
+    return this.request(`/services/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Categories endpoints
+  async getCategories() {
+    return this.request('/categories');
+  }
+
+  async getCategory(id: string) {
+    return this.request(`/categories/${id}`);
+  }
+
+  async createCategory(data: any) {
+    return this.request('/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(id: string, data: any) {
+    return this.request(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string) {
+    return this.request(`/categories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Subcategories endpoints
+  async getSubcategories(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/subcategories?${query}`);
+  }
+
+  async getSubcategoriesByCategory(categoryId: string) {
+    return this.request(`/subcategories/category/${categoryId}`);
+  }
+
+  async getSubcategory(id: string) {
+    return this.request(`/subcategories/${id}`);
+  }
+
+  async createSubcategory(data: any) {
+    return this.request('/subcategories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSubcategory(id: string, data: any) {
+    return this.request(`/subcategories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSubcategory(id: string) {
+    return this.request(`/subcategories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Subscription endpoints
+  async getSubscription() {
+    return this.request('/subscription/current');
+  }
+
+  async getSubscriptionPlans() {
+    return this.request('/subscription/plans');
+  }
+
+  async updateSubscription(planId: string) {
+    return this.request('/subscription/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ planId }),
+    });
+  }
+
+  async getSubscriptionUsage() {
+    return this.request('/subscription/usage');
   }
 }
 

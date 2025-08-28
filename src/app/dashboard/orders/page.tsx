@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { apiClient } from '@/lib/api/client';
 import { useOrders } from '@/lib/hooks/use-orders';
 import { formatDate, formatCurrency, cn } from '@/lib/utils';
 import { 
@@ -112,8 +113,12 @@ export default function OrdersPageEnhanced() {
     if (selectedOrders.length === 0) return;
     
     try {
-      // Mock bulk action - in real implementation, this would call the API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Execute bulk action via API
+      const response = await apiClient.bulkOrderAction(selectedOrders, action);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Bulk action failed');
+      }
       
       toast({
         title: 'Bulk Action Completed',
