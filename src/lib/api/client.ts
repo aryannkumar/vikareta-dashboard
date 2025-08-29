@@ -725,6 +725,1291 @@ export class ApiClient {
       body: JSON.stringify(orderData || {}),
     });
   }
+
+  // Customers endpoints
+  async getCustomers(params: any = {}) {
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/customers${query ? `?${query}` : ''}`);
+  }
+
+  async getCustomer(id: string) {
+    return this.request(`/customers/${id}`);
+  }
+
+  async createCustomer(data: any) {
+    return this.request('/customers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCustomer(id: string, data: any) {
+    return this.request(`/customers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCustomer(id: string) {
+    return this.request(`/customers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCustomerStats() {
+    try {
+      return await this.request('/customers/stats');
+    } catch (error) {
+      // If customer stats endpoint doesn't exist, return empty stats
+      console.warn('Customer stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalCustomers: 0,
+          activeCustomers: 0,
+          newThisMonth: 0,
+          averageOrderValue: 0,
+          totalRevenue: 0
+        },
+        message: 'Customer stats feature not yet available'
+      };
+    }
+  }
+
+  async getCustomerOrders(customerId: string, params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/customers/${customerId}/orders${query ? `?${query}` : ''}`);
+  }
+
+  // Inventory endpoints
+  async getInventory(params: any = {}) {
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.category && params.category !== 'all' && params.category.trim()) {
+      cleanParams.category = params.category.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/inventory${query ? `?${query}` : ''}`);
+  }
+
+  async getInventoryItem(id: string) {
+    return this.request(`/inventory/${id}`);
+  }
+
+  async adjustInventory(data: {
+    productId: string;
+    quantity: number;
+    type: 'in' | 'out' | 'adjustment';
+    reason: string;
+    reference?: string;
+  }) {
+    return this.request('/inventory/adjust', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async bulkAdjustInventory(adjustments: Array<{
+    productId: string;
+    quantity: number;
+    type: 'in' | 'out' | 'adjustment';
+    reason: string;
+    reference?: string;
+  }>) {
+    return this.request('/inventory/bulk-adjust', {
+      method: 'POST',
+      body: JSON.stringify({ adjustments }),
+    });
+  }
+
+  async getInventoryStats() {
+    try {
+      return await this.request('/inventory/stats');
+    } catch (error) {
+      // If inventory stats endpoint doesn't exist, return empty stats
+      console.warn('Inventory stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalProducts: 0,
+          inStock: 0,
+          lowStock: 0,
+          outOfStock: 0,
+          totalValue: 0,
+          totalMovements: 0
+        },
+        message: 'Inventory stats feature not yet available'
+      };
+    }
+  }
+
+  async getInventoryMovements(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.productId) cleanParams.productId = params.productId;
+    if (params.type && params.type !== 'all') cleanParams.type = params.type;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/inventory/movements${query ? `?${query}` : ''}`);
+  }
+
+  async getInventoryAlerts() {
+    try {
+      return await this.request('/inventory/alerts');
+    } catch (error) {
+      // If alerts endpoint doesn't exist, return empty alerts
+      console.warn('Inventory alerts endpoint not available, returning empty alerts');
+      return {
+        success: true,
+        data: [],
+        message: 'Inventory alerts feature not yet available'
+      };
+    }
+  }
+
+  // Suppliers endpoints
+  async getSuppliers(params: any = {}) {
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.category && params.category !== 'all' && params.category.trim()) {
+      cleanParams.category = params.category.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/suppliers${query ? `?${query}` : ''}`);
+  }
+
+  async getSupplier(id: string) {
+    return this.request(`/suppliers/${id}`);
+  }
+
+  async createSupplier(data: any) {
+    return this.request('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupplier(id: string, data: any) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSupplier(id: string) {
+    return this.request(`/suppliers/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSupplierStats() {
+    try {
+      return await this.request('/suppliers/stats');
+    } catch (error) {
+      // If supplier stats endpoint doesn't exist, return empty stats
+      console.warn('Supplier stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalSuppliers: 0,
+          verifiedSuppliers: 0,
+          favoriteSuppliers: 0,
+          averageRating: 0,
+          totalSpent: 0,
+          activeOrders: 0
+        },
+        message: 'Supplier stats feature not yet available'
+      };
+    }
+  }
+
+  async toggleSupplierFavorite(supplierId: string) {
+    return this.request(`/suppliers/${supplierId}/favorite`, {
+      method: 'POST',
+    });
+  }
+
+  async getSupplierOrders(supplierId: string, params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/suppliers/${supplierId}/orders${query ? `?${query}` : ''}`);
+  }
+
+  async getSupplierPerformance(supplierId: string) {
+    return this.request(`/suppliers/${supplierId}/performance`);
+  }
+
+  // Communications endpoints
+  async getMessages(params: any = {}) {
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.type && params.type !== 'all' && params.type.trim()) {
+      cleanParams.type = params.type.trim();
+    }
+    if (params.priority && params.priority !== 'all' && params.priority.trim()) {
+      cleanParams.priority = params.priority.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/messages${query ? `?${query}` : ''}`);
+  }
+
+  async getMessage(id: string) {
+    return this.request(`/messages/${id}`);
+  }
+
+  async sendMessage(data: {
+    to: string;
+    subject: string;
+    content: string;
+    type?: 'email' | 'sms' | 'notification';
+    priority?: 'low' | 'normal' | 'high' | 'urgent';
+    relatedTo?: {
+      type: 'order' | 'rfq' | 'customer' | 'supplier';
+      id: string;
+    };
+  }) {
+    return this.request('/messages', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async replyToMessage(messageId: string, data: {
+    content: string;
+  }) {
+    return this.request(`/messages/${messageId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async markMessageAsRead(messageId: string) {
+    return this.request(`/messages/${messageId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async archiveMessage(messageId: string) {
+    return this.request(`/messages/${messageId}/archive`, {
+      method: 'POST',
+    });
+  }
+
+  async getCommunicationStats() {
+    try {
+      return await this.request('/messages/stats');
+    } catch (error) {
+      // If communication stats endpoint doesn't exist, return empty stats
+      console.warn('Communication stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalMessages: 0,
+          unreadMessages: 0,
+          todayMessages: 0,
+          responseRate: 0,
+          averageResponseTime: 0,
+          activeConversations: 0
+        },
+        message: 'Communication stats feature not yet available'
+      };
+    }
+  }
+
+  async getNotifications(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.unreadOnly) cleanParams.unreadOnly = params.unreadOnly;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/notifications${query ? `?${query}` : ''}`);
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request(`/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  // Reports endpoints
+  async getReports(params: any = {}) {
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.type && params.type !== 'all' && params.type.trim()) {
+      cleanParams.type = params.type.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/reports${query ? `?${query}` : ''}`);
+  }
+
+  async getReport(id: string) {
+    return this.request(`/reports/${id}`);
+  }
+
+  async getReportTemplates() {
+    try {
+      return await this.request('/reports/templates');
+    } catch (error) {
+      // If report templates endpoint doesn't exist, return default templates
+      console.warn('Report templates endpoint not available, returning default templates');
+      return {
+        success: true,
+        data: [
+          {
+            id: 'sales-summary',
+            name: 'Sales Summary Report',
+            description: 'Comprehensive sales performance analysis',
+            type: 'sales',
+            parameters: [
+              { name: 'startDate', type: 'date', required: true },
+              { name: 'endDate', type: 'date', required: true },
+              { name: 'region', type: 'select', required: false, options: ['All', 'North', 'South', 'East', 'West'] }
+            ],
+            estimatedTime: 5
+          },
+          {
+            id: 'inventory-status',
+            name: 'Inventory Status Report',
+            description: 'Current stock levels and inventory analysis',
+            type: 'inventory',
+            parameters: [
+              { name: 'category', type: 'select', required: false, options: ['All', 'Electronics', 'Clothing', 'Books'] },
+              { name: 'lowStockOnly', type: 'select', required: false, options: ['No', 'Yes'] }
+            ],
+            estimatedTime: 3
+          },
+          {
+            id: 'customer-analysis',
+            name: 'Customer Analysis Report',
+            description: 'Customer behavior and demographics analysis',
+            type: 'customers',
+            parameters: [
+              { name: 'startDate', type: 'date', required: true },
+              { name: 'endDate', type: 'date', required: true },
+              { name: 'segment', type: 'select', required: false, options: ['All', 'New', 'Returning', 'VIP'] }
+            ],
+            estimatedTime: 7
+          }
+        ],
+        message: 'Using default report templates'
+      };
+    }
+  }
+
+  async generateReport(data: {
+    templateId: string;
+    parameters: Record<string, any>;
+    format: 'pdf' | 'excel' | 'csv';
+    scheduledFor?: string;
+  }) {
+    return this.request('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async downloadReport(reportId: string) {
+    return this.request(`/reports/${reportId}/download`);
+  }
+
+  async deleteReport(reportId: string) {
+    return this.request(`/reports/${reportId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getReportStats() {
+    try {
+      return await this.request('/reports/stats');
+    } catch (error) {
+      // If report stats endpoint doesn't exist, return empty stats
+      console.warn('Report stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalReports: 0,
+          reportsThisMonth: 0,
+          scheduledReports: 0,
+          averageGenerationTime: 0,
+          mostUsedType: 'sales',
+          totalDownloads: 0
+        },
+        message: 'Report stats feature not yet available'
+      };
+    }
+  }
+
+  async scheduleReport(data: {
+    templateId: string;
+    parameters: Record<string, any>;
+    format: 'pdf' | 'excel' | 'csv';
+    schedule: {
+      frequency: 'daily' | 'weekly' | 'monthly';
+      time: string;
+      recipients: string[];
+    };
+  }) {
+    return this.request('/reports/schedule', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Enhanced Services endpoints
+  async getServiceStats() {
+    try {
+      return await this.request('/services/stats');
+    } catch (error) {
+      // If service stats endpoint doesn't exist, return empty stats
+      console.warn('Service stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalServices: 0,
+          activeServices: 0,
+          totalOrders: 0,
+          averageRating: 0,
+          totalRevenue: 0,
+          popularCategories: [],
+          recentOrders: []
+        },
+        message: 'Service stats feature not yet available'
+      };
+    }
+  }
+
+  async getServiceOrders(serviceId: string, params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.status && params.status !== 'all') {
+      cleanParams.status = params.status.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/services/${serviceId}/orders${query ? `?${query}` : ''}`);
+  }
+
+  async getServiceReviews(serviceId: string, params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/services/${serviceId}/reviews${query ? `?${query}` : ''}`);
+  }
+
+  async updateServiceStatus(serviceId: string, status: 'active' | 'inactive' | 'draft') {
+    return this.request(`/services/${serviceId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async getServiceCategories() {
+    try {
+      return await this.request('/services/categories');
+    } catch (error) {
+      // If service categories endpoint doesn't exist, return default categories
+      console.warn('Service categories endpoint not available, returning default categories');
+      return {
+        success: true,
+        data: [
+          {
+            id: 'technology',
+            name: 'Technology',
+            subcategories: ['Software Development', 'IT Support', 'Web Design', 'Mobile Apps', 'Data Analysis']
+          },
+          {
+            id: 'business',
+            name: 'Business',
+            subcategories: ['Consulting', 'Marketing', 'Accounting', 'Legal', 'Project Management']
+          },
+          {
+            id: 'creative',
+            name: 'Creative',
+            subcategories: ['Graphic Design', 'Content Writing', 'Photography', 'Video Production', 'Branding']
+          },
+          {
+            id: 'maintenance',
+            name: 'Maintenance',
+            subcategories: ['Equipment Repair', 'Facility Management', 'Cleaning', 'Security', 'Landscaping']
+          },
+          {
+            id: 'training',
+            name: 'Training',
+            subcategories: ['Professional Development', 'Technical Training', 'Certification', 'Workshops', 'Coaching']
+          }
+        ],
+        message: 'Using default service categories'
+      };
+    }
+  }
+
+  async bookService(serviceId: string, data: {
+    scheduledDate: string;
+    location?: string;
+    requirements?: string;
+    notes?: string;
+    contactInfo: {
+      name: string;
+      email: string;
+      phone: string;
+    };
+  }) {
+    return this.request(`/services/${serviceId}/book`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Enhanced Shipments endpoints
+  async getShipmentStats() {
+    try {
+      return await this.request('/shipments/stats');
+    } catch (error) {
+      // If shipment stats endpoint doesn't exist, return empty stats
+      console.warn('Shipment stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalShipments: 0,
+          pendingShipments: 0,
+          inTransitShipments: 0,
+          deliveredShipments: 0,
+          failedShipments: 0,
+          totalShippingCost: 0,
+          averageDeliveryTime: 0,
+          onTimeDeliveryRate: 0
+        },
+        message: 'Shipment stats feature not yet available'
+      };
+    }
+  }
+
+  async getShipmentTracking(trackingNumber: string) {
+    try {
+      return await this.request(`/shipments/tracking/${trackingNumber}`);
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Shipment tracking not available' }
+      };
+    }
+  }
+
+  async getShipmentHistory(shipmentId: string) {
+    try {
+      return await this.request(`/shipments/${shipmentId}/history`);
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Shipment history not available' }
+      };
+    }
+  }
+
+  async bulkUpdateShipmentStatus(shipmentIds: string[], status: string) {
+    try {
+      return await this.request('/shipments/bulk-update', {
+        method: 'POST',
+        body: JSON.stringify({ shipmentIds, status, timestamp: new Date().toISOString() }),
+      });
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Bulk shipment update not yet available' }
+      };
+    }
+  }
+
+  async getCarriers() {
+    try {
+      return await this.request('/shipments/carriers');
+    } catch (error) {
+      // If carriers endpoint doesn't exist, return default carriers
+      console.warn('Carriers endpoint not available, returning default carriers');
+      return {
+        success: true,
+        data: [
+          { id: 'fedex', name: 'FedEx', services: ['Ground', 'Express', 'Overnight'] },
+          { id: 'ups', name: 'UPS', services: ['Ground', 'Next Day Air', '2nd Day Air'] },
+          { id: 'dhl', name: 'DHL', services: ['Express', 'Ground', 'International'] },
+          { id: 'usps', name: 'USPS', services: ['Priority Mail', 'Express Mail', 'Ground Advantage'] },
+          { id: 'other', name: 'Other', services: ['Standard', 'Express'] }
+        ],
+        message: 'Using default carriers'
+      };
+    }
+  }
+
+  // Support & Help Desk endpoints
+  async getSupportTickets(params: any = {}) {
+    // Clean up empty parameters to avoid validation errors
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.priority && params.priority !== 'all' && params.priority.trim()) {
+      cleanParams.priority = params.priority.trim();
+    }
+    if (params.category && params.category !== 'all' && params.category.trim()) {
+      cleanParams.category = params.category.trim();
+    }
+    if (params.assignedTo && params.assignedTo.trim()) {
+      cleanParams.assignedTo = params.assignedTo.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/support/tickets${query ? `?${query}` : ''}`);
+  }
+
+  async getSupportTicket(id: string) {
+    return this.request(`/support/tickets/${id}`);
+  }
+
+  async createSupportTicket(data: {
+    subject: string;
+    description: string;
+    category: 'technical' | 'billing' | 'account' | 'product' | 'general';
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    attachments?: Array<{
+      name: string;
+      url: string;
+      size: number;
+    }>;
+  }) {
+    return this.request('/support/tickets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupportTicket(id: string, data: any) {
+    return this.request(`/support/tickets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupportTicketStatus(ticketId: string, status: 'open' | 'in_progress' | 'waiting_response' | 'resolved' | 'closed') {
+    return this.request(`/support/tickets/${ticketId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async addSupportTicketMessage(ticketId: string, data: {
+    content: string;
+    attachments?: Array<{
+      name: string;
+      url: string;
+      size: number;
+    }>;
+  }) {
+    return this.request(`/support/tickets/${ticketId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async assignSupportTicket(ticketId: string, agentId: string) {
+    return this.request(`/support/tickets/${ticketId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ agentId }),
+    });
+  }
+
+  async rateSupportTicket(ticketId: string, data: {
+    rating: number;
+    feedback?: string;
+  }) {
+    return this.request(`/support/tickets/${ticketId}/rating`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSupportStats() {
+    try {
+      return await this.request('/support/stats');
+    } catch (error) {
+      // If support stats endpoint doesn't exist, return empty stats
+      console.warn('Support stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalTickets: 0,
+          openTickets: 0,
+          inProgressTickets: 0,
+          resolvedTickets: 0,
+          averageResponseTime: 0,
+          averageResolutionTime: 0,
+          satisfactionRating: 0,
+          ticketsToday: 0
+        },
+        message: 'Support stats feature not yet available'
+      };
+    }
+  }
+
+  async getSupportAgents() {
+    try {
+      return await this.request('/support/agents');
+    } catch (error) {
+      // If support agents endpoint doesn't exist, return empty list
+      console.warn('Support agents endpoint not available, returning empty list');
+      return {
+        success: true,
+        data: [],
+        message: 'Support agents feature not yet available'
+      };
+    }
+  }
+
+  // Knowledge Base endpoints
+  async getKnowledgeBase(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.category && params.category !== 'all' && params.category.trim()) {
+      cleanParams.category = params.category.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    
+    try {
+      return await this.request(`/support/knowledge-base${query ? `?${query}` : ''}`);
+    } catch (error) {
+      // If knowledge base endpoint doesn't exist, return default articles
+      console.warn('Knowledge base endpoint not available, returning default articles');
+      return {
+        success: true,
+        data: [
+          {
+            id: '1',
+            title: 'How to create your first product listing',
+            content: 'Step-by-step guide to creating product listings...',
+            category: 'Getting Started',
+            tags: ['products', 'listing', 'beginner'],
+            views: 1250,
+            helpful: 45,
+            notHelpful: 3,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: '2',
+            title: 'Understanding payment processing',
+            content: 'Learn about payment methods and processing...',
+            category: 'Payments',
+            tags: ['payments', 'billing', 'processing'],
+            views: 890,
+            helpful: 32,
+            notHelpful: 2,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: '3',
+            title: 'Managing your inventory effectively',
+            content: 'Best practices for inventory management...',
+            category: 'Inventory',
+            tags: ['inventory', 'stock', 'management'],
+            views: 675,
+            helpful: 28,
+            notHelpful: 1,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ],
+        message: 'Using default knowledge base articles'
+      };
+    }
+  }
+
+  async getKnowledgeBaseArticle(id: string) {
+    return this.request(`/support/knowledge-base/${id}`);
+  }
+
+  async rateKnowledgeBaseArticle(articleId: string, helpful: boolean) {
+    return this.request(`/support/knowledge-base/${articleId}/rate`, {
+      method: 'POST',
+      body: JSON.stringify({ helpful }),
+    });
+  }
+
+  async searchKnowledgeBase(query: string) {
+    return this.request(`/support/knowledge-base/search?q=${encodeURIComponent(query)}`);
+  }
+
+  // FAQ endpoints
+  async getFAQs(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.category && params.category !== 'all') {
+      cleanParams.category = params.category.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    
+    try {
+      return await this.request(`/support/faqs${query ? `?${query}` : ''}`);
+    } catch (error) {
+      // If FAQs endpoint doesn't exist, return default FAQs
+      console.warn('FAQs endpoint not available, returning default FAQs');
+      return {
+        success: true,
+        data: [
+          {
+            id: '1',
+            question: 'How do I reset my password?',
+            answer: 'You can reset your password by clicking the "Forgot Password" link on the login page.',
+            category: 'Account',
+            helpful: 156,
+            notHelpful: 8
+          },
+          {
+            id: '2',
+            question: 'What payment methods do you accept?',
+            answer: 'We accept all major credit cards, PayPal, and bank transfers.',
+            category: 'Billing',
+            helpful: 134,
+            notHelpful: 5
+          },
+          {
+            id: '3',
+            question: 'How do I contact customer support?',
+            answer: 'You can contact us through live chat, email, or by creating a support ticket.',
+            category: 'Support',
+            helpful: 98,
+            notHelpful: 2
+          }
+        ],
+        message: 'Using default FAQ entries'
+      };
+    }
+  }
+
+  // Enhanced Orders endpoints for pending and completed orders
+  async getPendingOrderStats() {
+    try {
+      return await this.request('/orders/stats/pending');
+    } catch (error) {
+      // If pending order stats endpoint doesn't exist, return empty stats
+      console.warn('Pending order stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalPending: 0,
+          pendingConfirmation: 0,
+          pendingPayment: 0,
+          pendingStock: 0,
+          pendingApproval: 0,
+          totalValue: 0,
+          averageAge: 0,
+          urgentOrders: 0
+        },
+        message: 'Pending order stats feature not yet available'
+      };
+    }
+  }
+
+  async getCompletedOrderStats() {
+    try {
+      return await this.request('/orders/stats/completed');
+    } catch (error) {
+      // If completed order stats endpoint doesn't exist, return empty stats
+      console.warn('Completed order stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalCompleted: 0,
+          completedThisMonth: 0,
+          totalRevenue: 0,
+          averageOrderValue: 0,
+          averageRating: 0,
+          averageProcessingTime: 0,
+          repeatCustomers: 0,
+          onTimeDeliveryRate: 0
+        },
+        message: 'Completed order stats feature not yet available'
+      };
+    }
+  }
+
+  async downloadInvoice(invoiceId: string) {
+    try {
+      return await this.request(`/invoices/${invoiceId}/download`);
+    } catch (error) {
+      return {
+        success: false,
+        error: { code: 'NOT_IMPLEMENTED', message: 'Invoice download not available' }
+      };
+    }
+  }
+
+  // Customer Leads endpoints
+  async getCustomerLeads(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.source && params.source !== 'all' && params.source.trim()) {
+      cleanParams.source = params.source.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/customers/leads${query ? `?${query}` : ''}`);
+  }
+
+  async convertLeadToCustomer(leadId: string, customerData: any) {
+    return this.request(`/customers/leads/${leadId}/convert`, {
+      method: 'POST',
+      body: JSON.stringify(customerData),
+    });
+  }
+
+  async updateLeadStatus(leadId: string, status: string) {
+    return this.request(`/customers/leads/${leadId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  // Customer Segments endpoints
+  async getCustomerSegments(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/customers/segments${query ? `?${query}` : ''}`);
+  }
+
+  async createCustomerSegment(data: {
+    name: string;
+    description: string;
+    criteria: Record<string, any>;
+  }) {
+    return this.request('/customers/segments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCustomerSegment(segmentId: string, data: any) {
+    return this.request(`/customers/segments/${segmentId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCustomerSegment(segmentId: string) {
+    return this.request(`/customers/segments/${segmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Supplier Favorites endpoints
+  async getFavoriteSuppliers(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/suppliers/favorites${query ? `?${query}` : ''}`);
+  }
+
+  async addSupplierToFavorites(supplierId: string) {
+    return this.request(`/suppliers/${supplierId}/favorite`, {
+      method: 'POST',
+    });
+  }
+
+  async removeSupplierFromFavorites(supplierId: string) {
+    return this.request(`/suppliers/${supplierId}/favorite`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Inventory Low Stock endpoints
+  async getLowStockItems(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.threshold) cleanParams.threshold = params.threshold;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/inventory/low-stock${query ? `?${query}` : ''}`);
+  }
+
+  async updateReorderLevel(productId: string, reorderLevel: number, reorderQuantity: number) {
+    return this.request(`/inventory/${productId}/reorder-level`, {
+      method: 'PUT',
+      body: JSON.stringify({ reorderLevel, reorderQuantity }),
+    });
+  }
+
+  async createReorderRequest(productId: string, quantity: number, supplierId?: string) {
+    return this.request('/inventory/reorder-requests', {
+      method: 'POST',
+      body: JSON.stringify({ productId, quantity, supplierId }),
+    });
+  }
+
+  // Enhanced Quotes endpoints for received quotes
+  async getReceivedQuoteStats() {
+    try {
+      return await this.request('/quotes/stats/received');
+    } catch (error) {
+      // If received quote stats endpoint doesn't exist, return empty stats
+      console.warn('Received quote stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalReceived: 0,
+          pendingReview: 0,
+          accepted: 0,
+          rejected: 0,
+          expired: 0,
+          averageQuoteValue: 0,
+          responseRate: 0,
+          averageResponseTime: 0
+        },
+        message: 'Received quote stats feature not yet available'
+      };
+    }
+  }
+
+  // Lead Management endpoints
+  async getLeadStats() {
+    try {
+      return await this.request('/customers/leads/stats');
+    } catch (error) {
+      // If lead stats endpoint doesn't exist, return empty stats
+      console.warn('Lead stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalLeads: 0,
+          newLeads: 0,
+          qualifiedLeads: 0,
+          convertedLeads: 0,
+          lostLeads: 0,
+          conversionRate: 0,
+          averageLeadScore: 0,
+          totalEstimatedValue: 0,
+          averageTimeToConversion: 0
+        },
+        message: 'Lead stats feature not yet available'
+      };
+    }
+  }
+
+  async createLead(data: {
+    name: string;
+    email: string;
+    phone?: string;
+    company?: string;
+    jobTitle?: string;
+    source: string;
+    estimatedValue?: number;
+    interests?: string[];
+    notes?: string;
+  }) {
+    return this.request('/customers/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLead(leadId: string, data: any) {
+    return this.request(`/customers/leads/${leadId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLead(leadId: string) {
+    return this.request(`/customers/leads/${leadId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addLeadActivity(leadId: string, activity: {
+    type: 'email' | 'call' | 'meeting' | 'note';
+    description: string;
+  }) {
+    return this.request(`/customers/leads/${leadId}/activities`, {
+      method: 'POST',
+      body: JSON.stringify(activity),
+    });
+  }
+
+  async scheduleLeadFollowUp(leadId: string, followUpDate: string, notes?: string) {
+    return this.request(`/customers/leads/${leadId}/follow-up`, {
+      method: 'POST',
+      body: JSON.stringify({ followUpDate, notes }),
+    });
+  }
+
+  // Favorite Suppliers Management
+  async getFavoriteSupplierStats() {
+    try {
+      return await this.request('/suppliers/favorites/stats');
+    } catch (error) {
+      // If favorite supplier stats endpoint doesn't exist, return empty stats
+      console.warn('Favorite supplier stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalFavorites: 0,
+          activeSuppliers: 0,
+          totalOrders: 0,
+          totalSpent: 0,
+          averageRating: 0,
+          topCategories: []
+        },
+        message: 'Favorite supplier stats feature not yet available'
+      };
+    }
+  }
+
+  async bulkAddToFavorites(supplierIds: string[]) {
+    return this.request('/suppliers/favorites/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ supplierIds }),
+    });
+  }
+
+  async bulkRemoveFromFavorites(supplierIds: string[]) {
+    return this.request('/suppliers/favorites/bulk', {
+      method: 'DELETE',
+      body: JSON.stringify({ supplierIds }),
+    });
+  }
+
+  // Low Stock Management
+  async getLowStockStats() {
+    try {
+      return await this.request('/inventory/low-stock/stats');
+    } catch (error) {
+      // If low stock stats endpoint doesn't exist, return empty stats
+      console.warn('Low stock stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalLowStock: 0,
+          criticalStock: 0,
+          outOfStock: 0,
+          reorderNeeded: 0,
+          totalValue: 0,
+          affectedCategories: []
+        },
+        message: 'Low stock stats feature not yet available'
+      };
+    }
+  }
+
+  async bulkUpdateReorderLevels(updates: Array<{
+    productId: string;
+    reorderLevel: number;
+    reorderQuantity: number;
+  }>) {
+    return this.request('/inventory/reorder-levels/bulk', {
+      method: 'PUT',
+      body: JSON.stringify({ updates }),
+    });
+  }
+
+  async createBulkReorderRequest(requests: Array<{
+    productId: string;
+    quantity: number;
+    supplierId?: string;
+  }>) {
+    return this.request('/inventory/reorder-requests/bulk', {
+      method: 'POST',
+      body: JSON.stringify({ requests }),
+    });
+  }
 }
 
 // Export singleton instance

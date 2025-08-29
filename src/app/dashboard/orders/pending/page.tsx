@@ -3,41 +3,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
-  Truck, 
-  Plus, 
-  Search, 
-  Filter, 
+  Clock,
   Eye, 
-  Edit, 
-  Package, 
-  MapPin, 
-  Clock, 
-  RefreshCw,
-  Calendar,
-  AlertCircle,
   CheckCircle,
   XCircle,
-  RotateCcw
+  AlertTriangle,
+  RefreshCw,
+  Search,
+  Filter,
+  Package,
+  User,
+  Calendar,
+  DollarSign,
+  ArrowRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,16 +32,28 @@ import { apiClient } from '@/lib/api/client';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
 
-interface Shipment {
+interface PendingOrder {
   id: string;
-  trackingNumber: string;
-  orderId: string;
   orderNumber: string;
   customer: {
+    id: string;
     name: string;
     email: string;
-    phone: string;
+    company?: string;
   };
+  items: Array<{
+    id: string;
+    productId: string;
+    name: string;
+    quantity: number;
+    price: number;
+    sku: string;
+  }>;
+  totalAmount: number;
+  currency: string;
+  status: 'pending_confirmation' | 'pending_payment' | 'pending_stock' | 'pending_approval';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  paymentStatus: 'pending' | 'partial' | 'paid' | 'failed';
   shippingAddress: {
     street: string;
     city: string;
@@ -66,161 +61,142 @@ interface Shipment {
     zipCode: string;
     country: string;
   };
-  carrier: string;
-  service: string;
-  status: 'pending' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed' | 'returned';
-  estimatedDelivery: string;
-  actualDelivery?: string;
-  weight: number;
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-  cost: number;
-  currency: string;
-  items: Array<{
-    productId: string;
-    name: string;
-    quantity: number;
-    sku: string;
-  }>;
-  trackingHistory: Array<{
-    status: string;
-    location: string;
-    timestamp: string;
-    description: string;
-  }>;
+  expectedDelivery?: string;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
+  pendingSince: string;
+  actionRequired: string;
 }
 
-interface ShipmentStats {
-  totalShipments: number;
-  pendingShipments: number;
-  inTransitShipments: number;
-  deliveredShipments: number;
-  failedShipments: number;
-  totalShippingCost: number;
-  averageDeliveryTime: number;
-  onTimeDeliveryRate: number;
+interface PendingOrderStats {
+  totalPending: number;
+  pendingConfirmation: number;
+  pendingPayment: number;
+  pendingStock: number;
+  pendingApproval: number;
+  totalValue: number;
+  averageAge: number;
+  urgentOrders: number;
 }
 
-export default function ShipmentsPage() {
-  const [shipments, setShipments] = useState<Shipment[]>([]);
-  const [stats, setStats] = useState<ShipmentStats | null>(null);
+export default function PendingOrdersPage() {
+  const [orders, setOrders] = useState<PendingOrder[]>([]);
+  const [stats, setStats] = useState<PendingOrderStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [carrierFilter, setCarrierFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(0);
   const [total, setTotal] = useState(0);
 
-  const loadShipments = useCallback(async (p = 1, searchT = searchTerm, statusF = statusFilter, carrierF = carrierFilter) => {
+  const loadPendingOrders = useCallback(async (p = 1, searchT = searchTerm, statusF = statusFilter, priorityF = priorityFilter) => {
     try {
       setLoading(true);
       setError(null);
 
       const params: any = { 
         page: p, 
-        limit: 20 
+        limit: 20,
+        status: 'pending' // Base filter for pending orders
       };
       
       if (searchT.trim()) params.search = searchT.trim();
-      if (statusF !== 'all' && statusF) params.status = statusF;
-      if (carrierF !== 'all' && carrierF) params.carrier = carrierF;
+      if (statusF !== 'all' && statusF) params.pendingType = statusF;
+      if (priorityF !== 'all' && priorityF) params.priority = priorityF;
 
-      const response = await apiClient.getShipments(params);
+      const response = await apiClient.getOrders(params);
       
       if (response.success && response.data) {
         const data = response.data as any;
         
         // Handle different response formats
         if (Array.isArray(data)) {
-          setShipments(data);
+          setOrders(data);
           setPages(1);
           setTotal(data.length);
         } else {
-          setShipments(data.shipments || data.data || []);
+          setOrders(data.orders || data.data || []);
           setPages(data.pagination?.pages || 0);
           setTotal(data.pagination?.total || 0);
         }
       } else {
-        setShipments([]);
+        setOrders([]);
         setPages(0);
         setTotal(0);
       }
     } catch (err: any) {
-      console.error('Failed to load shipments:', err);
-      setError(err?.message || 'Failed to load shipments');
-      setShipments([]);
+      console.error('Failed to load pending orders:', err);
+      setError(err?.message || 'Failed to load pending orders');
+      setOrders([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, carrierFilter]);
+  }, [searchTerm, statusFilter, priorityFilter]);
 
   const loadStats = useCallback(async () => {
     try {
-      const response = await apiClient.getShipmentStats();
+      const response = await apiClient.getPendingOrderStats();
       
       if (response.success && response.data) {
-        setStats(response.data as ShipmentStats);
+        setStats(response.data as PendingOrderStats);
       } else {
-        // Calculate stats from current shipments if API doesn't exist
-        const pendingShipments = shipments.filter(s => s.status === 'pending').length;
-        const inTransitShipments = shipments.filter(s => ['picked_up', 'in_transit', 'out_for_delivery'].includes(s.status)).length;
-        const deliveredShipments = shipments.filter(s => s.status === 'delivered').length;
-        const failedShipments = shipments.filter(s => ['failed', 'returned'].includes(s.status)).length;
-        const totalShippingCost = shipments.reduce((sum, s) => sum + s.cost, 0);
+        // Calculate stats from current orders if API doesn't exist
+        const pendingConfirmation = orders.filter(o => o.status === 'pending_confirmation').length;
+        const pendingPayment = orders.filter(o => o.status === 'pending_payment').length;
+        const pendingStock = orders.filter(o => o.status === 'pending_stock').length;
+        const pendingApproval = orders.filter(o => o.status === 'pending_approval').length;
+        const totalValue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const urgentOrders = orders.filter(o => o.priority === 'urgent').length;
         
         setStats({
-          totalShipments: shipments.length,
-          pendingShipments,
-          inTransitShipments,
-          deliveredShipments,
-          failedShipments,
-          totalShippingCost,
-          averageDeliveryTime: 3.5, // Default value
-          onTimeDeliveryRate: 92.5 // Default value
+          totalPending: orders.length,
+          pendingConfirmation,
+          pendingPayment,
+          pendingStock,
+          pendingApproval,
+          totalValue,
+          averageAge: 2.5, // Default value in days
+          urgentOrders
         });
       }
     } catch (err) {
-      console.error('Failed to load shipment stats:', err);
+      console.error('Failed to load pending order stats:', err);
       // Use fallback stats
       setStats({
-        totalShipments: 0,
-        pendingShipments: 0,
-        inTransitShipments: 0,
-        deliveredShipments: 0,
-        failedShipments: 0,
-        totalShippingCost: 0,
-        averageDeliveryTime: 0,
-        onTimeDeliveryRate: 0
+        totalPending: 0,
+        pendingConfirmation: 0,
+        pendingPayment: 0,
+        pendingStock: 0,
+        pendingApproval: 0,
+        totalValue: 0,
+        averageAge: 0,
+        urgentOrders: 0
       });
     }
-  }, [shipments]);
+  }, [orders]);
 
-  const handleStatusUpdate = async (shipmentId: string, newStatus: string) => {
+  const handleOrderAction = async (orderId: string, action: string) => {
     try {
-      const response = await apiClient.updateShipmentStatus(shipmentId, newStatus);
+      const response = await apiClient.updateOrderStatus(orderId, action);
       
       if (response.success) {
         toast({
           title: 'Success',
-          description: 'Shipment status updated successfully.',
+          description: `Order ${action} successfully.`,
         });
-        loadShipments();
+        loadPendingOrders();
         loadStats();
       } else {
-        throw new Error(response.error?.message || 'Failed to update shipment status');
+        throw new Error(response.error?.message || `Failed to ${action} order`);
       }
     } catch (error: any) {
-      console.error('Failed to update shipment status:', error);
+      console.error(`Failed to ${action} order:`, error);
       toast({
         title: 'Error',
-        description: error?.message || 'Failed to update shipment status. Please try again.',
+        description: error?.message || `Failed to ${action} order. Please try again.`,
         variant: 'destructive',
       });
     }
@@ -228,59 +204,60 @@ export default function ShipmentsPage() {
 
   const handleSearch = () => {
     setPage(1);
-    loadShipments(1, searchTerm, statusFilter, carrierFilter);
+    loadPendingOrders(1, searchTerm, statusFilter, priorityFilter);
   };
 
   const handleRefresh = () => {
-    loadShipments(page, searchTerm, statusFilter, carrierFilter);
+    loadPendingOrders(page, searchTerm, statusFilter, priorityFilter);
     loadStats();
   };
 
   useEffect(() => {
-    loadShipments(1);
-  }, [loadShipments]);
+    loadPendingOrders(1);
+  }, [loadPendingOrders]);
 
   useEffect(() => {
-    if (shipments.length > 0) {
+    if (orders.length > 0) {
       loadStats();
     }
-  }, [shipments, loadStats]);
+  }, [orders, loadStats]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'picked_up': return 'bg-blue-100 text-blue-800';
-      case 'in_transit': return 'bg-purple-100 text-purple-800';
-      case 'out_for_delivery': return 'bg-orange-100 text-orange-800';
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      case 'returned': return 'bg-gray-100 text-gray-800';
+      case 'pending_confirmation': return 'bg-yellow-100 text-yellow-800';
+      case 'pending_payment': return 'bg-red-100 text-red-800';
+      case 'pending_stock': return 'bg-orange-100 text-orange-800';
+      case 'pending_approval': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-orange-100 text-orange-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'picked_up': return <Package className="h-4 w-4" />;
-      case 'in_transit': return <Truck className="h-4 w-4" />;
-      case 'out_for_delivery': return <MapPin className="h-4 w-4" />;
-      case 'delivered': return <CheckCircle className="h-4 w-4" />;
-      case 'failed': return <XCircle className="h-4 w-4" />;
-      case 'returned': return <RotateCcw className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+      case 'pending_confirmation': return <Clock className="h-4 w-4" />;
+      case 'pending_payment': return <DollarSign className="h-4 w-4" />;
+      case 'pending_stock': return <Package className="h-4 w-4" />;
+      case 'pending_approval': return <AlertTriangle className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
     }
   };
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'pending': return 'Pending';
-      case 'picked_up': return 'Picked Up';
-      case 'in_transit': return 'In Transit';
-      case 'out_for_delivery': return 'Out for Delivery';
-      case 'delivered': return 'Delivered';
-      case 'failed': return 'Failed';
-      case 'returned': return 'Returned';
+      case 'pending_confirmation': return 'Pending Confirmation';
+      case 'pending_payment': return 'Pending Payment';
+      case 'pending_stock': return 'Pending Stock';
+      case 'pending_approval': return 'Pending Approval';
       default: return status;
     }
   };
@@ -310,35 +287,28 @@ export default function ShipmentsPage() {
   const renderEmptyState = () => (
     <div className="text-center py-12">
       <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <Truck className="h-12 w-12 text-gray-400" />
+        <CheckCircle className="h-12 w-12 text-green-500" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">No Shipments Found</h3>
+      <h3 className="text-lg font-semibold mb-2">No Pending Orders</h3>
       <p className="text-muted-foreground mb-4">
-        {searchTerm || statusFilter !== 'all' || carrierFilter !== 'all'
-          ? 'No shipments match your current filters. Try adjusting your search criteria.'
-          : 'You haven\'t created any shipments yet. Start by creating your first shipment.'
+        {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
+          ? 'No pending orders match your current filters.'
+          : 'Great! You have no pending orders at the moment.'
         }
       </p>
-      {(searchTerm || statusFilter !== 'all' || carrierFilter !== 'all') ? (
+      {(searchTerm || statusFilter !== 'all' || priorityFilter !== 'all') && (
         <Button 
           variant="outline" 
           onClick={() => {
             setSearchTerm('');
             setStatusFilter('all');
-            setCarrierFilter('all');
+            setPriorityFilter('all');
             setPage(1);
-            loadShipments(1, '', 'all', 'all');
+            loadPendingOrders(1, '', 'all', 'all');
           }}
         >
           Clear Filters
         </Button>
-      ) : (
-        <Link href="/dashboard/shipments/create">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Shipment
-          </Button>
-        </Link>
       )}
     </div>
   );
@@ -346,9 +316,9 @@ export default function ShipmentsPage() {
   const renderErrorState = () => (
     <div className="text-center py-12">
       <div className="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
+        <XCircle className="h-12 w-12 text-red-500" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">Failed to Load Shipments</h3>
+      <h3 className="text-lg font-semibold mb-2">Failed to Load Pending Orders</h3>
       <p className="text-muted-foreground mb-4">{error}</p>
       <Button onClick={handleRefresh}>
         <RefreshCw className="h-4 w-4 mr-2" />
@@ -362,9 +332,9 @@ export default function ShipmentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Shipments</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Pending Orders</h1>
           <p className="text-muted-foreground">
-            Track and manage your shipments and deliveries
+            Manage orders that require your attention
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -377,10 +347,10 @@ export default function ShipmentsPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Link href="/dashboard/shipments/create">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Shipment
+          <Link href="/dashboard/orders">
+            <Button variant="outline">
+              <ArrowRight className="h-4 w-4 mr-2" />
+              All Orders
             </Button>
           </Link>
         </div>
@@ -392,12 +362,12 @@ export default function ShipmentsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Package className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.totalShipments}</div>
-                  <div className="text-sm text-muted-foreground">Total Shipments</div>
+                  <div className="text-2xl font-bold">{stats.totalPending}</div>
+                  <div className="text-sm text-muted-foreground">Total Pending</div>
                 </div>
               </div>
             </CardContent>
@@ -406,12 +376,12 @@ export default function ShipmentsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Truck className="h-5 w-5 text-purple-600" />
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.inTransitShipments}</div>
-                  <div className="text-sm text-muted-foreground">In Transit</div>
+                  <div className="text-2xl font-bold">{stats.urgentOrders}</div>
+                  <div className="text-sm text-muted-foreground">Urgent Orders</div>
                 </div>
               </div>
             </CardContent>
@@ -421,11 +391,11 @@ export default function ShipmentsPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <DollarSign className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.deliveredShipments}</div>
-                  <div className="text-sm text-muted-foreground">Delivered</div>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.totalValue)}</div>
+                  <div className="text-sm text-muted-foreground">Total Value</div>
                 </div>
               </div>
             </CardContent>
@@ -434,12 +404,12 @@ export default function ShipmentsPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Clock className="h-5 w-5 text-yellow-600" />
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Calendar className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.onTimeDeliveryRate.toFixed(1)}%</div>
-                  <div className="text-sm text-muted-foreground">On-Time Rate</div>
+                  <div className="text-2xl font-bold">{stats.averageAge.toFixed(1)}d</div>
+                  <div className="text-sm text-muted-foreground">Avg Age</div>
                 </div>
               </div>
             </CardContent>
@@ -455,7 +425,7 @@ export default function ShipmentsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by tracking number, order ID, or customer..."
+                  placeholder="Search by order number, customer name, or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -471,26 +441,22 @@ export default function ShipmentsPage() {
                 className="px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
                 <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="picked_up">Picked Up</option>
-                <option value="in_transit">In Transit</option>
-                <option value="out_for_delivery">Out for Delivery</option>
-                <option value="delivered">Delivered</option>
-                <option value="failed">Failed</option>
-                <option value="returned">Returned</option>
+                <option value="pending_confirmation">Pending Confirmation</option>
+                <option value="pending_payment">Pending Payment</option>
+                <option value="pending_stock">Pending Stock</option>
+                <option value="pending_approval">Pending Approval</option>
               </select>
               
               <select
-                value={carrierFilter}
-                onChange={(e) => setCarrierFilter(e.target.value)}
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
                 className="px-3 py-2 border border-gray-300 rounded-md text-sm"
               >
-                <option value="all">All Carriers</option>
-                <option value="fedex">FedEx</option>
-                <option value="ups">UPS</option>
-                <option value="dhl">DHL</option>
-                <option value="usps">USPS</option>
-                <option value="other">Other</option>
+                <option value="all">All Priority</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
               </select>
               
               <Button onClick={handleSearch} disabled={loading}>
@@ -502,49 +468,51 @@ export default function ShipmentsPage() {
         </CardContent>
       </Card>
 
-      {/* Shipments List */}
+      {/* Orders List */}
       <Card>
         <CardHeader>
-          <CardTitle>Shipments ({total})</CardTitle>
+          <CardTitle>Pending Orders ({total})</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && shipments.length === 0 ? (
+          {loading && orders.length === 0 ? (
             renderLoadingState()
-          ) : error && shipments.length === 0 ? (
+          ) : error && orders.length === 0 ? (
             renderErrorState()
-          ) : shipments.length === 0 ? (
+          ) : orders.length === 0 ? (
             renderEmptyState()
           ) : (
             <div className="space-y-4">
-              {shipments.map((shipment) => (
-                <Card key={shipment.id} className="hover:shadow-md transition-shadow">
+              {orders.map((order) => (
+                <Card key={order.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          {getStatusIcon(shipment.status)}
+                          {getStatusIcon(order.status)}
                         </div>
                         <div>
-                          <h3 className="font-medium">{shipment.trackingNumber}</h3>
+                          <h3 className="font-medium">#{order.orderNumber}</h3>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>Order #{shipment.orderNumber}</span>
-                            <span>{shipment.customer.name}</span>
-                            <span className="capitalize">{shipment.carrier} - {shipment.service}</span>
-                            <span>{formatDate(shipment.createdAt)}</span>
+                            <span>{order.customer.name}</span>
+                            <span>{order.items.length} item{order.items.length !== 1 ? 's' : ''}</span>
+                            <span>Pending since {formatDate(order.pendingSince)}</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Action required: {order.actionRequired}
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
-                          <div className="font-medium">{formatCurrency(shipment.cost)}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {shipment.shippingAddress.city}, {shipment.shippingAddress.state}
-                          </div>
+                          <div className="font-medium">{formatCurrency(order.totalAmount)}</div>
+                          <Badge className={getPriorityColor(order.priority)}>
+                            {order.priority.toUpperCase()}
+                          </Badge>
                         </div>
                         
-                        <Badge className={getStatusColor(shipment.status)}>
-                          {getStatusLabel(shipment.status)}
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusLabel(order.status)}
                         </Badge>
                         
                         <DropdownMenu>
@@ -556,31 +524,41 @@ export default function ShipmentsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem>
-                              <Link href={`/dashboard/shipments/${shipment.id}`} className="flex items-center w-full">
+                              <Link href={`/dashboard/orders/${order.id}`} className="flex items-center w-full">
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <Link href={`/dashboard/orders/${shipment.orderId}`} className="flex items-center w-full">
-                                <Package className="h-4 w-4 mr-2" />
-                                View Order
-                              </Link>
-                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {shipment.status !== 'delivered' && shipment.status !== 'failed' && (
+                            {order.status === 'pending_confirmation' && (
                               <>
                                 <DropdownMenuItem
-                                  onClick={() => handleStatusUpdate(shipment.id, 'in_transit')}
-                                >
-                                  <Truck className="h-4 w-4 mr-2" />
-                                  Mark In Transit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleStatusUpdate(shipment.id, 'delivered')}
+                                  onClick={() => handleOrderAction(order.id, 'confirmed')}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2" />
-                                  Mark Delivered
+                                  Confirm Order
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleOrderAction(order.id, 'cancelled')}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Cancel Order
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            {order.status === 'pending_approval' && (
+                              <>
+                                <DropdownMenuItem
+                                  onClick={() => handleOrderAction(order.id, 'approved')}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  Approve Order
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleOrderAction(order.id, 'rejected')}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject Order
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -600,7 +578,7 @@ export default function ShipmentsPage() {
       {pages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} shipments
+            Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} pending orders
           </div>
           <div className="flex items-center gap-2">
             <Button 
@@ -609,7 +587,7 @@ export default function ShipmentsPage() {
               onClick={() => { 
                 const np = page - 1; 
                 setPage(np); 
-                loadShipments(np, searchTerm, statusFilter, carrierFilter); 
+                loadPendingOrders(np, searchTerm, statusFilter, priorityFilter); 
               }}
             >
               Previous
@@ -623,7 +601,7 @@ export default function ShipmentsPage() {
               onClick={() => { 
                 const np = page + 1; 
                 setPage(np); 
-                loadShipments(np, searchTerm, statusFilter, carrierFilter); 
+                loadPendingOrders(np, searchTerm, statusFilter, priorityFilter); 
               }}
             >
               Next

@@ -123,9 +123,7 @@ export default function ServicesPage() {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
     
     try {
-      const response = await apiClient.put(`/services/${serviceId}/status`, {
-        status: newStatus
-      });
+      const response = await apiClient.updateServiceStatus(serviceId, newStatus as 'active' | 'inactive');
       
       if (response.success) {
         toast({
@@ -134,13 +132,13 @@ export default function ServicesPage() {
         });
         loadServices();
       } else {
-        throw new Error('Failed to update service status');
+        throw new Error(response.error?.message || 'Failed to update service status');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update service status:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update service status. Please try again.',
+        description: error?.message || 'Failed to update service status. Please try again.',
         variant: 'destructive',
       });
     }
@@ -152,7 +150,7 @@ export default function ServicesPage() {
     }
 
     try {
-      const response = await apiClient.delete(`/services/${serviceId}`);
+      const response = await apiClient.deleteService(serviceId);
       
       if (response.success) {
         toast({
@@ -161,13 +159,13 @@ export default function ServicesPage() {
         });
         loadServices();
       } else {
-        throw new Error('Failed to delete service');
+        throw new Error(response.error?.message || 'Failed to delete service');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete service:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete service. Please try again.',
+        description: error?.message || 'Failed to delete service. Please try again.',
         variant: 'destructive',
       });
     }

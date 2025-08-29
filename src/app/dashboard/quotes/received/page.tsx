@@ -3,41 +3,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { 
-  Truck, 
-  Plus, 
-  Search, 
-  Filter, 
+  FileText,
   Eye, 
-  Edit, 
-  Package, 
-  MapPin, 
-  Clock, 
-  RefreshCw,
-  Calendar,
-  AlertCircle,
   CheckCircle,
   XCircle,
-  RotateCcw
+  Clock,
+  RefreshCw,
+  Search,
+  Filter,
+  DollarSign,
+  User,
+  Calendar,
+  ArrowRight,
+  MessageSquare,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,178 +33,188 @@ import { apiClient } from '@/lib/api/client';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
 
-interface Shipment {
+interface ReceivedQuote {
   id: string;
-  trackingNumber: string;
-  orderId: string;
-  orderNumber: string;
-  customer: {
+  quoteNumber: string;
+  rfqId: string;
+  rfqTitle: string;
+  supplier: {
+    id: string;
     name: string;
     email: string;
-    phone: string;
+    company: string;
+    rating: number;
+    verified: boolean;
   };
-  shippingAddress: {
-    street: string;
-    city: string;
-    state: string;
-    zipCode: string;
-    country: string;
-  };
-  carrier: string;
-  service: string;
-  status: 'pending' | 'picked_up' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'failed' | 'returned';
-  estimatedDelivery: string;
-  actualDelivery?: string;
-  weight: number;
-  dimensions: {
-    length: number;
-    width: number;
-    height: number;
-  };
-  cost: number;
-  currency: string;
   items: Array<{
-    productId: string;
-    name: string;
+    id: string;
+    productName: string;
     quantity: number;
-    sku: string;
+    unitPrice: number;
+    totalPrice: number;
+    specifications?: string;
   }>;
-  trackingHistory: Array<{
-    status: string;
-    location: string;
+  totalAmount: number;
+  currency: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'expired' | 'negotiating';
+  validUntil: string;
+  deliveryTime: {
+    value: number;
+    unit: 'days' | 'weeks' | 'months';
+  };
+  paymentTerms: string;
+  shippingTerms: string;
+  notes?: string;
+  attachments?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    size: number;
+  }>;
+  negotiationHistory?: Array<{
+    id: string;
+    message: string;
+    author: 'buyer' | 'supplier';
     timestamp: string;
-    description: string;
   }>;
   createdAt: string;
   updatedAt: string;
+  expiresIn: number; // days until expiration
 }
 
-interface ShipmentStats {
-  totalShipments: number;
-  pendingShipments: number;
-  inTransitShipments: number;
-  deliveredShipments: number;
-  failedShipments: number;
-  totalShippingCost: number;
-  averageDeliveryTime: number;
-  onTimeDeliveryRate: number;
+interface ReceivedQuoteStats {
+  totalReceived: number;
+  pendingReview: number;
+  accepted: number;
+  rejected: number;
+  expired: number;
+  averageQuoteValue: number;
+  responseRate: number;
+  averageResponseTime: number;
 }
 
-export default function ShipmentsPage() {
-  const [shipments, setShipments] = useState<Shipment[]>([]);
-  const [stats, setStats] = useState<ShipmentStats | null>(null);
+export default function ReceivedQuotesPage() {
+  const [quotes, setQuotes] = useState<ReceivedQuote[]>([]);
+  const [stats, setStats] = useState<ReceivedQuoteStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [carrierFilter, setCarrierFilter] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(0);
   const [total, setTotal] = useState(0);
 
-  const loadShipments = useCallback(async (p = 1, searchT = searchTerm, statusF = statusFilter, carrierF = carrierFilter) => {
+  const loadReceivedQuotes = useCallback(async (p = 1, searchT = searchTerm, statusF = statusFilter, supplierF = supplierFilter) => {
     try {
       setLoading(true);
       setError(null);
 
       const params: any = { 
         page: p, 
-        limit: 20 
+        limit: 20,
+        type: 'received' // Filter for received quotes
       };
       
       if (searchT.trim()) params.search = searchT.trim();
       if (statusF !== 'all' && statusF) params.status = statusF;
-      if (carrierF !== 'all' && carrierF) params.carrier = carrierF;
+      if (supplierF !== 'all' && supplierF) params.supplierId = supplierF;
 
-      const response = await apiClient.getShipments(params);
+      const response = await apiClient.getReceivedQuotes(params);
       
       if (response.success && response.data) {
         const data = response.data as any;
         
         // Handle different response formats
         if (Array.isArray(data)) {
-          setShipments(data);
+          setQuotes(data);
           setPages(1);
           setTotal(data.length);
         } else {
-          setShipments(data.shipments || data.data || []);
+          setQuotes(data.quotes || data.data || []);
           setPages(data.pagination?.pages || 0);
           setTotal(data.pagination?.total || 0);
         }
       } else {
-        setShipments([]);
+        setQuotes([]);
         setPages(0);
         setTotal(0);
       }
     } catch (err: any) {
-      console.error('Failed to load shipments:', err);
-      setError(err?.message || 'Failed to load shipments');
-      setShipments([]);
+      console.error('Failed to load received quotes:', err);
+      setError(err?.message || 'Failed to load received quotes');
+      setQuotes([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, statusFilter, carrierFilter]);
+  }, [searchTerm, statusFilter, supplierFilter]);
 
   const loadStats = useCallback(async () => {
     try {
-      const response = await apiClient.getShipmentStats();
+      const response = await apiClient.getReceivedQuoteStats();
       
       if (response.success && response.data) {
-        setStats(response.data as ShipmentStats);
+        setStats(response.data as ReceivedQuoteStats);
       } else {
-        // Calculate stats from current shipments if API doesn't exist
-        const pendingShipments = shipments.filter(s => s.status === 'pending').length;
-        const inTransitShipments = shipments.filter(s => ['picked_up', 'in_transit', 'out_for_delivery'].includes(s.status)).length;
-        const deliveredShipments = shipments.filter(s => s.status === 'delivered').length;
-        const failedShipments = shipments.filter(s => ['failed', 'returned'].includes(s.status)).length;
-        const totalShippingCost = shipments.reduce((sum, s) => sum + s.cost, 0);
+        // Calculate stats from current quotes if API doesn't exist
+        const pendingReview = quotes.filter(q => q.status === 'pending').length;
+        const accepted = quotes.filter(q => q.status === 'accepted').length;
+        const rejected = quotes.filter(q => q.status === 'rejected').length;
+        const expired = quotes.filter(q => q.status === 'expired').length;
+        const totalValue = quotes.reduce((sum, q) => sum + q.totalAmount, 0);
+        const averageQuoteValue = quotes.length > 0 ? totalValue / quotes.length : 0;
         
         setStats({
-          totalShipments: shipments.length,
-          pendingShipments,
-          inTransitShipments,
-          deliveredShipments,
-          failedShipments,
-          totalShippingCost,
-          averageDeliveryTime: 3.5, // Default value
-          onTimeDeliveryRate: 92.5 // Default value
+          totalReceived: quotes.length,
+          pendingReview,
+          accepted,
+          rejected,
+          expired,
+          averageQuoteValue,
+          responseRate: 85.5, // Default value
+          averageResponseTime: 2.3 // Default value in days
         });
       }
     } catch (err) {
-      console.error('Failed to load shipment stats:', err);
+      console.error('Failed to load received quote stats:', err);
       // Use fallback stats
       setStats({
-        totalShipments: 0,
-        pendingShipments: 0,
-        inTransitShipments: 0,
-        deliveredShipments: 0,
-        failedShipments: 0,
-        totalShippingCost: 0,
-        averageDeliveryTime: 0,
-        onTimeDeliveryRate: 0
+        totalReceived: 0,
+        pendingReview: 0,
+        accepted: 0,
+        rejected: 0,
+        expired: 0,
+        averageQuoteValue: 0,
+        responseRate: 0,
+        averageResponseTime: 0
       });
     }
-  }, [shipments]);
+  }, [quotes]);
 
-  const handleStatusUpdate = async (shipmentId: string, newStatus: string) => {
+  const handleQuoteAction = async (quoteId: string, action: 'accept' | 'reject', reason?: string) => {
     try {
-      const response = await apiClient.updateShipmentStatus(shipmentId, newStatus);
+      let response;
+      if (action === 'accept') {
+        response = await apiClient.acceptQuote(quoteId);
+      } else {
+        response = await apiClient.rejectQuote(quoteId, reason);
+      }
       
       if (response.success) {
         toast({
           title: 'Success',
-          description: 'Shipment status updated successfully.',
+          description: `Quote ${action}ed successfully.`,
         });
-        loadShipments();
+        loadReceivedQuotes();
         loadStats();
       } else {
-        throw new Error(response.error?.message || 'Failed to update shipment status');
+        throw new Error(response.error?.message || `Failed to ${action} quote`);
       }
     } catch (error: any) {
-      console.error('Failed to update shipment status:', error);
+      console.error(`Failed to ${action} quote:`, error);
       toast({
         title: 'Error',
-        description: error?.message || 'Failed to update shipment status. Please try again.',
+        description: error?.message || `Failed to ${action} quote. Please try again.`,
         variant: 'destructive',
       });
     }
@@ -228,33 +222,31 @@ export default function ShipmentsPage() {
 
   const handleSearch = () => {
     setPage(1);
-    loadShipments(1, searchTerm, statusFilter, carrierFilter);
+    loadReceivedQuotes(1, searchTerm, statusFilter, supplierFilter);
   };
 
   const handleRefresh = () => {
-    loadShipments(page, searchTerm, statusFilter, carrierFilter);
+    loadReceivedQuotes(page, searchTerm, statusFilter, supplierFilter);
     loadStats();
   };
 
   useEffect(() => {
-    loadShipments(1);
-  }, [loadShipments]);
+    loadReceivedQuotes(1);
+  }, [loadReceivedQuotes]);
 
   useEffect(() => {
-    if (shipments.length > 0) {
+    if (quotes.length > 0) {
       loadStats();
     }
-  }, [shipments, loadStats]);
+  }, [quotes, loadStats]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'picked_up': return 'bg-blue-100 text-blue-800';
-      case 'in_transit': return 'bg-purple-100 text-purple-800';
-      case 'out_for_delivery': return 'bg-orange-100 text-orange-800';
-      case 'delivered': return 'bg-green-100 text-green-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      case 'returned': return 'bg-gray-100 text-gray-800';
+      case 'accepted': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'expired': return 'bg-gray-100 text-gray-800';
+      case 'negotiating': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -262,27 +254,16 @@ export default function ShipmentsPage() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return <Clock className="h-4 w-4" />;
-      case 'picked_up': return <Package className="h-4 w-4" />;
-      case 'in_transit': return <Truck className="h-4 w-4" />;
-      case 'out_for_delivery': return <MapPin className="h-4 w-4" />;
-      case 'delivered': return <CheckCircle className="h-4 w-4" />;
-      case 'failed': return <XCircle className="h-4 w-4" />;
-      case 'returned': return <RotateCcw className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+      case 'accepted': return <CheckCircle className="h-4 w-4" />;
+      case 'rejected': return <XCircle className="h-4 w-4" />;
+      case 'expired': return <XCircle className="h-4 w-4" />;
+      case 'negotiating': return <MessageSquare className="h-4 w-4" />;
+      default: return <Clock className="h-4 w-4" />;
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pending';
-      case 'picked_up': return 'Picked Up';
-      case 'in_transit': return 'In Transit';
-      case 'out_for_delivery': return 'Out for Delivery';
-      case 'delivered': return 'Delivered';
-      case 'failed': return 'Failed';
-      case 'returned': return 'Returned';
-      default: return status;
-    }
+  const getDeliveryTimeDisplay = (deliveryTime: ReceivedQuote['deliveryTime']) => {
+    return `${deliveryTime.value} ${deliveryTime.unit}`;
   };
 
   const renderLoadingState = () => (
@@ -310,33 +291,32 @@ export default function ShipmentsPage() {
   const renderEmptyState = () => (
     <div className="text-center py-12">
       <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <Truck className="h-12 w-12 text-gray-400" />
+        <FileText className="h-12 w-12 text-gray-400" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">No Shipments Found</h3>
+      <h3 className="text-lg font-semibold mb-2">No Received Quotes</h3>
       <p className="text-muted-foreground mb-4">
-        {searchTerm || statusFilter !== 'all' || carrierFilter !== 'all'
-          ? 'No shipments match your current filters. Try adjusting your search criteria.'
-          : 'You haven\'t created any shipments yet. Start by creating your first shipment.'
+        {searchTerm || statusFilter !== 'all' || supplierFilter !== 'all'
+          ? 'No quotes match your current filters.'
+          : 'You haven\'t received any quotes yet. Create an RFQ to start receiving quotes.'
         }
       </p>
-      {(searchTerm || statusFilter !== 'all' || carrierFilter !== 'all') ? (
+      {(searchTerm || statusFilter !== 'all' || supplierFilter !== 'all') ? (
         <Button 
           variant="outline" 
           onClick={() => {
             setSearchTerm('');
             setStatusFilter('all');
-            setCarrierFilter('all');
+            setSupplierFilter('all');
             setPage(1);
-            loadShipments(1, '', 'all', 'all');
+            loadReceivedQuotes(1, '', 'all', 'all');
           }}
         >
           Clear Filters
         </Button>
       ) : (
-        <Link href="/dashboard/shipments/create">
+        <Link href="/dashboard/rfqs/new">
           <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Shipment
+            Create RFQ
           </Button>
         </Link>
       )}
@@ -346,9 +326,9 @@ export default function ShipmentsPage() {
   const renderErrorState = () => (
     <div className="text-center py-12">
       <div className="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
+        <XCircle className="h-12 w-12 text-red-500" />
       </div>
-      <h3 className="text-lg font-semibold mb-2">Failed to Load Shipments</h3>
+      <h3 className="text-lg font-semibold mb-2">Failed to Load Received Quotes</h3>
       <p className="text-muted-foreground mb-4">{error}</p>
       <Button onClick={handleRefresh}>
         <RefreshCw className="h-4 w-4 mr-2" />
@@ -362,9 +342,9 @@ export default function ShipmentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Shipments</h1>
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Received Quotes</h1>
           <p className="text-muted-foreground">
-            Track and manage your shipments and deliveries
+            Review and manage quotes received from suppliers
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -377,10 +357,10 @@ export default function ShipmentsPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Link href="/dashboard/shipments/create">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Shipment
+          <Link href="/dashboard/quotes">
+            <Button variant="outline">
+              <ArrowRight className="h-4 w-4 mr-2" />
+              My Quotes
             </Button>
           </Link>
         </div>
@@ -393,39 +373,11 @@ export default function ShipmentsPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <Package className="h-5 w-5 text-blue-600" />
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.totalShipments}</div>
-                  <div className="text-sm text-muted-foreground">Total Shipments</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Truck className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{stats.inTransitShipments}</div>
-                  <div className="text-sm text-muted-foreground">In Transit</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{stats.deliveredShipments}</div>
-                  <div className="text-sm text-muted-foreground">Delivered</div>
+                  <div className="text-2xl font-bold">{stats.totalReceived}</div>
+                  <div className="text-sm text-muted-foreground">Total Received</div>
                 </div>
               </div>
             </CardContent>
@@ -438,8 +390,36 @@ export default function ShipmentsPage() {
                   <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.onTimeDeliveryRate.toFixed(1)}%</div>
-                  <div className="text-sm text-muted-foreground">On-Time Rate</div>
+                  <div className="text-2xl font-bold">{stats.pendingReview}</div>
+                  <div className="text-sm text-muted-foreground">Pending Review</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{stats.accepted}</div>
+                  <div className="text-sm text-muted-foreground">Accepted</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <DollarSign className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.averageQuoteValue)}</div>
+                  <div className="text-sm text-muted-foreground">Avg Value</div>
                 </div>
               </div>
             </CardContent>
@@ -455,7 +435,7 @@ export default function ShipmentsPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by tracking number, order ID, or customer..."
+                  placeholder="Search by quote number, RFQ title, or supplier..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -472,25 +452,10 @@ export default function ShipmentsPage() {
               >
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
-                <option value="picked_up">Picked Up</option>
-                <option value="in_transit">In Transit</option>
-                <option value="out_for_delivery">Out for Delivery</option>
-                <option value="delivered">Delivered</option>
-                <option value="failed">Failed</option>
-                <option value="returned">Returned</option>
-              </select>
-              
-              <select
-                value={carrierFilter}
-                onChange={(e) => setCarrierFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Carriers</option>
-                <option value="fedex">FedEx</option>
-                <option value="ups">UPS</option>
-                <option value="dhl">DHL</option>
-                <option value="usps">USPS</option>
-                <option value="other">Other</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="expired">Expired</option>
+                <option value="negotiating">Negotiating</option>
               </select>
               
               <Button onClick={handleSearch} disabled={loading}>
@@ -502,49 +467,52 @@ export default function ShipmentsPage() {
         </CardContent>
       </Card>
 
-      {/* Shipments List */}
+      {/* Quotes List */}
       <Card>
         <CardHeader>
-          <CardTitle>Shipments ({total})</CardTitle>
+          <CardTitle>Received Quotes ({total})</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading && shipments.length === 0 ? (
+          {loading && quotes.length === 0 ? (
             renderLoadingState()
-          ) : error && shipments.length === 0 ? (
+          ) : error && quotes.length === 0 ? (
             renderErrorState()
-          ) : shipments.length === 0 ? (
+          ) : quotes.length === 0 ? (
             renderEmptyState()
           ) : (
             <div className="space-y-4">
-              {shipments.map((shipment) => (
-                <Card key={shipment.id} className="hover:shadow-md transition-shadow">
+              {quotes.map((quote) => (
+                <Card key={quote.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          {getStatusIcon(shipment.status)}
+                          {getStatusIcon(quote.status)}
                         </div>
                         <div>
-                          <h3 className="font-medium">{shipment.trackingNumber}</h3>
+                          <h3 className="font-medium">#{quote.quoteNumber}</h3>
                           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span>Order #{shipment.orderNumber}</span>
-                            <span>{shipment.customer.name}</span>
-                            <span className="capitalize">{shipment.carrier} - {shipment.service}</span>
-                            <span>{formatDate(shipment.createdAt)}</span>
+                            <span>{quote.supplier.company}</span>
+                            <span>{quote.items.length} item{quote.items.length !== 1 ? 's' : ''}</span>
+                            <span>Delivery: {getDeliveryTimeDisplay(quote.deliveryTime)}</span>
+                            <span>Expires in {quote.expiresIn} days</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            RFQ: {quote.rfqTitle}
                           </div>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
-                          <div className="font-medium">{formatCurrency(shipment.cost)}</div>
+                          <div className="font-medium">{formatCurrency(quote.totalAmount)}</div>
                           <div className="text-sm text-muted-foreground">
-                            {shipment.shippingAddress.city}, {shipment.shippingAddress.state}
+                            {quote.paymentTerms}
                           </div>
                         </div>
                         
-                        <Badge className={getStatusColor(shipment.status)}>
-                          {getStatusLabel(shipment.status)}
+                        <Badge className={getStatusColor(quote.status)}>
+                          {quote.status.toUpperCase()}
                         </Badge>
                         
                         <DropdownMenu>
@@ -556,34 +524,49 @@ export default function ShipmentsPage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem>
-                              <Link href={`/dashboard/shipments/${shipment.id}`} className="flex items-center w-full">
+                              <Link href={`/dashboard/quotes/${quote.id}`} className="flex items-center w-full">
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem>
-                              <Link href={`/dashboard/orders/${shipment.orderId}`} className="flex items-center w-full">
-                                <Package className="h-4 w-4 mr-2" />
-                                View Order
+                              <Link href={`/dashboard/rfqs/${quote.rfqId}`} className="flex items-center w-full">
+                                <FileText className="h-4 w-4 mr-2" />
+                                View RFQ
                               </Link>
                             </DropdownMenuItem>
+                            {quote.attachments && quote.attachments.length > 0 && (
+                              <DropdownMenuItem>
+                                <Download className="h-4 w-4 mr-2" />
+                                Download Attachments
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
-                            {shipment.status !== 'delivered' && shipment.status !== 'failed' && (
+                            {quote.status === 'pending' && (
                               <>
                                 <DropdownMenuItem
-                                  onClick={() => handleStatusUpdate(shipment.id, 'in_transit')}
-                                >
-                                  <Truck className="h-4 w-4 mr-2" />
-                                  Mark In Transit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleStatusUpdate(shipment.id, 'delivered')}
+                                  onClick={() => handleQuoteAction(quote.id, 'accept')}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-2" />
-                                  Mark Delivered
+                                  Accept Quote
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleQuoteAction(quote.id, 'reject', 'Not suitable')}
+                                >
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                  Reject Quote
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <MessageSquare className="h-4 w-4 mr-2" />
+                                  Start Negotiation
                                 </DropdownMenuItem>
                               </>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem>
+                              <User className="h-4 w-4 mr-2" />
+                              Contact Supplier
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -600,7 +583,7 @@ export default function ShipmentsPage() {
       {pages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} shipments
+            Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} received quotes
           </div>
           <div className="flex items-center gap-2">
             <Button 
@@ -609,7 +592,7 @@ export default function ShipmentsPage() {
               onClick={() => { 
                 const np = page - 1; 
                 setPage(np); 
-                loadShipments(np, searchTerm, statusFilter, carrierFilter); 
+                loadReceivedQuotes(np, searchTerm, statusFilter, supplierFilter); 
               }}
             >
               Previous
@@ -623,7 +606,7 @@ export default function ShipmentsPage() {
               onClick={() => { 
                 const np = page + 1; 
                 setPage(np); 
-                loadShipments(np, searchTerm, statusFilter, carrierFilter); 
+                loadReceivedQuotes(np, searchTerm, statusFilter, supplierFilter); 
               }}
             >
               Next
