@@ -92,7 +92,7 @@ export default function OrderProcessingPage() {
       const response = await apiClient.get('/orders/ready-to-ship');
       
       if (response.success && response.data) {
-        setReadyOrders(response.data);
+        setReadyOrders(Array.isArray(response.data) ? response.data : []);
       }
     } catch (error) {
       console.error('Error loading ready orders:', error);
@@ -113,7 +113,7 @@ export default function OrderProcessingPage() {
       if (response.success && response.data) {
         setFulfillmentOptions(prev => ({
           ...prev,
-          [orderId]: response.data.fulfillmentOptions
+          [orderId]: (response.data as any)?.fulfillmentOptions || []
         }));
       }
     } catch (error) {
@@ -135,7 +135,7 @@ export default function OrderProcessingPage() {
         setProcessingResults(prev => [...prev, {
           orderId,
           success: true,
-          shipment: response.data
+          shipment: response.data as any
         }]);
         
         // Remove processed order from ready orders
@@ -179,7 +179,7 @@ export default function OrderProcessingPage() {
       });
       
       if (response.success) {
-        const { results, summary } = response.data;
+        const { results, summary } = response.data as any;
         
         toast({
           title: "Bulk Processing Complete",

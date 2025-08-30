@@ -70,7 +70,7 @@ export class ApiClient {
     }
 
     const url = `${this.baseURL}${endpoint}`;
-    
+
     // Get access token from unified SSO client
     let accessToken: string | null = null;
     if (typeof window !== 'undefined') {
@@ -98,11 +98,11 @@ export class ApiClient {
     try {
       console.log(`API: Making request to ${endpoint}`);
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error(`API: Request failed to ${endpoint}:`, errorData);
-        
+
         // Return error in ApiResponse format instead of throwing
         return {
           success: false,
@@ -116,12 +116,12 @@ export class ApiClient {
 
       const data = await response.json();
       console.log(`API: Request successful to ${endpoint}`);
-      
+
       // Cache successful GET requests
       if (!options.method || options.method === 'GET') {
         this.requestCache.set(endpoint, { data, timestamp: Date.now() });
       }
-      
+
       // Ensure we return the data in the expected format
       if (data.success !== undefined) {
         return data; // Backend already returns ApiResponse format
@@ -135,7 +135,7 @@ export class ApiClient {
       }
     } catch (error) {
       console.error(`API: Request failed to ${endpoint}:`, error);
-      
+
       // Return network errors in ApiResponse format instead of throwing
       return {
         success: false,
@@ -296,7 +296,7 @@ export class ApiClient {
   async getAdvertisements(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.search && params.search.trim()) {
       cleanParams.search = params.search.trim();
     }
@@ -312,7 +312,7 @@ export class ApiClient {
     if (params.page) {
       cleanParams.page = params.page;
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/ads${query ? `?${query}` : ''}`);
   }
@@ -332,10 +332,6 @@ export class ApiClient {
   }
 
   // Orders endpoints
-  async getOrders(params: any = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/orders?${query}`);
-  }
 
   async getPendingOrderStats() {
     return this.request('/orders/pending/stats');
@@ -377,12 +373,12 @@ export class ApiClient {
   async get(endpoint: string, options: any = {}) {
     const { params, ...requestOptions } = options;
     let url = endpoint;
-    
+
     if (params) {
       const query = new URLSearchParams(params).toString();
       url += `?${query}`;
     }
-    
+
     return this.request(url, {
       method: 'GET',
       ...requestOptions,
@@ -808,7 +804,7 @@ export class ApiClient {
   async getRelevantRFQs(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.page) {
       cleanParams.page = params.page;
     }
@@ -830,7 +826,7 @@ export class ApiClient {
     if (params.subcategoryId && params.subcategoryId.trim()) {
       cleanParams.subcategoryId = params.subcategoryId.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/rfqs/relevant${query ? `?${query}` : ''}`);
   }
@@ -928,7 +924,7 @@ export class ApiClient {
   async getCustomers(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -937,7 +933,7 @@ export class ApiClient {
     if (params.status && params.status !== 'all' && params.status.trim()) {
       cleanParams.status = params.status.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/customers${query ? `?${query}` : ''}`);
   }
@@ -995,7 +991,7 @@ export class ApiClient {
   async getInventory(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -1007,7 +1003,7 @@ export class ApiClient {
     if (params.category && params.category !== 'all' && params.category.trim()) {
       cleanParams.category = params.category.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/inventory${query ? `?${query}` : ''}`);
   }
@@ -1077,7 +1073,7 @@ export class ApiClient {
   async getSuppliers(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -1089,7 +1085,7 @@ export class ApiClient {
     if (params.category && params.category !== 'all' && params.category.trim()) {
       cleanParams.category = params.category.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/suppliers${query ? `?${query}` : ''}`);
   }
@@ -1158,7 +1154,7 @@ export class ApiClient {
   async getMessages(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -1173,7 +1169,7 @@ export class ApiClient {
     if (params.priority && params.priority !== 'all' && params.priority.trim()) {
       cleanParams.priority = params.priority.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/messages${query ? `?${query}` : ''}`);
   }
@@ -1270,31 +1266,14 @@ export class ApiClient {
     return this.request('/messages/stats');
   }
 
-  async markMessageAsRead(messageId: string) {
-    return this.request(`/messages/${messageId}/read`, {
-      method: 'POST',
-    });
-  }
-
-  async replyToMessage(messageId: string, data: { content: string }) {
-    return this.request(`/messages/${messageId}/reply`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async archiveMessage(messageId: string) {
-    return this.request(`/messages/${messageId}/archive`, {
-      method: 'POST',
-    });
-  }
+  // Duplicate function removed - using the first implementation
 
   async getNotifications(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.limit) cleanParams.limit = params.limit;
     if (params.unreadOnly) cleanParams.unreadOnly = params.unreadOnly;
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/notifications${query ? `?${query}` : ''}`);
   }
@@ -1309,7 +1288,7 @@ export class ApiClient {
   async getReports(params: any = {}) {
     // Clean up empty parameters to avoid validation errors
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -1321,7 +1300,7 @@ export class ApiClient {
     if (params.status && params.status !== 'all' && params.status.trim()) {
       cleanParams.status = params.status.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/reports${query ? `?${query}` : ''}`);
   }
@@ -1416,23 +1395,23 @@ export class ApiClient {
 
   async getServiceOrders(serviceId: string, params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.status && params.status !== 'all') {
       cleanParams.status = params.status.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/services/${serviceId}/orders${query ? `?${query}` : ''}`);
   }
 
   async getServiceReviews(serviceId: string, params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/services/${serviceId}/reviews${query ? `?${query}` : ''}`);
   }
@@ -1587,7 +1566,7 @@ export class ApiClient {
   // Knowledge Base endpoints
   async getKnowledgeBase(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -1596,9 +1575,9 @@ export class ApiClient {
     if (params.category && params.category !== 'all' && params.category.trim()) {
       cleanParams.category = params.category.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
-    
+
     try {
       return await this.request(`/support/knowledge-base${query ? `?${query}` : ''}`);
     } catch (error) {
@@ -1667,13 +1646,13 @@ export class ApiClient {
   // FAQ endpoints
   async getFAQs(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.category && params.category !== 'all') {
       cleanParams.category = params.category.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
-    
+
     try {
       return await this.request(`/support/faqs${query ? `?${query}` : ''}`);
     } catch (error) {
@@ -1713,7 +1692,7 @@ export class ApiClient {
   }
 
   // Enhanced Orders endpoints for pending and completed orders
-  async getPendingOrderStats() {
+  async getEnhancedPendingOrderStats() {
     try {
       return await this.request('/orders/stats/pending');
     } catch (error) {
@@ -1736,7 +1715,7 @@ export class ApiClient {
     }
   }
 
-  async getCompletedOrderStats() {
+  async getEnhancedCompletedOrderStats() {
     try {
       return await this.request('/orders/stats/completed');
     } catch (error) {
@@ -1759,21 +1738,12 @@ export class ApiClient {
     }
   }
 
-  async downloadInvoice(invoiceId: string) {
-    try {
-      return await this.request(`/invoices/${invoiceId}/download`);
-    } catch (error) {
-      return {
-        success: false,
-        error: { code: 'NOT_IMPLEMENTED', message: 'Invoice download not available' }
-      };
-    }
-  }
+  // Duplicate function removed - using the first implementation
 
   // Customer Leads endpoints
   async getCustomerLeads(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -1785,7 +1755,7 @@ export class ApiClient {
     if (params.source && params.source !== 'all' && params.source.trim()) {
       cleanParams.source = params.source.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/customers/leads${query ? `?${query}` : ''}`);
   }
@@ -1809,13 +1779,13 @@ export class ApiClient {
   // Supplier Favorites endpoints
   async getFavoriteSuppliers(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
       cleanParams.search = params.search.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/suppliers/favorites${query ? `?${query}` : ''}`);
   }
@@ -1835,11 +1805,11 @@ export class ApiClient {
   // Inventory Low Stock endpoints
   async getLowStockItems(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.threshold) cleanParams.threshold = params.threshold;
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/inventory/low-stock${query ? `?${query}` : ''}`);
   }
@@ -2036,7 +2006,7 @@ export class ApiClient {
   // Analytics endpoints
   async getSalesAnalytics(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.dateRange && params.dateRange.trim()) {
       cleanParams.dateRange = params.dateRange.trim();
     }
@@ -2046,14 +2016,14 @@ export class ApiClient {
     if (params.includeBreakdowns) {
       cleanParams.includeBreakdowns = params.includeBreakdowns;
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/analytics/sales${query ? `?${query}` : ''}`);
   }
 
   async getProductAnalytics(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.dateRange && params.dateRange.trim()) {
       cleanParams.dateRange = params.dateRange.trim();
     }
@@ -2063,14 +2033,14 @@ export class ApiClient {
     if (params.includeInventory) {
       cleanParams.includeInventory = params.includeInventory;
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/analytics/products${query ? `?${query}` : ''}`);
   }
 
   async getCustomerAnalytics(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.dateRange && params.dateRange.trim()) {
       cleanParams.dateRange = params.dateRange.trim();
     }
@@ -2080,7 +2050,7 @@ export class ApiClient {
     if (params.includeSegmentation) {
       cleanParams.includeSegmentation = params.includeSegmentation;
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/analytics/customers${query ? `?${query}` : ''}`);
   }
@@ -2088,7 +2058,7 @@ export class ApiClient {
   // Support Tickets endpoints
   async getSupportTickets(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -2103,7 +2073,7 @@ export class ApiClient {
     if (params.category && params.category !== 'all' && params.category.trim()) {
       cleanParams.category = params.category.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/support/tickets${query ? `?${query}` : ''}`);
   }
@@ -2181,7 +2151,7 @@ export class ApiClient {
   // Sales Reports endpoints
   async getSalesReports(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -2193,7 +2163,7 @@ export class ApiClient {
     if (params.status && params.status !== 'all' && params.status.trim()) {
       cleanParams.status = params.status.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/reports/sales${query ? `?${query}` : ''}`);
   }
@@ -2256,7 +2226,7 @@ export class ApiClient {
   // Enhanced Categories endpoints (already exist but need parameter support)
   async getCategories(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -2265,7 +2235,7 @@ export class ApiClient {
     if (params.status && params.status !== 'all' && params.status.trim()) {
       cleanParams.status = params.status.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/products/categories${query ? `?${query}` : ''}`);
   }
@@ -2303,7 +2273,7 @@ export class ApiClient {
     const cleanParams: any = {};
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/products/categories/${categoryId}/products${query ? `?${query}` : ''}`);
   }
@@ -2336,7 +2306,7 @@ export class ApiClient {
   async importCategories(file: File) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     return this.request('/products/categories/import', {
       method: 'POST',
       body: formData,
@@ -2349,7 +2319,7 @@ export class ApiClient {
   // Customer Segments endpoints
   async getCustomerSegments(params: any = {}) {
     const cleanParams: any = {};
-    
+
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
     if (params.search && params.search.trim()) {
@@ -2358,7 +2328,7 @@ export class ApiClient {
     if (params.status && params.status !== 'all' && params.status.trim()) {
       cleanParams.status = params.status.trim();
     }
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/customers/segments${query ? `?${query}` : ''}`);
   }
@@ -2391,7 +2361,7 @@ export class ApiClient {
     const cleanParams: any = {};
     if (params.page) cleanParams.page = params.page;
     if (params.limit) cleanParams.limit = params.limit;
-    
+
     const query = new URLSearchParams(cleanParams).toString();
     return this.request(`/customers/segments/${segmentId}/customers${query ? `?${query}` : ''}`);
   }
@@ -2558,7 +2528,7 @@ export class ApiClient {
     }
   }
 
-  async updateOrderStatus(id: string, status: string) {
+  async updateOrderStatusEnhanced(id: string, status: string) {
     try {
       const response = await this.put(`/orders/${id}/status`, { status });
       return response;
@@ -2722,14 +2692,14 @@ export class ApiClient {
     if (typeof window === 'undefined') return; // Server-side check
 
     const wsUrl = this.baseURL.replace('http', 'ws') + '/ws';
-    
+
     try {
       this.websocket = new WebSocket(wsUrl);
-      
+
       this.websocket.onopen = () => {
         console.log('WebSocket connected');
         this.wsReconnectAttempts = 0;
-        
+
         // Send authentication if available
         const token = vikaretaSSOClient?.getAccessToken?.();
         if (token) {
@@ -2739,7 +2709,7 @@ export class ApiClient {
           }));
         }
       };
-      
+
       this.websocket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -2748,12 +2718,12 @@ export class ApiClient {
           console.error('Failed to parse WebSocket message:', err);
         }
       };
-      
+
       this.websocket.onclose = () => {
         console.log('WebSocket disconnected');
         this.attemptReconnect();
       };
-      
+
       this.websocket.onerror = (error) => {
         console.error('WebSocket error:', error);
       };
@@ -2764,7 +2734,7 @@ export class ApiClient {
 
   private handleWebSocketMessage(data: any) {
     const { type, payload } = data;
-    
+
     // Emit to registered listeners
     const listeners = this.wsEventListeners.get(type);
     if (listeners) {
@@ -2782,7 +2752,7 @@ export class ApiClient {
     if (this.wsReconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
       this.wsReconnectAttempts++;
       const delay = Math.pow(2, this.wsReconnectAttempts) * 1000; // Exponential backoff
-      
+
       setTimeout(() => {
         console.log(`Attempting WebSocket reconnection (${this.wsReconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
         this.connectWebSocket();
@@ -2795,7 +2765,7 @@ export class ApiClient {
       this.wsEventListeners.set(eventType, new Set());
     }
     this.wsEventListeners.get(eventType)!.add(listener);
-    
+
     // Return unsubscribe function
     return () => {
       const listeners = this.wsEventListeners.get(eventType);
