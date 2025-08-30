@@ -219,10 +219,22 @@ export function useVikaretaAuth(): UseVikaretaAuthReturn {
   useEffect(() => {
     initializeAuth();
 
-    // Listen for custom auth events
+    // Listen for custom auth events with debouncing
+    let refreshTimeout: NodeJS.Timeout;
     const handleAuthRefresh = () => {
       console.log('Auth: Received refresh event');
-      initializeAuth();
+      
+      // Debounce refresh events to prevent loops
+      clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        // Only reinitialize if we don't already have valid auth
+        if (!authState.isAuthenticated || !authState.user) {
+          console.log('Auth: Reinitializing due to refresh event');
+          initializeAuth();
+        } else {
+          console.log('Auth: Already authenticated, ignoring refresh event');
+        }
+      }, 100); // 100ms debounce
     };
 
     const handleAuthInvalid = () => {
@@ -240,6 +252,7 @@ export function useVikaretaAuth(): UseVikaretaAuthReturn {
     window.addEventListener('vikareta-auth-invalid', handleAuthInvalid);
 
     return () => {
+      clearTimeout(refreshTimeout);
       window.removeEventListener('vikareta-auth-refresh', handleAuthRefresh);
       window.removeEventListener('vikareta-auth-invalid', handleAuthInvalid);
     };

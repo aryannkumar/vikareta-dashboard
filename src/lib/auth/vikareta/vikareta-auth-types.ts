@@ -118,9 +118,8 @@ export function isVikaretaUser(user: any): user is VikaretaUser {
 export function isVikaretaAuthTokens(tokens: any): tokens is VikaretaAuthTokens {
   return tokens && 
          typeof tokens.accessToken === 'string' && 
-         typeof tokens.refreshToken === 'string' &&
-         tokens.accessToken.length > 0 &&
-         tokens.refreshToken.length > 0;
+         typeof tokens.refreshToken === 'string';
+         // Allow empty tokens for cookie-based auth
 }
 
 export function isVikaretaAuthData(data: any): data is VikaretaAuthData {

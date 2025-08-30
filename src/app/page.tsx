@@ -68,13 +68,15 @@ export default function HomePage() {
         if (response.ok) {
           const userData = await response.json();
           if (userData.user?.id) {
-            console.log('Dashboard Home: Valid user found via API, triggering auth refresh...');
-            // Dispatch custom event to trigger auth refresh
-            window.dispatchEvent(new CustomEvent('vikareta-auth-refresh'));
-            // Small delay then refresh
-            setTimeout(() => {
-              window.location.reload();
-            }, 300);
+            console.log('Dashboard Home: Valid user found via API, updating auth state...');
+            // Only trigger refresh if we don't already have this user in context
+            if (!user || user.id !== userData.user.id) {
+              console.log('Dashboard Home: User data differs from context, triggering refresh');
+              window.dispatchEvent(new CustomEvent('vikareta-auth-refresh'));
+            } else {
+              console.log('Dashboard Home: User data matches context, no refresh needed');
+            }
+            setCheckingSSO(false);
             return;
           }
         }
