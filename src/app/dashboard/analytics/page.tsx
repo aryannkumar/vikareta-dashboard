@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { toast } from '@/components/ui/use-toast';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -17,145 +18,213 @@ import {
   Calendar,
   BarChart3,
   PieChart,
-  Activity
+  Activity,
+  RefreshCw,
+  Filter,
+  Share,
+  Target,
+  Clock
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import { apiClient } from '@/lib/api/client';
-import { Loading } from '@/components/ui/loading';
 
-interface RevenueData {
-  period: string;
-  totalRevenue: number;
-  growthRate: number;
-  chartData: Array<{
-    date: string;
-    revenue: number;
-  }>;
-  summary: {
-    currentPeriod: number;
-    previousPeriod: number;
-    change: number;
-  };
-}
-
-interface ProductPerformance {
-  products: Array<{
-    id: string;
-    name: string;
-    image: string | null;
-    price: number;
-    revenue: number;
-    orders: number;
-    views: number;
-    conversionRate: number;
-    stock: number;
-    category: string;
-  }>;
-  summary: {
-    totalProducts: number;
+interface AnalyticsData {
+  overview: {
     totalRevenue: number;
     totalOrders: number;
-    averageConversion: number;
+    totalCustomers: number;
+    conversionRate: number;
+    averageOrderValue: number;
+    revenueGrowth: number;
+    ordersGrowth: number;
+    customersGrowth: number;
   };
+  revenueChart: Array<{
+    date: string;
+    revenue: number;
+    orders: number;
+    customers: number;
+  }>;
+  topProducts: Array<{
+    id: string;
+    name: string;
+    revenue: number;
+    orders: number;
+    growth: number;
+  }>;
+  topCategories: Array<{
+    name: string;
+    revenue: number;
+    percentage: number;
+    color: string;
+  }>;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+interface RealtimeMetrics {
+  activeUsers: number;
+  currentOrders: number;
+  todayRevenue: number;
+  conversionRate: number;
+  cartAbandonment: number;
+  averageSessionDuration: number;
+}
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82ca9d', '#ffc658', '#ff7300'];
 
 export default function AnalyticsPage() {
-  const [revenueData, setRevenueData] = useState<RevenueData | null>(null);
-  const [productPerformance, setProductPerformance] = useState<ProductPerformance | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [realtimeMetrics, setRealtimeMetrics] = useState<RealtimeMetrics | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  const [selectedTab, setSelectedTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
-  const loadAnalyticsData = async () => {
+  // Load analytics data with real-time updates
+  const loadAnalyticsData = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      const params = new URLSearchParams({
+        period: selectedPeriod
+      });
 
-      const [revenueResponse, performanceResponse] = await Promise.all([
-        apiClient.get(`/analytics/revenue?period=${selectedPeriod}`),
-        apiClient.get('/analytics/products/performance?limit=10')
+      const [analyticsResponse, realtimeResponse] = await Promise.all([
+        apiClient.get(`/analytics/dashboard?${params}`),
+        apiClient.get('/analytics/realtime')
       ]);
 
-      if (revenueResponse.success && revenueResponse.data) {
-        setRevenueData(revenueResponse.data as RevenueData);
-      } else {
-        // Set default revenue data if API fails
-        setRevenueData({
-          period: selectedPeriod,
-          totalRevenue: 0,
-          growthRate: 0,
-          chartData: [],
-          summary: {
-            currentPeriod: 0,
-            previousPeriod: 0,
-            change: 0
-          }
-        });
+      if (analyticsResponse.success) {
+        setAnalyticsData(analyticsResponse.data as AnalyticsData);
       }
 
-      if (performanceResponse.success && performanceResponse.data) {
-        setProductPerformance(performanceResponse.data as ProductPerformance);
-      } else {
-        // Set default performance data if API fails
-        setProductPerformance({
-          products: [],
-          summary: {
-            totalProducts: 0,
-            totalRevenue: 0,
-            totalOrders: 0,
-            averageConversion: 0
-          }
-        });
+      if (realtimeResponse.success) {
+        setRealtimeMetrics(realtimeResponse.data as RealtimeMetrics);
       }
-    } catch (err) {
-      console.error('Failed to load analytics data:', err);
-      setError('Failed to load analytics data');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load analytics data",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    loadAnalyticsData();
   }, [selectedPeriod]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
+  // Real-time WebSocket updates
+  useEffect(() => {
+    const handleAnalyticsUpdate = (data: any) => {
+      if (data.type === 'realtime_metrics') {
+        setRealtimeMetrics(data.metrics);
+      } else if (data.type === 'analytics_update') {
+        loadAnalyticsData();
+      }
+    };
+
+    apiClient.onWebSocketEvent('analytics_update', handleAnalyticsUpdate);
+    
+    return () => {
+      // Cleanup WebSocket listeners
+    };
+  }, [loadAnalyticsData]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (!autoRefresh) return;
+
+    const interval = setInterval(() => {
+      if (selectedTab === 'realtime') {
+        loadAnalyticsData();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, selectedTab, loadAnalyticsData]);
+
+  // Initial load
+  useEffect(() => {
+    loadAnalyticsData();
+  }, [loadAnalyticsData]);
+
+  // Refresh data
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadAnalyticsData();
+  }, [loadAnalyticsData]);
+
+  // Export analytics data
+  const handleExport = useCallback(async (format: 'csv' | 'xlsx' | 'pdf') => {
+    try {
+      const params = new URLSearchParams({
+        format,
+        period: selectedPeriod,
+        tab: selectedTab
+      });
+
+      const response = await apiClient.get(`/analytics/export?${params}`, {
+        responseType: 'blob'
+      });
+
+      if (response.success) {
+        const blob = new Blob([response.data as BlobPart]);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `analytics-${selectedTab}-${new Date().toISOString().split('T')[0]}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Success",
+          description: "Analytics data exported successfully"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export analytics data",
+        variant: "destructive"
+      });
+    }
+  }, [selectedPeriod, selectedTab]);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+      currency: 'USD'
+    }).format(value);
   };
 
-  const formatPercentage = (value: number | undefined | null) => {
-    const safeValue = value || 0;
-    return `${safeValue >= 0 ? '+' : ''}${safeValue.toFixed(1)}%`;
+  const formatPercentage = (value: number) => {
+    return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  };
+
+  const getGrowthColor = (growth: number) => {
+    return growth >= 0 ? 'text-green-600' : 'text-red-600';
+  };
+
+  const getGrowthIcon = (growth: number) => {
+    return growth >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />;
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loading size="lg" text="Loading analytics..." />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <BarChart3 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Analytics Unavailable</h3>
-              <p className="text-muted-foreground mb-4">{error}</p>
-              <Button onClick={loadAnalyticsData}>Try Again</Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
@@ -165,15 +234,31 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground">
-            Track your business performance and insights
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-gray-600 mt-1">
+            Comprehensive insights into your business performance
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            <Activity className={`h-4 w-4 mr-2 ${autoRefresh ? 'text-green-600' : 'text-gray-400'}`} />
+            Auto Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select period" />
+            <SelectTrigger className="w-32">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="7d">Last 7 days</SelectItem>
@@ -182,247 +267,143 @@ export default function AnalyticsPage() {
               <SelectItem value="1y">Last year</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm">
+          <Button
+            variant="outline"
+            onClick={() => handleExport('pdf')}
+          >
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
 
-      {/* Revenue Overview */}
-      {revenueData && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatCurrency(revenueData.totalRevenue || 0)}
+      {/* Real-time Metrics Bar */}
+      {realtimeMetrics && (
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Active Users</div>
+                <div className="text-lg font-bold text-blue-600">{realtimeMetrics.activeUsers}</div>
               </div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                {(revenueData.growthRate || 0) >= 0 ? (
-                  <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 mr-1 text-red-500" />
-                )}
-                <span className={(revenueData.growthRate || 0) >= 0 ? 'text-green-500' : 'text-red-500'}>
-                  {formatPercentage(revenueData.growthRate)}
-                </span>
-                <span className="ml-1">from last period</span>
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Current Orders</div>
+                <div className="text-lg font-bold text-green-600">{realtimeMetrics.currentOrders}</div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Today Revenue</div>
+                <div className="text-lg font-bold text-purple-600">{formatCurrency(realtimeMetrics.todayRevenue)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Conversion Rate</div>
+                <div className="text-lg font-bold text-orange-600">{realtimeMetrics.conversionRate.toFixed(1)}%</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Cart Abandonment</div>
+                <div className="text-lg font-bold text-red-600">{realtimeMetrics.cartAbandonment.toFixed(1)}%</div>
+              </div>
+              <div className="text-center">
+                <div className="text-sm text-gray-600">Avg Session</div>
+                <div className="text-lg font-bold text-indigo-600">{Math.round(realtimeMetrics.averageSessionDuration / 60)}m</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Orders</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {productPerformance?.summary.totalOrders || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Total completed orders
-              </p>
-            </CardContent>
-          </Card>
+      {/* Main Analytics Content */}
+      {analyticsData && (
+        <div className="space-y-6">
+          {/* Overview Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                    <p className="text-2xl font-bold">{formatCurrency(analyticsData.overview.totalRevenue)}</p>
+                    <div className={`flex items-center gap-1 text-sm ${getGrowthColor(analyticsData.overview.revenueGrowth)}`}>
+                      {getGrowthIcon(analyticsData.overview.revenueGrowth)}
+                      {formatPercentage(analyticsData.overview.revenueGrowth)}
+                    </div>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Products</CardTitle>
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {productPerformance?.summary.totalProducts || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Active products
-              </p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                    <p className="text-2xl font-bold">{analyticsData.overview.totalOrders.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1 text-sm ${getGrowthColor(analyticsData.overview.ordersGrowth)}`}>
+                      {getGrowthIcon(analyticsData.overview.ordersGrowth)}
+                      {formatPercentage(analyticsData.overview.ordersGrowth)}
+                    </div>
+                  </div>
+                  <ShoppingCart className="h-8 w-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
 
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Customers</p>
+                    <p className="text-2xl font-bold">{analyticsData.overview.totalCustomers.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1 text-sm ${getGrowthColor(analyticsData.overview.customersGrowth)}`}>
+                      {getGrowthIcon(analyticsData.overview.customersGrowth)}
+                      {formatPercentage(analyticsData.overview.customersGrowth)}
+                    </div>
+                  </div>
+                  <Users className="h-8 w-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Avg Order Value</p>
+                    <p className="text-2xl font-bold">{formatCurrency(analyticsData.overview.averageOrderValue)}</p>
+                    <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <Target className="h-4 w-4" />
+                      {analyticsData.overview.conversionRate.toFixed(1)}% conversion
+                    </div>
+                  </div>
+                  <BarChart3 className="h-8 w-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Revenue Chart */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Conversion</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+            <CardHeader>
+              <CardTitle>Revenue Trend</CardTitle>
+              <CardDescription>Revenue, orders, and customer acquisition over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {(productPerformance?.summary.averageConversion || 0).toFixed(1)}%
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={analyticsData.revenueChart}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
+                    <Line type="monotone" dataKey="orders" stroke="#82ca9d" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Product conversion rate
-              </p>
             </CardContent>
           </Card>
         </div>
       )}
-
-      <Tabs defaultValue="revenue" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="revenue" className="space-y-4">
-          {revenueData && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Revenue Trend</CardTitle>
-                <CardDescription>
-                  Revenue over the selected period
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={350}>
-                  <LineChart data={revenueData.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 12 }}
-                      tickFormatter={(value) => formatCurrency(value)}
-                    />
-                    <Tooltip 
-                      labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                      formatter={(value: number) => [formatCurrency(value), 'Revenue']}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="revenue" 
-                      stroke="#8884d8" 
-                      strokeWidth={2}
-                      dot={{ fill: '#8884d8' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="products" className="space-y-4">
-          {productPerformance && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Top Performing Products</CardTitle>
-                <CardDescription>
-                  Products ranked by revenue performance
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {productPerformance.products.map((product, index) => (
-                    <div key={product.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center justify-center w-8 h-8 bg-primary/10 rounded-full">
-                          <span className="text-sm font-medium">#{index + 1}</span>
-                        </div>
-                        <div>
-                          <h4 className="font-medium">{product.name}</h4>
-                          <p className="text-sm text-muted-foreground">{product.category}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-6 text-sm">
-                        <div className="text-center">
-                          <p className="font-medium">{formatCurrency(product.revenue)}</p>
-                          <p className="text-muted-foreground">Revenue</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-medium">{product.orders}</p>
-                          <p className="text-muted-foreground">Orders</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="font-medium">{product.views}</p>
-                          <p className="text-muted-foreground">Views</p>
-                        </div>
-                        <div className="text-center">
-                          <Badge variant={(product.conversionRate || 0) > 5 ? 'default' : 'secondary'}>
-                            {(product.conversionRate || 0).toFixed(1)}%
-                          </Badge>
-                          <p className="text-muted-foreground">Conversion</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="performance" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {productPerformance && (
-              <>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Revenue Distribution</CardTitle>
-                    <CardDescription>
-                      Revenue by top products
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <RechartsPieChart>
-                        <Pie
-                          data={productPerformance.products.slice(0, 5)}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} ${(percent ? (percent * 100).toFixed(0) : 0)}%`}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="revenue"
-                        >
-                          {productPerformance.products.slice(0, 5).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Order Volume</CardTitle>
-                    <CardDescription>
-                      Orders by product
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={productPerformance.products.slice(0, 5)}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="name" 
-                          tick={{ fontSize: 12 }}
-                          angle={-45}
-                          textAnchor="end"
-                          height={80}
-                        />
-                        <YAxis tick={{ fontSize: 12 }} />
-                        <Tooltip />
-                        <Bar dataKey="orders" fill="#8884d8" />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api/client';
+import { toast } from '@/components/ui/use-toast';
 import { 
   Building2, 
   Plus, 
@@ -22,8 +23,31 @@ import {
   AlertCircle,
   TrendingUp,
   Package,
-  DollarSign
+  DollarSign,
+  Download,
+  Upload,
+  Edit,
+  Trash2,
+  MoreHorizontal,
+  ArrowUpDown,
+  Globe,
+  Calendar,
+  Users
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Supplier {
   id: string;
@@ -48,139 +72,344 @@ interface Supplier {
   verified: boolean;
   favorite: boolean;
   status: 'active' | 'inactive' | 'blocked';
-  productsCount: number;
-  description?: string;
+  lastOrderDate?: string;
   createdAt: string;
+  updatedAt: string;
+  products?: SupplierProduct[];
+  performance?: SupplierPerformance;
+}
+
+interface SupplierProduct {
+  id: string;
+  name: string;
+  sku: string;
+  price: number;
+  availability: 'in_stock' | 'out_of_stock' | 'limited';
+  leadTime: number;
+}
+
+interface SupplierPerformance {
+  onTimeDelivery: number;
+  qualityRating: number;
+  responseTime: number;
+  defectRate: number;
 }
 
 interface SupplierStats {
   totalSuppliers: number;
+  activeSuppliers: number;
   verifiedSuppliers: number;
   favoriteSuppliers: number;
-  averageRating: number;
   totalSpent: number;
-  activeOrders: number;
+  averageRating: number;
+  topCategories: Array<{
+    category: string;
+    count: number;
+    totalSpent: number;
+  }>;
+}
+
+interface SupplierFilters {
+  search: string;
+  category: string;
+  status: string;
+  verified: string;
+  favorite: string;
+  rating: string;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
 }
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stats, setStats] = useState<SupplierStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [page, setPage] = useState(1);
-  const [pages, setPages] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filters, setFilters] = useState<SupplierFilters>({
+    search: '',
+    category: '',
+    status: '',
+    verified: '',
+    favorite: '',
+    rating: '',
+    sortBy: 'name',
+    sortOrder: 'asc'
+  });
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 20,
+    total: 0
+  });
+  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
 
-  const loadSuppliers = useCallback(async (p = 1, searchTerm = search, statusF = statusFilter, categoryF = categoryFilter) => {
+  // Load suppliers with real-time updates
+  const loadSuppliers = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
+      const params = new URLSearchParams({
+        page: pagination.page.toString(),
+        limit: pagination.limit.toString(),
+        search: filters.search,
+        category: filters.category,
+        status: filters.status,
+        verified: filters.verified,
+        favorite: filters.favorite,
+        rating: filters.rating,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder
+      });
 
-      const params: any = { 
-        page: p, 
-        limit: 20 
-      };
-      
-      if (searchTerm.trim()) params.search = searchTerm.trim();
-      if (statusF !== 'all') params.status = statusF;
-      if (categoryF !== 'all') params.category = categoryF;
+      const [suppliersResponse, statsResponse] = await Promise.all([
+        apiClient.get(`/suppliers?${params}`),
+        apiClient.get('/suppliers/stats')
+      ]);
 
-      const response = await apiClient.getSuppliers(params);
-      
-      if (response.success && response.data) {
-        const data = response.data as any;
-        setSuppliers(data.suppliers || []);
-        setPages(data.pagination?.pages || 0);
-        setTotal(data.pagination?.total || 0);
-      } else {
-        setSuppliers([]);
-        setPages(0);
-        setTotal(0);
+      if (suppliersResponse.success && statsResponse.success) {
+        setSuppliers((suppliersResponse.data as any).suppliers);
+        setPagination(prev => ({
+          ...prev,
+          total: (suppliersResponse.data as any).total
+        }));
+        setStats(statsResponse.data as any);
       }
-    } catch (err: any) {
-      console.error('Failed to load suppliers:', err);
-      setError(err?.message || 'Failed to load suppliers');
-      setSuppliers([]);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load suppliers",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [search, statusFilter, categoryFilter]);
+  }, [filters, pagination.page, pagination.limit]);
 
-  const loadStats = useCallback(async () => {
+  // Load categories
+  const loadCategories = useCallback(async () => {
     try {
-      const response = await apiClient.getSupplierStats();
-      
-      if (response.success && response.data) {
-        setStats(response.data as SupplierStats);
-      } else {
-        setStats({
-          totalSuppliers: 0,
-          verifiedSuppliers: 0,
-          favoriteSuppliers: 0,
-          averageRating: 0,
-          totalSpent: 0,
-          activeOrders: 0
+      const response = await apiClient.get('/suppliers/categories');
+      if (response.success) {
+        setCategories(response.data as string[]);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  }, []);
+
+  // Real-time WebSocket updates
+  useEffect(() => {
+    const handleSupplierUpdate = (data: any) => {
+      if (data.type === 'supplier_updated') {
+        setSuppliers(prev => prev.map(supplier => 
+          supplier.id === data.supplier.id ? { ...supplier, ...data.supplier } : supplier
+        ));
+      } else if (data.type === 'new_supplier') {
+        setSuppliers(prev => [data.supplier, ...prev]);
+        setStats(prev => prev ? { ...prev, totalSuppliers: prev.totalSuppliers + 1 } : null);
+      }
+    };
+
+    apiClient.onWebSocketEvent('supplier_update', handleSupplierUpdate);
+    
+    return () => {
+      // Cleanup WebSocket listeners
+    };
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadSuppliers();
+    loadCategories();
+  }, [loadSuppliers, loadCategories]);
+
+  // Refresh data
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadSuppliers();
+  }, [loadSuppliers]);
+
+  // Handle search
+  const handleSearch = useCallback((value: string) => {
+    setFilters(prev => ({ ...prev, search: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, []);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((key: keyof SupplierFilters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, []);
+
+  // Handle sorting
+  const handleSort = useCallback((sortBy: string) => {
+    setFilters(prev => ({
+      ...prev,
+      sortBy,
+      sortOrder: prev.sortBy === sortBy && prev.sortOrder === 'asc' ? 'desc' : 'asc'
+    }));
+  }, []);
+
+  // Toggle favorite
+  const handleToggleFavorite = useCallback(async (supplierId: string) => {
+    try {
+      const response = await apiClient.post(`/suppliers/${supplierId}/toggle-favorite`);
+
+      if (response.success) {
+        setSuppliers(prev => prev.map(supplier => 
+          supplier.id === supplierId ? { ...supplier, favorite: !supplier.favorite } : supplier
+        ));
+        toast({
+          title: "Success",
+          description: "Supplier favorite status updated"
         });
       }
-    } catch (err) {
-      console.error('Failed to load supplier stats:', err);
-      setStats({
-        totalSuppliers: 0,
-        verifiedSuppliers: 0,
-        favoriteSuppliers: 0,
-        averageRating: 0,
-        totalSpent: 0,
-        activeOrders: 0
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update favorite status",
+        variant: "destructive"
       });
     }
   }, []);
 
-  const toggleFavorite = async (supplierId: string) => {
+  // Update supplier status
+  const handleUpdateStatus = useCallback(async (supplierId: string, newStatus: string) => {
     try {
-      const response = await apiClient.toggleSupplierFavorite(supplierId);
-      
+      const response = await apiClient.put(`/suppliers/${supplierId}/status`, {
+        status: newStatus
+      });
+
       if (response.success) {
-        // Update local state
         setSuppliers(prev => prev.map(supplier => 
-          supplier.id === supplierId 
-            ? { ...supplier, favorite: !supplier.favorite }
-            : supplier
+          supplier.id === supplierId ? { ...supplier, status: newStatus as any } : supplier
         ));
-        
-        // Reload stats to update favorite count
-        loadStats();
+        toast({
+          title: "Success",
+          description: "Supplier status updated successfully"
+        });
       }
-    } catch (err) {
-      console.error('Failed to toggle favorite:', err);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update supplier status",
+        variant: "destructive"
+      });
     }
-  };
+  }, []);
 
-  const handleSearch = () => {
-    setPage(1);
-    loadSuppliers(1, search, statusFilter, categoryFilter);
-  };
+  // Bulk actions
+  const handleBulkAction = useCallback(async (action: string) => {
+    if (selectedSuppliers.length === 0) return;
 
-  const handleRefresh = () => {
-    loadSuppliers(page, search, statusFilter, categoryFilter);
-    loadStats();
-  };
+    try {
+      const response = await apiClient.post('/suppliers/bulk-action', {
+        supplierIds: selectedSuppliers,
+        action
+      });
 
-  useEffect(() => {
-    loadSuppliers(1);
-    loadStats();
-  }, [loadSuppliers, loadStats]);
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: `${action} applied to ${selectedSuppliers.length} suppliers`
+        });
+        setSelectedSuppliers([]);
+        await loadSuppliers();
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to perform bulk action",
+        variant: "destructive"
+      });
+    }
+  }, [selectedSuppliers, loadSuppliers]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Export suppliers
+  const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
+    try {
+      const params = new URLSearchParams({
+        format,
+        ...filters
+      });
+
+      const response = await apiClient.get(`/suppliers/export?${params}`, {
+        responseType: 'blob'
+      });
+
+      if (response.success) {
+        const blob = new Blob([response.data as BlobPart]);
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `suppliers-${new Date().toISOString().split('T')[0]}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        toast({
+          title: "Success",
+          description: "Suppliers exported successfully"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export suppliers",
+        variant: "destructive"
+      });
+    }
+  }, [filters]);
+
+  // Send email to supplier
+  const handleSendEmail = useCallback(async (supplierId: string, subject: string, message: string) => {
+    try {
+      const response = await apiClient.post(`/suppliers/${supplierId}/send-email`, {
+        subject,
+        message
+      });
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Email sent to supplier successfully"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send email",
+        variant: "destructive"
+      });
+    }
+  }, []);
+
+  // Generate supplier report
+  const handleGenerateReport = useCallback(async (supplierId: string) => {
+    try {
+      const response = await apiClient.post(`/suppliers/${supplierId}/generate-report`);
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Supplier report generated and sent to your email"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate report",
+        variant: "destructive"
+      });
+    }
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -191,104 +420,75 @@ export default function SuppliersPage() {
     }
   };
 
-  const renderStars = (rating: number) => {
-    return [...Array(5)].map((_, i) => (
-      <Star 
-        key={i} 
-        className={`h-4 w-4 ${i < Math.floor(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+  const getRatingStars = (rating: number) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={`h-4 w-4 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
       />
     ));
   };
 
-  const renderLoadingState = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {[1, 2, 3, 4].map((i) => (
-        <Card key={i} className="animate-pulse">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4 mb-4">
-              <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="h-3 bg-gray-200 rounded w-full"></div>
-              <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
-  const renderEmptyState = () => (
-    <div className="text-center py-12">
-      <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <Building2 className="h-12 w-12 text-gray-400" />
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">Suppliers Management</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-      <h3 className="text-lg font-semibold mb-2">No Suppliers Found</h3>
-      <p className="text-muted-foreground mb-4">
-        {search || statusFilter !== 'all' || categoryFilter !== 'all'
-          ? 'No suppliers match your current filters. Try adjusting your search criteria.'
-          : 'You haven\'t added any suppliers yet. Start by adding your first supplier.'
-        }
-      </p>
-      {(search || statusFilter !== 'all' || categoryFilter !== 'all') ? (
-        <Button 
-          variant="outline" 
-          onClick={() => {
-            setSearch('');
-            setStatusFilter('all');
-            setCategoryFilter('all');
-            setPage(1);
-            loadSuppliers(1, '', 'all', 'all');
-          }}
-        >
-          Clear Filters
-        </Button>
-      ) : (
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Supplier
-        </Button>
-      )}
-    </div>
-  );
-
-  const renderErrorState = () => (
-    <div className="text-center py-12">
-      <div className="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2">Failed to Load Suppliers</h3>
-      <p className="text-muted-foreground mb-4">{error}</p>
-      <Button onClick={handleRefresh}>
-        <RefreshCw className="h-4 w-4 mr-2" />
-        Try Again
-      </Button>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Suppliers</h1>
-          <p className="text-muted-foreground">
-            Manage your supplier relationships and discover new partners
+          <h1 className="text-3xl font-bold">Suppliers Management</h1>
+          <p className="text-gray-600 mt-1">
+            Manage your suppliers, track performance, and maintain relationships
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={refreshing}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleExport('csv')}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleExport('xlsx')}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Excel
           </Button>
           <Button>
             <Plus className="h-4 w-4 mr-2" />
@@ -299,283 +499,365 @@ export default function SuppliersPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                </div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold">{stats.totalSuppliers}</div>
-                  <div className="text-sm text-muted-foreground">Total</div>
+                  <p className="text-sm font-medium text-gray-600">Total Suppliers</p>
+                  <p className="text-2xl font-bold">{stats.totalSuppliers.toLocaleString()}</p>
                 </div>
+                <Building2 className="h-8 w-8 text-blue-600" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                </div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold">{stats.verifiedSuppliers}</div>
-                  <div className="text-sm text-muted-foreground">Verified</div>
+                  <p className="text-sm font-medium text-gray-600">Active Suppliers</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.activeSuppliers}</p>
                 </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <Heart className="h-5 w-5 text-red-600" />
-                </div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold">{stats.favoriteSuppliers}</div>
-                  <div className="text-sm text-muted-foreground">Favorites</div>
+                  <p className="text-sm font-medium text-gray-600">Total Spent</p>
+                  <p className="text-2xl font-bold">${stats.totalSpent.toLocaleString()}</p>
                 </div>
+                <DollarSign className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Star className="h-5 w-5 text-yellow-600" />
-                </div>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold">{stats.averageRating.toFixed(1)}</div>
-                  <div className="text-sm text-muted-foreground">Avg Rating</div>
+                  <p className="text-sm font-medium text-gray-600">Avg Rating</p>
+                  <p className="text-2xl font-bold">{stats.averageRating.toFixed(1)}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <DollarSign className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{formatCurrency(stats.totalSpent)}</div>
-                  <div className="text-sm text-muted-foreground">Total Spent</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <Package className="h-5 w-5 text-indigo-600" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{stats.activeOrders}</div>
-                  <div className="text-sm text-muted-foreground">Active Orders</div>
-                </div>
+                <Star className="h-8 w-8 text-yellow-600" />
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Filters */}
+      {/* Search and Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search suppliers by name, email, or category..." 
-                  value={search} 
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search suppliers by name, email, or category..."
+                value={filters.search}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10"
+              />
             </div>
-            
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="blocked">Blocked</option>
-              </select>
-              
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-              >
-                <option value="all">All Categories</option>
-                <option value="electronics">Electronics</option>
-                <option value="machinery">Machinery</option>
-                <option value="healthcare">Healthcare</option>
-                <option value="packaging">Packaging</option>
-                <option value="textiles">Textiles</option>
-              </select>
-              
-              <Button onClick={handleSearch} disabled={loading}>
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+            </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Suppliers ({total})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading && suppliers.length === 0 ? (
-            renderLoadingState()
-          ) : error && suppliers.length === 0 ? (
-            renderErrorState()
-          ) : suppliers.length === 0 ? (
-            renderEmptyState()
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {suppliers.map((supplier) => (
-                <Card key={supplier.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Building2 className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium text-lg">{supplier.name}</h3>
-                          <p className="text-sm text-muted-foreground">{supplier.category}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {supplier.verified && (
-                          <Badge variant="outline" className="text-green-600 border-green-200">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Verified
-                          </Badge>
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          className={supplier.favorite ? 'text-red-500' : ''}
-                          onClick={() => toggleFavorite(supplier.id)}
-                        >
-                          <Heart className={`h-4 w-4 ${supplier.favorite ? 'fill-current' : ''}`} />
-                        </Button>
-                      </div>
-                    </div>
+          {showFilters && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Category</label>
+                <Select
+                  value={filters.category}
+                  onValueChange={(value) => handleFilterChange('category', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Categories</SelectItem>
+                    {categories.map(category => (
+                      <SelectItem key={category} value={category}>{category}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                    {supplier.description && (
-                      <p className="text-muted-foreground text-sm mb-4">{supplier.description}</p>
-                    )}
+              <div>
+                <label className="text-sm font-medium mb-1 block">Status</label>
+                <Select
+                  value={filters.status}
+                  onValueChange={(value) => handleFilterChange('status', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Status</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                    <SelectItem value="blocked">Blocked</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="flex items-center space-x-1">
-                        {renderStars(supplier.rating)}
-                        <span className="text-sm font-medium">{supplier.rating.toFixed(1)}</span>
-                        <span className="text-sm text-muted-foreground">({supplier.reviewsCount} reviews)</span>
-                      </div>
-                    </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Verified</label>
+                <Select
+                  value={filters.verified}
+                  onValueChange={(value) => handleFilterChange('verified', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Suppliers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Suppliers</SelectItem>
+                    <SelectItem value="true">Verified Only</SelectItem>
+                    <SelectItem value="false">Unverified Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center space-x-2 text-sm">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <span>
-                          {[
-                            supplier.address.city,
-                            supplier.address.state,
-                            supplier.address.country
-                          ].filter(Boolean).join(', ')}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <span>{supplier.email}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{supplier.phone}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>{supplier.productsCount} products</span>
-                        <span>{supplier.totalOrders} orders</span>
-                        <Badge className={getStatusColor(supplier.status)}>
-                          {supplier.status}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
-                        <Button size="sm">
-                          Contact
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              <div>
+                <label className="text-sm font-medium mb-1 block">Rating</label>
+                <Select
+                  value={filters.rating}
+                  onValueChange={(value) => handleFilterChange('rating', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Ratings" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Ratings</SelectItem>
+                    <SelectItem value="5">5 Stars</SelectItem>
+                    <SelectItem value="4">4+ Stars</SelectItem>
+                    <SelectItem value="3">3+ Stars</SelectItem>
+                    <SelectItem value="2">2+ Stars</SelectItem>
+                    <SelectItem value="1">1+ Stars</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Pagination */}
-      {pages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} suppliers
+      {/* Suppliers Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Suppliers</span>
+            {selectedSuppliers.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">
+                  {selectedSuppliers.length} selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBulkAction('activate')}
+                >
+                  Activate Selected
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleBulkAction('deactivate')}
+                >
+                  Deactivate Selected
+                </Button>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedSuppliers.length === suppliers.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedSuppliers(suppliers.map(supplier => supplier.id));
+                        } else {
+                          setSelectedSuppliers([]);
+                        }
+                      }}
+                    />
+                  </th>
+                  <th className="text-left p-2 cursor-pointer" onClick={() => handleSort('name')}>
+                    <div className="flex items-center gap-1">
+                      Supplier
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th className="text-left p-2">Contact</th>
+                  <th className="text-left p-2">Category</th>
+                  <th className="text-left p-2 cursor-pointer" onClick={() => handleSort('rating')}>
+                    <div className="flex items-center gap-1">
+                      Rating
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th className="text-left p-2 cursor-pointer" onClick={() => handleSort('totalSpent')}>
+                    <div className="flex items-center gap-1">
+                      Total Spent
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </th>
+                  <th className="text-left p-2">Status</th>
+                  <th className="text-left p-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suppliers.map((supplier) => (
+                  <tr key={supplier.id} className="border-b hover:bg-gray-50">
+                    <td className="p-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedSuppliers.includes(supplier.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedSuppliers(prev => [...prev, supplier.id]);
+                          } else {
+                            setSelectedSuppliers(prev => prev.filter(id => id !== supplier.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="p-2">
+                      <div className="flex items-center gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{supplier.name}</span>
+                            {supplier.verified && (
+                              <CheckCircle className="h-4 w-4 text-green-600" />
+                            )}
+                            <button
+                              onClick={() => handleToggleFavorite(supplier.id)}
+                              className={`${supplier.favorite ? 'text-red-500' : 'text-gray-400'} hover:text-red-500`}
+                            >
+                              <Heart className={`h-4 w-4 ${supplier.favorite ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                          <div className="text-sm text-gray-600">{supplier.contactPerson}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <div className="text-sm">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Mail className="h-3 w-3 text-gray-400" />
+                          <span>{supplier.email}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-3 w-3 text-gray-400" />
+                          <span>{supplier.phone}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <Badge variant="outline">{supplier.category}</Badge>
+                    </td>
+                    <td className="p-2">
+                      <div className="flex items-center gap-1">
+                        <div className="flex">
+                          {getRatingStars(supplier.rating)}
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          ({supplier.reviewsCount})
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-2 font-medium">${supplier.totalSpent.toLocaleString()}</td>
+                    <td className="p-2">
+                      <Badge className={getStatusColor(supplier.status)}>
+                        {supplier.status}
+                      </Badge>
+                    </td>
+                    <td className="p-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Supplier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSendEmail(supplier.id, 'Subject', 'Message')}>
+                            <Mail className="h-4 w-4 mr-2" />
+                            Send Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleGenerateReport(supplier.id)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Generate Report
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleUpdateStatus(supplier.id, 'active')}>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Activate
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleUpdateStatus(supplier.id, 'blocked')}>
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            Block Supplier
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              disabled={page <= 1 || loading} 
-              onClick={() => { 
-                const np = page - 1; 
-                setPage(np); 
-                loadSuppliers(np, search, statusFilter, categoryFilter); 
-              }}
-            >
-              Previous
-            </Button>
-            <div className="text-sm px-3 py-2">
-              Page {page} of {pages}
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-gray-600">
+              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} suppliers
             </div>
-            <Button 
-              variant="outline" 
-              disabled={page >= pages || loading} 
-              onClick={() => { 
-                const np = page + 1; 
-                setPage(np); 
-                loadSuppliers(np, search, statusFilter, categoryFilter); 
-              }}
-            >
-              Next
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page === 1}
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              >
+                Previous
+              </Button>
+              <span className="text-sm">
+                Page {pagination.page} of {Math.ceil(pagination.total / pagination.limit)}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= Math.ceil(pagination.total / pagination.limit)}
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

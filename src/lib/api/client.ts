@@ -22,6 +22,10 @@ export class ApiClient {
   private readonly CACHE_DURATION = 30000; // 30 seconds cache
   private csrfToken: string | null = null;
   private csrfTokenExpiry: number = 0;
+  private websocket: WebSocket | null = null;
+  private wsReconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private wsEventListeners: Map<string, Set<(data: any) => void>> = new Map();
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://api.vikareta.com/api';
@@ -200,28 +204,14 @@ export class ApiClient {
   }
 
   // Orders endpoints
-  async getOrders(params: any = {}) {
-    const query = new URLSearchParams(params).toString();
-    return this.request(`/orders?${query}`);
-  }
 
   async getOrder(id: string) {
     return this.request(`/orders/${id}`);
   }
 
-  async updateOrderStatus(id: string, status: string) {
-    return this.request(`/orders/${id}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
 
-  async bulkOrderAction(orderIds: string[], action: string) {
-    return this.request('/orders/bulk-action', {
-      method: 'POST',
-      body: JSON.stringify({ orderIds, action }),
-    });
-  }
+
+
 
   // RFQs endpoints
   async getRFQs(params: any = {}) {
@@ -383,6 +373,196 @@ export class ApiClient {
     });
   }
 
+  // Communications endpoints
+  async getCommunicationsAnnouncements(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/communications/announcements?${query}`);
+  }
+
+  async getCommunicationsAnnouncementsStats() {
+    return this.request('/communications/announcements/stats');
+  }
+
+  async createCommunicationsAnnouncement(data: any) {
+    return this.request('/communications/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCommunicationsAnnouncement(id: string, data: any) {
+    return this.request(`/communications/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCommunicationsAnnouncement(id: string) {
+    return this.request(`/communications/announcements/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async publishCommunicationsAnnouncement(id: string) {
+    return this.request(`/communications/announcements/${id}/publish`, {
+      method: 'POST',
+    });
+  }
+
+  // Settings endpoints
+  async getSettingsBusiness() {
+    return this.request('/settings/business');
+  }
+
+  async updateSettingsBusiness(data: any) {
+    return this.request('/settings/business', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSettingsSecurity() {
+    return this.request('/settings/security');
+  }
+
+  async updateSettingsSecurity(data: any) {
+    return this.request('/settings/security', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSettingsNotifications() {
+    return this.request('/settings/notifications');
+  }
+
+  async updateSettingsNotifications(data: any) {
+    return this.request('/settings/notifications', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changePassword(data: { currentPassword: string; newPassword: string }) {
+    return this.request('/settings/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async setup2FA() {
+    return this.request('/settings/2fa/setup', {
+      method: 'POST',
+    });
+  }
+
+  async verify2FA(data: { code: string }) {
+    return this.request('/settings/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async disable2FA() {
+    return this.request('/settings/2fa/disable', {
+      method: 'POST',
+    });
+  }
+
+  // Integrations endpoints
+  async getIntegrations() {
+    return this.request('/integrations');
+  }
+
+  async connectIntegration(id: string, config: any = {}) {
+    return this.request(`/integrations/${id}/connect`, {
+      method: 'POST',
+      body: JSON.stringify({ config }),
+    });
+  }
+
+  async disconnectIntegration(id: string) {
+    return this.request(`/integrations/${id}/disconnect`, {
+      method: 'POST',
+    });
+  }
+
+  async updateIntegration(id: string, data: any) {
+    return this.request(`/integrations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getIntegrationsWebhooks() {
+    return this.request('/integrations/webhooks');
+  }
+
+  async createIntegrationsWebhook(data: any) {
+    return this.request('/integrations/webhooks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteIntegrationsWebhook(id: string) {
+    return this.request(`/integrations/webhooks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getIntegrationsApiKeys() {
+    return this.request('/integrations/api-keys');
+  }
+
+  async createIntegrationsApiKey(data: any) {
+    return this.request('/integrations/api-keys', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteIntegrationsApiKey(id: string) {
+    return this.request(`/integrations/api-keys/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+
+
+  // Inventory endpoints
+
+  async getInventoryStats() {
+    return this.request('/inventory/stats');
+  }
+
+  async getInventoryMovements(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/inventory/movements?${query}`);
+  }
+
+  async adjustInventoryProduct(id: string, data: { adjustment: number; reason: string }) {
+    return this.request(`/inventory/products/${id}/adjust`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async bulkUpdateInventory(data: { updates: Array<{ id: string; stock: number }> }) {
+    return this.request('/inventory/bulk-update', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getInventoryAlerts() {
+    return this.request('/inventory/alerts');
+  }
+
+  async exportInventory() {
+    return this.request('/inventory/export');
+  }
+
   // Services endpoints
   async getServices(params: any = {}) {
     const query = new URLSearchParams(params).toString();
@@ -413,33 +593,9 @@ export class ApiClient {
     });
   }
 
-  // Categories endpoints
-  async getCategories() {
-    return this.request('/categories');
-  }
-
+  // Legacy Categories endpoints (kept for backward compatibility)
   async getCategory(id: string) {
     return this.request(`/categories/${id}`);
-  }
-
-  async createCategory(data: any) {
-    return this.request('/categories', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateCategory(id: string, data: any) {
-    return this.request(`/categories/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteCategory(id: string) {
-    return this.request(`/categories/${id}`, {
-      method: 'DELETE',
-    });
   }
 
   // Subcategories endpoints
@@ -844,51 +1000,36 @@ export class ApiClient {
     });
   }
 
-  async getInventoryStats() {
+  // Removed duplicate getInventoryStats function
+
+  // Removed duplicate getInventoryMovements function
+
+  async getInventoryMovementStats() {
     try {
-      return await this.request('/inventory/stats');
+      return await this.request('/inventory/movements/stats');
     } catch (error) {
-      // If inventory stats endpoint doesn't exist, return empty stats
-      console.warn('Inventory stats endpoint not available, returning empty stats');
+      // If movement stats endpoint doesn't exist, return empty stats
+      console.warn('Inventory movement stats endpoint not available, returning empty stats');
       return {
         success: true,
         data: {
-          totalProducts: 0,
-          inStock: 0,
-          lowStock: 0,
-          outOfStock: 0,
-          totalValue: 0,
-          totalMovements: 0
+          totalMovements: 0,
+          movementsToday: 0,
+          inboundMovements: 0,
+          outboundMovements: 0,
+          adjustments: 0,
+          transfers: 0,
+          totalValueIn: 0,
+          totalValueOut: 0,
+          netValue: 0,
+          topProducts: []
         },
-        message: 'Inventory stats feature not yet available'
+        message: 'Inventory movement stats feature not yet available'
       };
     }
   }
 
-  async getInventoryMovements(params: any = {}) {
-    const cleanParams: any = {};
-    
-    if (params.limit) cleanParams.limit = params.limit;
-    if (params.productId) cleanParams.productId = params.productId;
-    if (params.type && params.type !== 'all') cleanParams.type = params.type;
-    
-    const query = new URLSearchParams(cleanParams).toString();
-    return this.request(`/inventory/movements${query ? `?${query}` : ''}`);
-  }
-
-  async getInventoryAlerts() {
-    try {
-      return await this.request('/inventory/alerts');
-    } catch (error) {
-      // If alerts endpoint doesn't exist, return empty alerts
-      console.warn('Inventory alerts endpoint not available, returning empty alerts');
-      return {
-        success: true,
-        data: [],
-        message: 'Inventory alerts feature not yet available'
-      };
-    }
-  }
+  // Removed duplicate getInventoryAlerts function
 
   // Suppliers endpoints
   async getSuppliers(params: any = {}) {
@@ -1037,6 +1178,52 @@ export class ApiClient {
     });
   }
 
+  async bulkMarkAsRead(messageIds: string[]) {
+    return this.request('/messages/bulk/mark-read', {
+      method: 'POST',
+      body: JSON.stringify({ messageIds }),
+    });
+  }
+
+  async bulkArchiveMessages(messageIds: string[]) {
+    return this.request('/messages/bulk/archive', {
+      method: 'POST',
+      body: JSON.stringify({ messageIds }),
+    });
+  }
+
+  async searchMessages(query: string, filters?: any) {
+    const params: any = { q: query };
+    if (filters) {
+      Object.assign(params, filters);
+    }
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/messages/search?${queryString}`);
+  }
+
+  async getMessageThread(messageId: string) {
+    return this.request(`/messages/${messageId}/thread`);
+  }
+
+  async forwardMessage(messageId: string, data: { to: string; message?: string }) {
+    return this.request(`/messages/${messageId}/forward`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async starMessage(messageId: string) {
+    return this.request(`/messages/${messageId}/star`, {
+      method: 'POST',
+    });
+  }
+
+  async unstarMessage(messageId: string) {
+    return this.request(`/messages/${messageId}/unstar`, {
+      method: 'POST',
+    });
+  }
+
   async getCommunicationStats() {
     try {
       return await this.request('/messages/stats');
@@ -1099,55 +1286,7 @@ export class ApiClient {
     return this.request(`/reports/${id}`);
   }
 
-  async getReportTemplates() {
-    try {
-      return await this.request('/reports/templates');
-    } catch (error) {
-      // If report templates endpoint doesn't exist, return default templates
-      console.warn('Report templates endpoint not available, returning default templates');
-      return {
-        success: true,
-        data: [
-          {
-            id: 'sales-summary',
-            name: 'Sales Summary Report',
-            description: 'Comprehensive sales performance analysis',
-            type: 'sales',
-            parameters: [
-              { name: 'startDate', type: 'date', required: true },
-              { name: 'endDate', type: 'date', required: true },
-              { name: 'region', type: 'select', required: false, options: ['All', 'North', 'South', 'East', 'West'] }
-            ],
-            estimatedTime: 5
-          },
-          {
-            id: 'inventory-status',
-            name: 'Inventory Status Report',
-            description: 'Current stock levels and inventory analysis',
-            type: 'inventory',
-            parameters: [
-              { name: 'category', type: 'select', required: false, options: ['All', 'Electronics', 'Clothing', 'Books'] },
-              { name: 'lowStockOnly', type: 'select', required: false, options: ['No', 'Yes'] }
-            ],
-            estimatedTime: 3
-          },
-          {
-            id: 'customer-analysis',
-            name: 'Customer Analysis Report',
-            description: 'Customer behavior and demographics analysis',
-            type: 'customers',
-            parameters: [
-              { name: 'startDate', type: 'date', required: true },
-              { name: 'endDate', type: 'date', required: true },
-              { name: 'segment', type: 'select', required: false, options: ['All', 'New', 'Returning', 'VIP'] }
-            ],
-            estimatedTime: 7
-          }
-        ],
-        message: 'Using default report templates'
-      };
-    }
-  }
+
 
   async generateReport(data: {
     templateId: string;
@@ -1398,135 +1537,8 @@ export class ApiClient {
     }
   }
 
-  // Support & Help Desk endpoints
-  async getSupportTickets(params: any = {}) {
-    // Clean up empty parameters to avoid validation errors
-    const cleanParams: any = {};
-    
-    if (params.page) cleanParams.page = params.page;
-    if (params.limit) cleanParams.limit = params.limit;
-    if (params.search && params.search.trim()) {
-      cleanParams.search = params.search.trim();
-    }
-    if (params.status && params.status !== 'all' && params.status.trim()) {
-      cleanParams.status = params.status.trim();
-    }
-    if (params.priority && params.priority !== 'all' && params.priority.trim()) {
-      cleanParams.priority = params.priority.trim();
-    }
-    if (params.category && params.category !== 'all' && params.category.trim()) {
-      cleanParams.category = params.category.trim();
-    }
-    if (params.assignedTo && params.assignedTo.trim()) {
-      cleanParams.assignedTo = params.assignedTo.trim();
-    }
-    
-    const query = new URLSearchParams(cleanParams).toString();
-    return this.request(`/support/tickets${query ? `?${query}` : ''}`);
-  }
+  // Support & Help Desk endpoints (removed duplicate - see below)
 
-  async getSupportTicket(id: string) {
-    return this.request(`/support/tickets/${id}`);
-  }
-
-  async createSupportTicket(data: {
-    subject: string;
-    description: string;
-    category: 'technical' | 'billing' | 'account' | 'product' | 'general';
-    priority: 'low' | 'medium' | 'high' | 'urgent';
-    attachments?: Array<{
-      name: string;
-      url: string;
-      size: number;
-    }>;
-  }) {
-    return this.request('/support/tickets', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateSupportTicket(id: string, data: any) {
-    return this.request(`/support/tickets/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateSupportTicketStatus(ticketId: string, status: 'open' | 'in_progress' | 'waiting_response' | 'resolved' | 'closed') {
-    return this.request(`/support/tickets/${ticketId}/status`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  async addSupportTicketMessage(ticketId: string, data: {
-    content: string;
-    attachments?: Array<{
-      name: string;
-      url: string;
-      size: number;
-    }>;
-  }) {
-    return this.request(`/support/tickets/${ticketId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async assignSupportTicket(ticketId: string, agentId: string) {
-    return this.request(`/support/tickets/${ticketId}/assign`, {
-      method: 'POST',
-      body: JSON.stringify({ agentId }),
-    });
-  }
-
-  async rateSupportTicket(ticketId: string, data: {
-    rating: number;
-    feedback?: string;
-  }) {
-    return this.request(`/support/tickets/${ticketId}/rating`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async getSupportStats() {
-    try {
-      return await this.request('/support/stats');
-    } catch (error) {
-      // If support stats endpoint doesn't exist, return empty stats
-      console.warn('Support stats endpoint not available, returning empty stats');
-      return {
-        success: true,
-        data: {
-          totalTickets: 0,
-          openTickets: 0,
-          inProgressTickets: 0,
-          resolvedTickets: 0,
-          averageResponseTime: 0,
-          averageResolutionTime: 0,
-          satisfactionRating: 0,
-          ticketsToday: 0
-        },
-        message: 'Support stats feature not yet available'
-      };
-    }
-  }
-
-  async getSupportAgents() {
-    try {
-      return await this.request('/support/agents');
-    } catch (error) {
-      // If support agents endpoint doesn't exist, return empty list
-      console.warn('Support agents endpoint not available, returning empty list');
-      return {
-        success: true,
-        data: [],
-        message: 'Support agents feature not yet available'
-      };
-    }
-  }
 
   // Knowledge Base endpoints
   async getKnowledgeBase(params: any = {}) {
@@ -1748,40 +1760,7 @@ export class ApiClient {
     });
   }
 
-  // Customer Segments endpoints
-  async getCustomerSegments(params: any = {}) {
-    const cleanParams: any = {};
-    
-    if (params.page) cleanParams.page = params.page;
-    if (params.limit) cleanParams.limit = params.limit;
-    
-    const query = new URLSearchParams(cleanParams).toString();
-    return this.request(`/customers/segments${query ? `?${query}` : ''}`);
-  }
 
-  async createCustomerSegment(data: {
-    name: string;
-    description: string;
-    criteria: Record<string, any>;
-  }) {
-    return this.request('/customers/segments', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async updateCustomerSegment(segmentId: string, data: any) {
-    return this.request(`/customers/segments/${segmentId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async deleteCustomerSegment(segmentId: string) {
-    return this.request(`/customers/segments/${segmentId}`, {
-      method: 'DELETE',
-    });
-  }
 
   // Supplier Favorites endpoints
   async getFavoriteSuppliers(params: any = {}) {
@@ -2010,7 +1989,918 @@ export class ApiClient {
       body: JSON.stringify({ requests }),
     });
   }
+  // Analytics endpoints
+  async getSalesAnalytics(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.dateRange && params.dateRange.trim()) {
+      cleanParams.dateRange = params.dateRange.trim();
+    }
+    if (params.includeComparisons) {
+      cleanParams.includeComparisons = params.includeComparisons;
+    }
+    if (params.includeBreakdowns) {
+      cleanParams.includeBreakdowns = params.includeBreakdowns;
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/analytics/sales${query ? `?${query}` : ''}`);
+  }
+
+  async getProductAnalytics(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.dateRange && params.dateRange.trim()) {
+      cleanParams.dateRange = params.dateRange.trim();
+    }
+    if (params.categoryId && params.categoryId.trim()) {
+      cleanParams.categoryId = params.categoryId.trim();
+    }
+    if (params.includeInventory) {
+      cleanParams.includeInventory = params.includeInventory;
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/analytics/products${query ? `?${query}` : ''}`);
+  }
+
+  async getCustomerAnalytics(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.dateRange && params.dateRange.trim()) {
+      cleanParams.dateRange = params.dateRange.trim();
+    }
+    if (params.segmentId && params.segmentId.trim()) {
+      cleanParams.segmentId = params.segmentId.trim();
+    }
+    if (params.includeSegmentation) {
+      cleanParams.includeSegmentation = params.includeSegmentation;
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/analytics/customers${query ? `?${query}` : ''}`);
+  }
+
+  // Support Tickets endpoints
+  async getSupportTickets(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    if (params.priority && params.priority !== 'all' && params.priority.trim()) {
+      cleanParams.priority = params.priority.trim();
+    }
+    if (params.category && params.category !== 'all' && params.category.trim()) {
+      cleanParams.category = params.category.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/support/tickets${query ? `?${query}` : ''}`);
+  }
+
+  async getSupportTicket(id: string) {
+    return this.request(`/support/tickets/${id}`);
+  }
+
+  async createSupportTicket(data: {
+    title: string;
+    description: string;
+    priority: 'low' | 'medium' | 'high' | 'urgent';
+    category: string;
+    customerId?: string;
+  }) {
+    return this.request('/support/tickets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupportTicket(id: string, data: {
+    status?: 'open' | 'in-progress' | 'resolved' | 'closed';
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    assignedTo?: string;
+  }) {
+    return this.request(`/support/tickets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSupportTicketStatus(ticketId: string, status: 'open' | 'in_progress' | 'waiting_response' | 'resolved' | 'closed') {
+    return this.request(`/support/tickets/${ticketId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async addTicketMessage(ticketId: string, data: {
+    content: string;
+    attachments?: Array<{
+      name: string;
+      url: string;
+      size: number;
+    }>;
+  }) {
+    return this.request(`/support/tickets/${ticketId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSupportStats() {
+    try {
+      return await this.request('/support/stats');
+    } catch (error) {
+      // If support stats endpoint doesn't exist, return empty stats
+      console.warn('Support stats endpoint not available, returning empty stats');
+      return {
+        success: true,
+        data: {
+          totalTickets: 0,
+          openTickets: 0,
+          inProgressTickets: 0,
+          resolvedTickets: 0,
+          averageResponseTime: 0,
+          customerSatisfaction: 0
+        },
+        message: 'Support stats feature not yet available'
+      };
+    }
+  }
+
+  // Sales Reports endpoints
+  async getSalesReports(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.type && params.type !== 'all' && params.type.trim()) {
+      cleanParams.type = params.type.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/reports/sales${query ? `?${query}` : ''}`);
+  }
+
+  async generateSalesReport(data: {
+    templateId: string;
+    name: string;
+    description: string;
+    period: string;
+    customDateRange?: any;
+  }) {
+    return this.request('/reports/sales/generate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getSalesReport(id: string) {
+    return this.request(`/reports/sales/${id}`);
+  }
+
+  async downloadSalesReport(id: string) {
+    return this.request(`/reports/sales/${id}/download`);
+  }
+
+  // Removed duplicate scheduleReport function
+
+  async getScheduledReports() {
+    return this.request('/reports/scheduled');
+  }
+
+  async cancelScheduledReport(scheduleId: string) {
+    return this.request(`/reports/scheduled/${scheduleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getReportProgress(reportId: string) {
+    return this.request(`/reports/sales/${reportId}/progress`);
+  }
+
+  async shareReport(reportId: string, data: { emails: string[]; message?: string }) {
+    return this.request(`/reports/sales/${reportId}/share`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async duplicateReport(reportId: string, newName: string) {
+    return this.request(`/reports/sales/${reportId}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ name: newName }),
+    });
+  }
+
+  async getReportAnalytics() {
+    return this.request('/reports/analytics');
+  }
+
+  // Enhanced Categories endpoints (already exist but need parameter support)
+  async getCategories(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/products/categories${query ? `?${query}` : ''}`);
+  }
+
+  async createCategory(data: {
+    name: string;
+    description: string;
+    parentId?: string;
+    status: string;
+  }) {
+    return this.request('/products/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCategory(id: string, data: any) {
+    return this.request(`/products/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCategory(id: string) {
+    return this.request(`/products/categories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCategoryStats() {
+    return this.request('/products/categories/stats');
+  }
+
+  async getCategoryProducts(categoryId: string, params: any = {}) {
+    const cleanParams: any = {};
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/products/categories/${categoryId}/products${query ? `?${query}` : ''}`);
+  }
+
+  async moveCategoryToParent(categoryId: string, newParentId: string | null) {
+    return this.request(`/products/categories/${categoryId}/move`, {
+      method: 'PUT',
+      body: JSON.stringify({ parentId: newParentId }),
+    });
+  }
+
+  async reorderCategories(categoryIds: string[]) {
+    return this.request('/products/categories/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ categoryIds }),
+    });
+  }
+
+  async duplicateCategory(categoryId: string, newName: string) {
+    return this.request(`/products/categories/${categoryId}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ name: newName }),
+    });
+  }
+
+  async exportCategories(format: 'csv' | 'excel' = 'csv') {
+    return this.request(`/products/categories/export?format=${format}`);
+  }
+
+  async importCategories(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return this.request('/products/categories/import', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // Don't set Content-Type, let browser set it with boundary for FormData
+      },
+    });
+  }
+
+  // Customer Segments endpoints
+  async getCustomerSegments(params: any = {}) {
+    const cleanParams: any = {};
+    
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/customers/segments${query ? `?${query}` : ''}`);
+  }
+
+  async createCustomerSegment(data: any) {
+    return this.request('/customers/segments', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCustomerSegment(id: string, data: any) {
+    return this.request(`/customers/segments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCustomerSegment(id: string) {
+    return this.request(`/customers/segments/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCustomerSegmentStats() {
+    return this.request('/customers/segments/stats');
+  }
+
+  async getSegmentCustomers(segmentId: string, params: any = {}) {
+    const cleanParams: any = {};
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/customers/segments/${segmentId}/customers${query ? `?${query}` : ''}`);
+  }
+
+  async exportSegmentCustomers(segmentId: string, format: 'csv' | 'excel' = 'csv') {
+    return this.request(`/customers/segments/${segmentId}/export?format=${format}`);
+  }
+
+  async previewSegment(criteria: any) {
+    return this.request('/customers/segments/preview', {
+      method: 'POST',
+      body: JSON.stringify({ criteria }),
+    });
+  }
+
+  async duplicateCustomerSegment(segmentId: string, newName: string) {
+    return this.request(`/customers/segments/${segmentId}/duplicate`, {
+      method: 'POST',
+      body: JSON.stringify({ name: newName }),
+    });
+  }
+
+  // Enhanced Notifications endpoints
+  async getNotificationSettings() {
+    return this.request('/notifications/settings');
+  }
+
+  async updateNotificationSettings(settings: any) {
+    return this.request('/notifications/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request('/notifications/mark-all-read', {
+      method: 'POST',
+    });
+  }
+
+  async dismissNotification(notificationId: string) {
+    return this.request(`/notifications/${notificationId}/dismiss`, {
+      method: 'POST',
+    });
+  }
+
+  async bulkDismissNotifications(notificationIds: string[]) {
+    return this.request('/notifications/bulk/dismiss', {
+      method: 'POST',
+      body: JSON.stringify({ notificationIds }),
+    });
+  }
+
+  async snoozeNotification(notificationId: string, snoozeUntil: string) {
+    return this.request(`/notifications/${notificationId}/snooze`, {
+      method: 'POST',
+      body: JSON.stringify({ snoozeUntil }),
+    });
+  }
+
+  async getNotificationStats() {
+    return this.request('/notifications/stats');
+  }
+
+  async createNotificationRule(rule: {
+    name: string;
+    conditions: any;
+    actions: any;
+    enabled: boolean;
+  }) {
+    return this.request('/notifications/rules', {
+      method: 'POST',
+      body: JSON.stringify(rule),
+    });
+  }
+
+  async getNotificationRules() {
+    return this.request('/notifications/rules');
+  }
+
+  async updateNotificationRule(ruleId: string, rule: any) {
+    return this.request(`/notifications/rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(rule),
+    });
+  }
+
+  async deleteNotificationRule(ruleId: string) {
+    return this.request(`/notifications/rules/${ruleId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async testNotification(type: string, data: any) {
+    return this.request('/notifications/test', {
+      method: 'POST',
+      body: JSON.stringify({ type, data }),
+    });
+  }
+
+  // Report Templates endpoints
+  async getReportTemplates() {
+    return this.request('/reports/templates');
+  }
+
+  async getReportTemplate(id: string) {
+    return this.request(`/reports/templates/${id}`);
+  }
+
+  // Removed duplicate getInventory function
+
+  // Removed duplicate getInventoryStats function
+
+  async updateInventoryItem(id: string, data: any) {
+    try {
+      const response = await this.put(`/inventory/${id}`, data);
+      return response;
+    } catch (error) {
+      console.error('Update inventory item error:', error);
+      throw error;
+    }
+  }
+
+  async bulkAdjustStock(data: { itemIds: string[], adjustment: number, reason: string }) {
+    try {
+      const response = await this.post('/inventory/bulk-adjust', data);
+      return response;
+    } catch (error) {
+      console.error('Bulk adjust stock error:', error);
+      throw error;
+    }
+  }
+
+  // Removed duplicate exportInventory function
+
+  async generateReorderReport() {
+    try {
+      const response = await this.post('/inventory/reorder-report');
+      return response;
+    } catch (error) {
+      console.error('Generate reorder report error:', error);
+      throw error;
+    }
+  }
+
+  // Orders Management
+  async getOrders(params?: any) {
+    try {
+      const response = await this.get('/orders', { params });
+      return response;
+    } catch (error) {
+      console.error('Get orders error:', error);
+      throw error;
+    }
+  }
+
+  async getOrderStats() {
+    try {
+      const response = await this.get('/orders/stats');
+      return response;
+    } catch (error) {
+      console.error('Get order stats error:', error);
+      throw error;
+    }
+  }
+
+  async updateOrderStatus(id: string, status: string) {
+    try {
+      const response = await this.put(`/orders/${id}/status`, { status });
+      return response;
+    } catch (error) {
+      console.error('Update order status error:', error);
+      throw error;
+    }
+  }
+
+  async bulkOrderAction(orderIds: string[], action: string) {
+    try {
+      const response = await this.post('/orders/bulk-action', { orderIds, action });
+      return response;
+    } catch (error) {
+      console.error('Bulk order action error:', error);
+      throw error;
+    }
+  }
+
+  async exportOrders(params?: any) {
+    try {
+      const response = await this.get('/orders/export', { params, responseType: 'blob' });
+      return response;
+    } catch (error) {
+      console.error('Export orders error:', error);
+      throw error;
+    }
+  }
+
+  async printOrder(id: string) {
+    try {
+      const response = await this.get(`/orders/${id}/print`, { responseType: 'blob' });
+      return response;
+    } catch (error) {
+      console.error('Print order error:', error);
+      throw error;
+    }
+  }
+
+  async sendOrderConfirmation(id: string) {
+    try {
+      const response = await this.post(`/orders/${id}/send-confirmation`);
+      return response;
+    } catch (error) {
+      console.error('Send order confirmation error:', error);
+      throw error;
+    }
+  }
+
+  // Removed duplicate getSuppliers function
+
+  // Removed duplicate getSupplierStats function
+
+  // Removed duplicate createSupplier function
+
+  // Removed duplicate updateSupplier function
+
+  async updateSupplierStatus(id: string, status: string) {
+    try {
+      const response = await this.put(`/suppliers/${id}/status`, { status });
+      return response;
+    } catch (error) {
+      console.error('Update supplier status error:', error);
+      throw error;
+    }
+  }
+
+  // Removed duplicate toggleSupplierFavorite function
+
+  async bulkSupplierAction(supplierIds: string[], action: string) {
+    try {
+      const response = await this.post('/suppliers/bulk-action', { supplierIds, action });
+      return response;
+    } catch (error) {
+      console.error('Bulk supplier action error:', error);
+      throw error;
+    }
+  }
+
+  async exportSuppliers(params?: any) {
+    try {
+      const response = await this.get('/suppliers/export', { params, responseType: 'blob' });
+      return response;
+    } catch (error) {
+      console.error('Export suppliers error:', error);
+      throw error;
+    }
+  }
+
+  async sendSupplierEmail(id: string, subject: string, message: string) {
+    try {
+      const response = await this.post(`/suppliers/${id}/send-email`, { subject, message });
+      return response;
+    } catch (error) {
+      console.error('Send supplier email error:', error);
+      throw error;
+    }
+  }
+
+  async generateSupplierReport(id: string) {
+    try {
+      const response = await this.post(`/suppliers/${id}/generate-report`);
+      return response;
+    } catch (error) {
+      console.error('Generate supplier report error:', error);
+      throw error;
+    }
+  }
+
+  // Removed duplicate deleteSupplier function
+
+  // Analytics Management
+  async getAnalyticsDashboard(params?: any) {
+    try {
+      const response = await this.get('/analytics/dashboard', { params });
+      return response;
+    } catch (error) {
+      console.error('Get analytics dashboard error:', error);
+      throw error;
+    }
+  }
+
+  async getRealtimeMetrics() {
+    try {
+      const response = await this.get('/analytics/realtime');
+      return response;
+    } catch (error) {
+      console.error('Get realtime metrics error:', error);
+      throw error;
+    }
+  }
+
+  async exportAnalytics(params?: any) {
+    try {
+      const response = await this.get('/analytics/export', { params, responseType: 'blob' });
+      return response;
+    } catch (error) {
+      console.error('Export analytics error:', error);
+      throw error;
+    }
+  }
+
+  async generateAnalyticsReport(data: { period: string, sections: string[] }) {
+    try {
+      const response = await this.post('/analytics/generate-report', data);
+      return response;
+    } catch (error) {
+      console.error('Generate analytics report error:', error);
+      throw error;
+    }
+  }
+
+  // Removed duplicate getProductAnalytics function
+
+  // Removed duplicate getCustomerAnalytics function
+
+  // Removed duplicate getSalesAnalytics function
+
+  // WebSocket methods for real-time updates
+  connectWebSocket() {
+    if (typeof window === 'undefined') return; // Server-side check
+
+    const wsUrl = this.baseURL.replace('http', 'ws') + '/ws';
+    
+    try {
+      this.websocket = new WebSocket(wsUrl);
+      
+      this.websocket.onopen = () => {
+        console.log('WebSocket connected');
+        this.wsReconnectAttempts = 0;
+        
+        // Send authentication if available
+        const token = vikaretaSSOClient?.getAccessToken?.();
+        if (token) {
+          this.websocket?.send(JSON.stringify({
+            type: 'auth',
+            token
+          }));
+        }
+      };
+      
+      this.websocket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleWebSocketMessage(data);
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
+        }
+      };
+      
+      this.websocket.onclose = () => {
+        console.log('WebSocket disconnected');
+        this.attemptReconnect();
+      };
+      
+      this.websocket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    } catch (err) {
+      console.error('Failed to connect WebSocket:', err);
+    }
+  }
+
+  private handleWebSocketMessage(data: any) {
+    const { type, payload } = data;
+    
+    // Emit to registered listeners
+    const listeners = this.wsEventListeners.get(type);
+    if (listeners) {
+      listeners.forEach(listener => {
+        try {
+          listener(payload);
+        } catch (err) {
+          console.error('WebSocket listener error:', err);
+        }
+      });
+    }
+  }
+
+  private attemptReconnect() {
+    if (this.wsReconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+      this.wsReconnectAttempts++;
+      const delay = Math.pow(2, this.wsReconnectAttempts) * 1000; // Exponential backoff
+      
+      setTimeout(() => {
+        console.log(`Attempting WebSocket reconnection (${this.wsReconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
+        this.connectWebSocket();
+      }, delay);
+    }
+  }
+
+  onWebSocketEvent(eventType: string, listener: (data: any) => void) {
+    if (!this.wsEventListeners.has(eventType)) {
+      this.wsEventListeners.set(eventType, new Set());
+    }
+    this.wsEventListeners.get(eventType)!.add(listener);
+    
+    // Return unsubscribe function
+    return () => {
+      const listeners = this.wsEventListeners.get(eventType);
+      if (listeners) {
+        listeners.delete(listener);
+      }
+    };
+  }
+
+  disconnectWebSocket() {
+    if (this.websocket) {
+      this.websocket.close();
+      this.websocket = null;
+    }
+  }
+
+  // Support & Communications endpoints
+  async getAnnouncements(params?: any) {
+    return this.get('/communications/announcements', { params });
+  }
+
+  async createAnnouncement(data: any) {
+    return this.post('/communications/announcements', data);
+  }
+
+  async updateAnnouncement(id: string, data: any) {
+    return this.put(`/communications/announcements/${id}`, data);
+  }
+
+  async deleteAnnouncement(id: string) {
+    return this.delete(`/communications/announcements/${id}`);
+  }
+
+  async publishAnnouncement(id: string) {
+    return this.post(`/communications/announcements/${id}/publish`);
+  }
+
+  // Removed duplicate getFAQs function
+
+  async createFAQ(data: any) {
+    return this.post('/support/faqs', data);
+  }
+
+  async updateFAQ(id: string, data: any) {
+    return this.put(`/support/faqs/${id}`, data);
+  }
+
+  async deleteFAQ(id: string) {
+    return this.delete(`/support/faqs/${id}`);
+  }
+
+  async getFAQCategories() {
+    return this.get('/support/faq-categories');
+  }
+
+  async getContactMethods() {
+    return this.get('/support/contact-methods');
+  }
+
+  async getSupportHours() {
+    return this.get('/support/hours');
+  }
+
+  // Removed duplicate getSupportStats function
+
+  async submitContactForm(data: any) {
+    return this.post('/support/contact', data);
+  }
+
+  // Settings endpoints
+  async getSettingsOverview() {
+    return this.get('/settings/overview');
+  }
+
+  async getAccountProfile() {
+    return this.get('/account/profile');
+  }
+
+  async updateAccountProfile(data: any) {
+    return this.put('/account/profile', data);
+  }
+
+  async uploadAvatar(formData: FormData) {
+    return this.post('/account/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+
+  async verifyEmail() {
+    return this.post('/account/verify-email');
+  }
+
+  async verifyPhone() {
+    return this.post('/account/verify-phone');
+  }
+
+  async getActivityLog(params?: any) {
+    return this.get('/account/activity-log', { params });
+  }
+
+  // Removed duplicate getSupplierPerformance functions
+
+  async exportSupplierPerformance(params?: any) {
+    return this.get('/suppliers/performance/export', { params, responseType: 'blob' });
+  }
+
+  // Reports endpoints
+  async getPurchaseReport(params?: any) {
+    return this.get('/reports/purchase', { params });
+  }
+
+  async exportPurchaseReport(params?: any) {
+    return this.get('/reports/purchase/export', { params, responseType: 'blob' });
+  }
+
+  async getFinancialReport(params?: any) {
+    return this.get('/reports/financial', { params });
+  }
+
+  async exportFinancialReport(params?: any) {
+    return this.get('/reports/financial/export', { params, responseType: 'blob' });
+  }
+
+  async getPurchaseOrders(params?: any) {
+    return this.get('/orders/purchase', { params });
+  }
+
+  async getTransactions(params?: any) {
+    return this.get('/transactions', { params });
+  }
+
+  // Inventory endpoints
+  async getInventoryProducts(params?: any) {
+    return this.get('/inventory/products', { params });
+  }
+
+
+
+  // Removed duplicate getInventoryMovements function
+
+  async adjustStock(itemId: string, data: any) {
+    return this.post(`/inventory/products/${itemId}/adjust`, data);
+  }
+
+  // Removed duplicate bulkUpdateInventory function
+
+  // Removed duplicate exportInventory function
 }
 
-// Export singleton instance
 export const apiClient = new ApiClient();
+export const vikaretaApiClient = apiClient;
+export default apiClient;
