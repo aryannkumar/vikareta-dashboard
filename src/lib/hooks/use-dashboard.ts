@@ -213,27 +213,25 @@ export function useDashboard(options: UseDashboardOptions = {}): UseDashboardRet
     setError(null);
     
     try {
-      // Load all data in parallel but handle individual failures gracefully
-      const results = await Promise.allSettled([
+      // Load critical data first (metrics and orders)
+      await Promise.allSettled([
         loadMetrics(),
         loadRecentOrders(),
-        loadRecentRFQs(),
-        loadTopProducts(),
-        loadWalletBalance(),
       ]);
       
-      // Check if any critical operations failed
-      const failedOperations = results.filter(result => result.status === 'rejected');
-      if (failedOperations.length === results.length) {
-        // All operations failed
-        setError('Unable to load dashboard data. Please check your connection and try again.');
-      } else if (failedOperations.length > 0) {
-        // Some operations failed, but continue with partial data
-        console.warn('Some dashboard operations failed:', failedOperations);
-      }
+      // Load secondary data with delay to prevent too many requests
+      setTimeout(async () => {
+        await Promise.allSettled([
+          loadRecentRFQs(),
+          loadTopProducts(),
+          loadWalletBalance(),
+        ]);
+      }, 1000);
+      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dashboard data';
       setError(errorMessage);
+      console.warn('Dashboard load error:', err);
     } finally {
       setLoading(false);
     }

@@ -82,16 +82,27 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   useEffect(() => {
     const loadCategories = async () => {
       try {
+        console.log('Loading categories...');
         const response = await apiClient.getCategories();
         console.log('Categories API response:', response);
 
-        if (response.success && Array.isArray(response.data)) {
-          setCategories(response.data);
+        if (response.success && response.data) {
+          const categoriesData = Array.isArray(response.data) ? response.data : (response.data as any).categories || [];
+          console.log('Categories data:', categoriesData);
+          setCategories(categoriesData);
+          
+          if (categoriesData.length === 0) {
+            toast({
+              title: 'No Categories',
+              description: 'No categories found. Please contact support.',
+              variant: 'destructive',
+            });
+          }
         } else {
-          console.warn('Categories API failed, no data returned');
+          console.warn('Categories API failed:', response);
           toast({
             title: 'Error',
-            description: 'Failed to load categories. Please refresh the page.',
+            description: response.error?.message || 'Failed to load categories. Please refresh the page.',
             variant: 'destructive',
           });
         }
@@ -112,12 +123,16 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     if (formData.categoryId) {
       const loadSubcategories = async () => {
         try {
+          console.log('Loading subcategories for category:', formData.categoryId);
           const response = await apiClient.getSubcategoriesByCategory(formData.categoryId);
           console.log('Subcategories API response:', response);
 
-          if (response.success && Array.isArray(response.data)) {
-            setSubcategories(response.data);
+          if (response.success && response.data) {
+            const subcategoriesData = Array.isArray(response.data) ? response.data : (response.data as any).subcategories || [];
+            console.log('Subcategories data:', subcategoriesData);
+            setSubcategories(subcategoriesData);
           } else {
+            console.warn('No subcategories found for category:', formData.categoryId);
             setSubcategories([]);
           }
         } catch (error) {
@@ -128,6 +143,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       loadSubcategories();
     } else {
       setSubcategories([]);
+      // Reset subcategory selection when category changes
+      setFormData(prev => ({ ...prev, subcategoryId: '' }));
     }
   }, [formData.categoryId]);
 

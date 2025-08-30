@@ -2290,27 +2290,27 @@ export class ApiClient {
     parentId?: string;
     status: string;
   }) {
-    return this.request('/products/categories', {
+    return this.request('/categories', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   async updateCategory(id: string, data: any) {
-    return this.request(`/products/categories/${id}`, {
+    return this.request(`/categories/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   }
 
   async deleteCategory(id: string) {
-    return this.request(`/products/categories/${id}`, {
+    return this.request(`/categories/${id}`, {
       method: 'DELETE',
     });
   }
 
   async getCategoryStats() {
-    return this.request('/products/categories/stats');
+    return this.request('/categories/stats');
   }
 
   async getCategoryProducts(categoryId: string, params: any = {}) {
