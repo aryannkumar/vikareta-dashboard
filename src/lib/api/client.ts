@@ -331,6 +331,48 @@ export class ApiClient {
     });
   }
 
+  // Orders endpoints
+  async getOrders(params: any = {}) {
+    const query = new URLSearchParams(params).toString();
+    return this.request(`/orders?${query}`);
+  }
+
+  async getPendingOrderStats() {
+    return this.request('/orders/pending/stats');
+  }
+
+  async getCompletedOrderStats() {
+    return this.request('/orders/completed/stats');
+  }
+
+  async updateOrderStatus(orderId: string, status: string) {
+    return this.request(`/orders/${orderId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  }
+
+  async downloadInvoice(invoiceId: string) {
+    return this.request(`/invoices/${invoiceId}/download`);
+  }
+
+  async processOrder(orderId: string) {
+    return this.request(`/orders/${orderId}/process`, {
+      method: 'POST',
+    });
+  }
+
+  async bulkProcessOrders(orderIds: string[]) {
+    return this.request('/orders/bulk-process', {
+      method: 'POST',
+      body: JSON.stringify({ orderIds }),
+    });
+  }
+
+  async getFulfillmentOptions(orderId: string) {
+    return this.request(`/orders/${orderId}/fulfillment-options`);
+  }
+
   // Generic GET method for backward compatibility
   async get(endpoint: string, options: any = {}) {
     const { params, ...requestOptions } = options;
@@ -1225,24 +1267,26 @@ export class ApiClient {
   }
 
   async getCommunicationStats() {
-    try {
-      return await this.request('/messages/stats');
-    } catch (error) {
-      // If communication stats endpoint doesn't exist, return empty stats
-      console.warn('Communication stats endpoint not available, returning empty stats');
-      return {
-        success: true,
-        data: {
-          totalMessages: 0,
-          unreadMessages: 0,
-          todayMessages: 0,
-          responseRate: 0,
-          averageResponseTime: 0,
-          activeConversations: 0
-        },
-        message: 'Communication stats feature not yet available'
-      };
-    }
+    return this.request('/messages/stats');
+  }
+
+  async markMessageAsRead(messageId: string) {
+    return this.request(`/messages/${messageId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async replyToMessage(messageId: string, data: { content: string }) {
+    return this.request(`/messages/${messageId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async archiveMessage(messageId: string) {
+    return this.request(`/messages/${messageId}/archive`, {
+      method: 'POST',
+    });
   }
 
   async getNotifications(params: any = {}) {

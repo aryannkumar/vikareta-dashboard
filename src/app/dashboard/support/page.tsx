@@ -2,33 +2,41 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { apiClient } from '@/lib/api/client';
+import { toast } from '@/components/ui/use-toast';
 import { 
-  LifeBuoy,
+  HelpCircle, 
   Plus, 
   Search, 
   Filter, 
+  RefreshCw, 
   Eye, 
-  MessageSquare, 
-  Phone, 
-  Mail, 
-  Clock, 
-  RefreshCw,
-  AlertCircle,
+  MessageSquare,
+  Clock,
   CheckCircle,
   XCircle,
+  AlertCircle,
+  ArrowUpDown,
+  MoreHorizontal,
   User,
   Calendar,
-  Tag,
+  Phone,
+  Mail,
   FileText,
+  Headphones,
+  BookOpen,
+  Video,
+  Download,
   ExternalLink,
   Star,
   ThumbsUp,
   ThumbsDown
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,9 +44,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { apiClient } from '@/lib/api/client';
-import { formatDate } from '@/lib/utils';
-import { toast } from '@/components/ui/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 
 interface SupportTicket {
   id: string;
@@ -51,110 +69,104 @@ interface SupportTicket {
   assignedTo?: {
     id: string;
     name: string;
-    email: string;
     avatar?: string;
-  };
-  customer: {
-    id: string;
-    name: string;
-    email: string;
-    company?: string;
-  };
-  messages: Array<{
-    id: string;
-    content: string;
-    author: {
-      id: string;
-      name: string;
-      type: 'customer' | 'agent';
-    };
-    timestamp: string;
-    attachments?: Array<{
-      id: string;
-      name: string;
-      url: string;
-      size: number;
-    }>;
-  }>;
-  tags: string[];
-  satisfaction?: {
-    rating: number;
-    feedback?: string;
   };
   createdAt: string;
   updatedAt: string;
-  resolvedAt?: string;
+  lastResponseAt?: string;
+  responseTime?: number;
+  resolutionTime?: number;
+  satisfaction?: number;
+  messages: SupportMessage[];
+  attachments?: SupportAttachment[];
+}
+
+interface SupportMessage {
+  id: string;
+  content: string;
+  isFromSupport: boolean;
+  author: {
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  attachments?: SupportAttachment[];
+}
+
+interface SupportAttachment {
+  id: string;
+  name: string;
+  size: number;
+  url: string;
+  type: string;
 }
 
 interface SupportStats {
   totalTickets: number;
   openTickets: number;
-  inProgressTickets: number;
   resolvedTickets: number;
   averageResponseTime: number;
   averageResolutionTime: number;
-  satisfactionRating: number;
-  ticketsToday: number;
+  satisfactionScore: number;
 }
 
 interface KnowledgeBaseArticle {
   id: string;
   title: string;
-  content: string;
+  summary: string;
   category: string;
-  tags: string[];
   views: number;
   helpful: number;
   notHelpful: number;
-  createdAt: string;
-  updatedAt: string;
+  lastUpdated: string;
+  url: string;
 }
 
 export default function SupportPage() {
+  const [activeTab, setActiveTab] = useState('tickets');
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [stats, setStats] = useState<SupportStats | null>(null);
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBaseArticle[]>([]);
+  const [stats, setStats] = useState<SupportStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(0);
   const [total, setTotal] = useState(0);
-  const [activeTab, setActiveTab] = useState<'tickets' | 'knowledge'>('tickets');
 
-  const loadTickets = useCallback(async (p = 1, searchT = searchTerm, statusF = statusFilter, priorityF = priorityFilter, categoryF = categoryFilter) => {
+  // New ticket form
+  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [newTicket, setNewTicket] = useState({
+    subject: '',
+    description: '',
+    category: 'general',
+    priority: 'medium'
+  });
+
+  const loadTickets = useCallback(async (p = 1, searchTerm = search, statusF = statusFilter, categoryF = categoryFilter, priorityF = priorityFilter) => {
     try {
       setLoading(true);
-      setError(null);
 
       const params: any = { 
         page: p, 
         limit: 20 
       };
       
-      if (searchT.trim()) params.search = searchT.trim();
-      if (statusF !== 'all' && statusF) params.status = statusF;
-      if (priorityF !== 'all' && priorityF) params.priority = priorityF;
-      if (categoryF !== 'all' && categoryF) params.category = categoryF;
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      if (statusF !== 'all') params.status = statusF;
+      if (categoryF !== 'all') params.category = categoryF;
+      if (priorityF !== 'all') params.priority = priorityF;
 
-      const response = await apiClient.getSupportTickets(params);
+      const response = await apiClient.get('/support/tickets', { params });
       
       if (response.success && response.data) {
         const data = response.data as any;
-        
-        // Handle different response formats
-        if (Array.isArray(data)) {
-          setTickets(data);
-          setPages(1);
-          setTotal(data.length);
-        } else {
-          setTickets(data.tickets || data.data || []);
-          setPages(data.pagination?.pages || 0);
-          setTotal(data.pagination?.total || 0);
-        }
+        setTickets(data.tickets || []);
+        setPages(data.pagination?.pages || 0);
+        setTotal(data.pagination?.total || 0);
       } else {
         setTickets([]);
         setPages(0);
@@ -162,109 +174,155 @@ export default function SupportPage() {
       }
     } catch (err: any) {
       console.error('Failed to load support tickets:', err);
-      setError(err?.message || 'Failed to load support tickets');
+      toast({
+        title: "Error",
+        description: "Failed to load support tickets",
+        variant: "destructive"
+      });
       setTickets([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }, [searchTerm, statusFilter, priorityFilter, categoryFilter]);
-
-  const loadStats = useCallback(async () => {
-    try {
-      const response = await apiClient.getSupportStats();
-      
-      if (response.success && response.data) {
-        setStats(response.data as SupportStats);
-      } else {
-        // Calculate stats from current tickets if API doesn't exist
-        const openTickets = tickets.filter(t => t.status === 'open').length;
-        const inProgressTickets = tickets.filter(t => t.status === 'in_progress').length;
-        const resolvedTickets = tickets.filter(t => t.status === 'resolved').length;
-        
-        setStats({
-          totalTickets: tickets.length,
-          openTickets,
-          inProgressTickets,
-          resolvedTickets,
-          averageResponseTime: 2.5, // Default value in hours
-          averageResolutionTime: 24, // Default value in hours
-          satisfactionRating: 4.8, // Default rating
-          ticketsToday: Math.floor(tickets.length * 0.1) // Estimate
-        });
-      }
-    } catch (err) {
-      console.error('Failed to load support stats:', err);
-      // Use fallback stats
-      setStats({
-        totalTickets: 0,
-        openTickets: 0,
-        inProgressTickets: 0,
-        resolvedTickets: 0,
-        averageResponseTime: 0,
-        averageResolutionTime: 0,
-        satisfactionRating: 0,
-        ticketsToday: 0
-      });
-    }
-  }, [tickets]);
+  }, [search, statusFilter, categoryFilter, priorityFilter]);
 
   const loadKnowledgeBase = useCallback(async () => {
     try {
-      const response = await apiClient.getKnowledgeBase({ limit: 10 });
+      const response = await apiClient.get('/support/knowledge-base');
       
       if (response.success && response.data) {
         setKnowledgeBase(response.data as KnowledgeBaseArticle[]);
       } else {
-        setKnowledgeBase([]);
+        // Fallback knowledge base articles
+        setKnowledgeBase([
+          {
+            id: '1',
+            title: 'Getting Started with Vikareta',
+            summary: 'Learn the basics of using the Vikareta platform',
+            category: 'Getting Started',
+            views: 1250,
+            helpful: 45,
+            notHelpful: 3,
+            lastUpdated: '2024-01-15',
+            url: '/help/getting-started'
+          },
+          {
+            id: '2',
+            title: 'How to Create Your First Product Listing',
+            summary: 'Step-by-step guide to listing your products',
+            category: 'Products',
+            views: 890,
+            helpful: 38,
+            notHelpful: 2,
+            lastUpdated: '2024-01-12',
+            url: '/help/create-product'
+          },
+          {
+            id: '3',
+            title: 'Managing Orders and Fulfillment',
+            summary: 'Complete guide to order management',
+            category: 'Orders',
+            views: 756,
+            helpful: 42,
+            notHelpful: 1,
+            lastUpdated: '2024-01-10',
+            url: '/help/order-management'
+          },
+          {
+            id: '4',
+            title: 'Payment and Billing FAQ',
+            summary: 'Common questions about payments and billing',
+            category: 'Billing',
+            views: 634,
+            helpful: 29,
+            notHelpful: 4,
+            lastUpdated: '2024-01-08',
+            url: '/help/billing-faq'
+          }
+        ]);
       }
     } catch (err) {
       console.error('Failed to load knowledge base:', err);
-      setKnowledgeBase([]);
     }
   }, []);
 
-  const handleStatusUpdate = async (ticketId: string, newStatus: string) => {
+  const loadStats = useCallback(async () => {
     try {
-      const response = await apiClient.updateSupportTicketStatus(ticketId, newStatus as 'open' | 'in_progress' | 'waiting_response' | 'resolved' | 'closed');
+      const response = await apiClient.get('/support/stats');
+      
+      if (response.success && response.data) {
+        setStats(response.data as SupportStats);
+      } else {
+        // Calculate fallback stats
+        const openTickets = tickets.filter(t => ['open', 'in_progress', 'waiting_response'].includes(t.status)).length;
+        const resolvedTickets = tickets.filter(t => ['resolved', 'closed'].includes(t.status)).length;
+        
+        setStats({
+          totalTickets: tickets.length,
+          openTickets,
+          resolvedTickets,
+          averageResponseTime: 4.2,
+          averageResolutionTime: 24.5,
+          satisfactionScore: 4.6
+        });
+      }
+    } catch (err) {
+      console.error('Failed to load support stats:', err);
+    }
+  }, [tickets]);
+
+  const handleCreateTicket = async () => {
+    if (!newTicket.subject.trim() || !newTicket.description.trim()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const response = await apiClient.post('/support/tickets', newTicket);
       
       if (response.success) {
         toast({
-          title: 'Success',
-          description: 'Ticket status updated successfully.',
+          title: "Success",
+          description: "Support ticket created successfully"
+        });
+        setShowNewTicketForm(false);
+        setNewTicket({
+          subject: '',
+          description: '',
+          category: 'general',
+          priority: 'medium'
         });
         loadTickets();
         loadStats();
-      } else {
-        throw new Error(response.error?.message || 'Failed to update ticket status');
       }
-    } catch (error: any) {
-      console.error('Failed to update ticket status:', error);
+    } catch (error) {
       toast({
-        title: 'Error',
-        description: error?.message || 'Failed to update ticket status. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to create support ticket",
+        variant: "destructive"
       });
     }
   };
 
   const handleSearch = () => {
     setPage(1);
-    loadTickets(1, searchTerm, statusFilter, priorityFilter, categoryFilter);
+    loadTickets(1, search, statusFilter, categoryFilter, priorityFilter);
   };
 
   const handleRefresh = () => {
-    if (activeTab === 'tickets') {
-      loadTickets(page, searchTerm, statusFilter, priorityFilter, categoryFilter);
-      loadStats();
-    } else {
-      loadKnowledgeBase();
-    }
+    setRefreshing(true);
+    loadTickets(page, search, statusFilter, categoryFilter, priorityFilter);
+    loadStats();
   };
 
   useEffect(() => {
     if (activeTab === 'tickets') {
       loadTickets(1);
-    } else {
+    } else if (activeTab === 'knowledge-base') {
       loadKnowledgeBase();
     }
   }, [activeTab, loadTickets, loadKnowledgeBase]);
@@ -277,9 +335,9 @@ export default function SupportPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'open': return 'bg-red-100 text-red-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
-      case 'waiting_response': return 'bg-yellow-100 text-yellow-800';
+      case 'open': return 'bg-blue-100 text-blue-800';
+      case 'in_progress': return 'bg-yellow-100 text-yellow-800';
+      case 'waiting_response': return 'bg-orange-100 text-orange-800';
       case 'resolved': return 'bg-green-100 text-green-800';
       case 'closed': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -296,95 +354,31 @@ export default function SupportPage() {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'open': return <AlertCircle className="h-4 w-4" />;
-      case 'in_progress': return <Clock className="h-4 w-4" />;
-      case 'waiting_response': return <MessageSquare className="h-4 w-4" />;
-      case 'resolved': return <CheckCircle className="h-4 w-4" />;
-      case 'closed': return <XCircle className="h-4 w-4" />;
-      default: return <AlertCircle className="h-4 w-4" />;
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'technical': return <AlertCircle className="h-4 w-4" />;
+      case 'billing': return <FileText className="h-4 w-4" />;
+      case 'account': return <User className="h-4 w-4" />;
+      case 'product': return <BookOpen className="h-4 w-4" />;
+      default: return <HelpCircle className="h-4 w-4" />;
     }
   };
 
-  const renderLoadingState = () => (
-    <div className="space-y-4">
-      {[1, 2, 3, 4].map((i) => (
-        <Card key={i} className="animate-pulse">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-200 rounded w-16"></div>
-                <div className="h-3 bg-gray-200 rounded w-12"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
-  const renderEmptyState = () => (
-    <div className="text-center py-12">
-      <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-        <LifeBuoy className="h-12 w-12 text-gray-400" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2">
-        {activeTab === 'tickets' ? 'No Support Tickets Found' : 'No Knowledge Base Articles Found'}
-      </h3>
-      <p className="text-muted-foreground mb-4">
-        {activeTab === 'tickets' 
-          ? (searchTerm || statusFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all'
-              ? 'No tickets match your current filters. Try adjusting your search criteria.'
-              : 'You haven\'t created any support tickets yet. Start by creating your first ticket.')
-          : 'No knowledge base articles available at the moment.'
-        }
-      </p>
-      {activeTab === 'tickets' && (
-        (searchTerm || statusFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all') ? (
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSearchTerm('');
-              setStatusFilter('all');
-              setPriorityFilter('all');
-              setCategoryFilter('all');
-              setPage(1);
-              loadTickets(1, '', 'all', 'all', 'all');
-            }}
-          >
-            Clear Filters
-          </Button>
-        ) : (
-          <Link href="/dashboard/support/tickets/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Ticket
-            </Button>
-          </Link>
-        )
-      )}
-    </div>
-  );
-
-  const renderErrorState = () => (
-    <div className="text-center py-12">
-      <div className="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
-        <AlertCircle className="h-12 w-12 text-red-500" />
-      </div>
-      <h3 className="text-lg font-semibold mb-2">Failed to Load Data</h3>
-      <p className="text-muted-foreground mb-4">{error}</p>
-      <Button onClick={handleRefresh}>
-        <RefreshCw className="h-4 w-4 mr-2" />
-        Try Again
-      </Button>
-    </div>
-  );
+  const formatResponseTime = (hours: number) => {
+    if (hours < 1) return `${Math.round(hours * 60)}m`;
+    if (hours < 24) return `${hours.toFixed(1)}h`;
+    return `${Math.round(hours / 24)}d`;
+  };
 
   return (
     <div className="space-y-6">
@@ -393,7 +387,7 @@ export default function SupportPage() {
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Support Center</h1>
           <p className="text-muted-foreground">
-            Get help and manage support tickets
+            Get help, create tickets, and access our knowledge base
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -401,18 +395,62 @@ export default function SupportPage() {
             variant="outline" 
             size="sm" 
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={refreshing}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <Link href="/dashboard/support/tickets/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Ticket
-            </Button>
-          </Link>
+          <Button onClick={() => setShowNewTicketForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Ticket
+          </Button>
         </div>
+      </div>
+
+      {/* Quick Contact Options */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-6 text-center">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Phone className="h-6 w-6 text-blue-600" />
+            </div>
+            <h3 className="font-semibold mb-2">Call Support</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Speak directly with our support team
+            </p>
+            <p className="font-medium text-blue-600">+91 1800-123-4567</p>
+            <p className="text-xs text-muted-foreground">Mon-Fri, 9 AM - 6 PM IST</p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-6 text-center">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <MessageSquare className="h-6 w-6 text-green-600" />
+            </div>
+            <h3 className="font-semibold mb-2">Live Chat</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Chat with our support agents
+            </p>
+            <Button size="sm" className="w-full">
+              Start Chat
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-6 text-center">
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Mail className="h-6 w-6 text-purple-600" />
+            </div>
+            <h3 className="font-semibold mb-2">Email Support</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              Send us an email for detailed help
+            </p>
+            <p className="font-medium text-purple-600">support@vikareta.com</p>
+            <p className="text-xs text-muted-foreground">Response within 24 hours</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Stats Cards */}
@@ -422,7 +460,7 @@ export default function SupportPage() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <LifeBuoy className="h-5 w-5 text-blue-600" />
+                  <HelpCircle className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{stats.totalTickets}</div>
@@ -435,8 +473,8 @@ export default function SupportPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-red-600" />
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <Clock className="h-5 w-5 text-yellow-600" />
                 </div>
                 <div>
                   <div className="text-2xl font-bold">{stats.openTickets}</div>
@@ -453,8 +491,8 @@ export default function SupportPage() {
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.resolvedTickets}</div>
-                  <div className="text-sm text-muted-foreground">Resolved</div>
+                  <div className="text-2xl font-bold">{formatResponseTime(stats.averageResponseTime)}</div>
+                  <div className="text-sm text-muted-foreground">Avg Response</div>
                 </div>
               </div>
             </CardContent>
@@ -463,11 +501,11 @@ export default function SupportPage() {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <Star className="h-5 w-5 text-yellow-600" />
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Star className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold">{stats.satisfactionRating.toFixed(1)}</div>
+                  <div className="text-2xl font-bold">{stats.satisfactionScore.toFixed(1)}</div>
                   <div className="text-sm text-muted-foreground">Satisfaction</div>
                 </div>
               </div>
@@ -476,32 +514,15 @@ export default function SupportPage() {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex space-x-1 bg-muted p-1 rounded-lg w-fit">
-        <button
-          onClick={() => setActiveTab('tickets')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'tickets'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Support Tickets
-        </button>
-        <button
-          onClick={() => setActiveTab('knowledge')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'knowledge'
-              ? 'bg-background text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Knowledge Base
-        </button>
-      </div>
+      {/* Main Content Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="tickets">My Tickets</TabsTrigger>
+          <TabsTrigger value="knowledge-base">Knowledge Base</TabsTrigger>
+          <TabsTrigger value="resources">Resources</TabsTrigger>
+        </TabsList>
 
-      {activeTab === 'tickets' && (
-        <>
+        <TabsContent value="tickets" className="space-y-4">
           {/* Search and Filters */}
           <Card>
             <CardContent className="p-4">
@@ -510,9 +531,9 @@ export default function SupportPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search tickets by subject, description, or ticket number..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search tickets by subject or ticket number..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
                       className="pl-10"
                       onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     />
@@ -520,43 +541,33 @@ export default function SupportPage() {
                 </div>
                 
                 <div className="flex gap-2">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="waiting_response">Waiting Response</option>
-                    <option value="resolved">Resolved</option>
-                    <option value="closed">Closed</option>
-                  </select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="waiting_response">Waiting Response</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
                   
-                  <select
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="all">All Priority</option>
-                    <option value="urgent">Urgent</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="low">Low</option>
-                  </select>
-                  
-                  <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm"
-                  >
-                    <option value="all">All Categories</option>
-                    <option value="technical">Technical</option>
-                    <option value="billing">Billing</option>
-                    <option value="account">Account</option>
-                    <option value="product">Product</option>
-                    <option value="general">General</option>
-                  </select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="account">Account</SelectItem>
+                      <SelectItem value="product">Product</SelectItem>
+                      <SelectItem value="general">General</SelectItem>
+                    </SelectContent>
+                  </Select>
                   
                   <Button onClick={handleSearch} disabled={loading}>
                     <Filter className="h-4 w-4 mr-2" />
@@ -574,11 +585,35 @@ export default function SupportPage() {
             </CardHeader>
             <CardContent>
               {loading && tickets.length === 0 ? (
-                renderLoadingState()
-              ) : error && tickets.length === 0 ? (
-                renderErrorState()
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="animate-pulse">
+                      <CardContent className="p-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                            <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               ) : tickets.length === 0 ? (
-                renderEmptyState()
+                <div className="text-center py-12">
+                  <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <HelpCircle className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">No Support Tickets</h3>
+                  <p className="text-muted-foreground mb-4">
+                    You haven't created any support tickets yet.
+                  </p>
+                  <Button onClick={() => setShowNewTicketForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First Ticket
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {tickets.map((ticket) => (
@@ -587,12 +622,19 @@ export default function SupportPage() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                              {getStatusIcon(ticket.status)}
+                              {getCategoryIcon(ticket.category)}
                             </div>
                             <div>
-                              <h3 className="font-medium">{ticket.ticketNumber} - {ticket.subject}</h3>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span>{ticket.customer.name}</span>
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-medium">{ticket.ticketNumber}</h3>
+                                <Badge className={getPriorityColor(ticket.priority)}>
+                                  {ticket.priority}
+                                </Badge>
+                              </div>
+                              <p className="text-sm font-medium text-gray-900 mt-1">
+                                {ticket.subject}
+                              </p>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                                 <span className="capitalize">{ticket.category}</span>
                                 <span>{formatDate(ticket.createdAt)}</span>
                                 {ticket.assignedTo && (
@@ -603,24 +645,14 @@ export default function SupportPage() {
                           </div>
                           
                           <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <Badge className={getPriorityColor(ticket.priority)}>
-                                {ticket.priority.toUpperCase()}
-                              </Badge>
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {ticket.messages.length} message{ticket.messages.length !== 1 ? 's' : ''}
-                              </div>
-                            </div>
-                            
                             <Badge className={getStatusColor(ticket.status)}>
-                              {ticket.status.replace('_', ' ').toUpperCase()}
+                              {ticket.status.replace('_', ' ')}
                             </Badge>
                             
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Actions
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
@@ -632,25 +664,8 @@ export default function SupportPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem>
                                   <MessageSquare className="h-4 w-4 mr-2" />
-                                  Add Reply
+                                  Add Response
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
-                                  <>
-                                    <DropdownMenuItem
-                                      onClick={() => handleStatusUpdate(ticket.id, 'in_progress')}
-                                    >
-                                      <Clock className="h-4 w-4 mr-2" />
-                                      Mark In Progress
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleStatusUpdate(ticket.id, 'resolved')}
-                                    >
-                                      <CheckCircle className="h-4 w-4 mr-2" />
-                                      Mark Resolved
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -662,135 +677,217 @@ export default function SupportPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Pagination */}
-          {pages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} tickets
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  disabled={page <= 1 || loading} 
-                  onClick={() => { 
-                    const np = page - 1; 
-                    setPage(np); 
-                    loadTickets(np, searchTerm, statusFilter, priorityFilter, categoryFilter); 
-                  }}
-                >
-                  Previous
-                </Button>
-                <div className="text-sm px-3 py-2">
-                  Page {page} of {pages}
-                </div>
-                <Button 
-                  variant="outline" 
-                  disabled={page >= pages || loading} 
-                  onClick={() => { 
-                    const np = page + 1; 
-                    setPage(np); 
-                    loadTickets(np, searchTerm, statusFilter, priorityFilter, categoryFilter); 
-                  }}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {activeTab === 'knowledge' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Knowledge Base Articles</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              renderLoadingState()
-            ) : knowledgeBase.length === 0 ? (
-              renderEmptyState()
-            ) : (
-              <div className="space-y-4">
-                {knowledgeBase.map((article) => (
-                  <Card key={article.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <FileText className="h-5 w-5 text-primary" />
-                          </div>
-                          <div>
-                            <h3 className="font-medium">{article.title}</h3>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span>{article.category}</span>
-                              <span>{article.views} views</span>
-                              <span>{formatDate(article.updatedAt)}</span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right text-sm">
-                            <div className="flex items-center gap-2">
-                              <ThumbsUp className="h-4 w-4 text-green-600" />
-                              <span>{article.helpful}</span>
-                              <ThumbsDown className="h-4 w-4 text-red-600" />
-                              <span>{article.notHelpful}</span>
-                            </div>
-                          </div>
-                          
-                          <Button variant="outline" size="sm">
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View Article
-                          </Button>
-                        </div>
+        <TabsContent value="knowledge-base" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {knowledgeBase.map((article) => (
+              <Card key={article.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <Badge variant="outline">{article.category}</Badge>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Eye className="h-3 w-3" />
+                      <span>{article.views}</span>
+                    </div>
+                  </div>
+                  
+                  <h3 className="font-semibold mb-2 line-clamp-2">{article.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                    {article.summary}
+                  </p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <ThumbsUp className="h-3 w-3" />
+                        <span>{article.helpful}</span>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Link href="/dashboard/support/tickets/new">
-              <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-                <Plus className="h-8 w-8 text-blue-500 mb-3" />
-                <h3 className="font-medium mb-2">Create Ticket</h3>
-                <p className="text-sm text-muted-foreground">Submit a new support request</p>
-              </div>
-            </Link>
-            
-            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <MessageSquare className="h-8 w-8 text-green-500 mb-3" />
-              <h3 className="font-medium mb-2">Live Chat</h3>
-              <p className="text-sm text-muted-foreground">Chat with our support team</p>
-            </div>
-            
-            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <Phone className="h-8 w-8 text-orange-500 mb-3" />
-              <h3 className="font-medium mb-2">Phone Support</h3>
-              <p className="text-sm text-muted-foreground">Call us for urgent issues</p>
-            </div>
-            
-            <div className="p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
-              <Mail className="h-8 w-8 text-purple-500 mb-3" />
-              <h3 className="font-medium mb-2">Email Support</h3>
-              <p className="text-sm text-muted-foreground">Send us an email</p>
-            </div>
+                      <div className="flex items-center gap-1">
+                        <ThumbsDown className="h-3 w-3" />
+                        <span>{article.notHelpful}</span>
+                      </div>
+                    </div>
+                    
+                    <Button size="sm" variant="outline">
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Read
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="resources" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="h-5 w-5" />
+                  Video Tutorials
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Getting Started Guide</p>
+                    <p className="text-sm text-muted-foreground">15 min tutorial</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Video className="h-4 w-4 mr-2" />
+                    Watch
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Product Management</p>
+                    <p className="text-sm text-muted-foreground">22 min tutorial</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Video className="h-4 w-4 mr-2" />
+                    Watch
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Order Fulfillment</p>
+                    <p className="text-sm text-muted-foreground">18 min tutorial</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Video className="h-4 w-4 mr-2" />
+                    Watch
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Download className="h-5 w-5" />
+                  Downloads
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">User Manual (PDF)</p>
+                    <p className="text-sm text-muted-foreground">Complete platform guide</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">API Documentation</p>
+                    <p className="text-sm text-muted-foreground">Developer resources</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Best Practices Guide</p>
+                    <p className="text-sm text-muted-foreground">Tips for success</p>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* New Ticket Modal */}
+      {showNewTicketForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Create Support Ticket</CardTitle>
+                <Button variant="ghost" onClick={() => setShowNewTicketForm(false)}>
+                  ×
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Subject *</label>
+                <Input
+                  placeholder="Brief description of your issue"
+                  value={newTicket.subject}
+                  onChange={(e) => setNewTicket({ ...newTicket, subject: e.target.value })}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Category</label>
+                  <Select value={newTicket.category} onValueChange={(value) => setNewTicket({ ...newTicket, category: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
+                      <SelectItem value="billing">Billing</SelectItem>
+                      <SelectItem value="account">Account</SelectItem>
+                      <SelectItem value="product">Product</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Priority</label>
+                  <Select value={newTicket.priority} onValueChange={(value) => setNewTicket({ ...newTicket, priority: value })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium mb-2 block">Description *</label>
+                <Textarea
+                  placeholder="Please provide detailed information about your issue..."
+                  rows={6}
+                  value={newTicket.description}
+                  onChange={(e) => setNewTicket({ ...newTicket, description: e.target.value })}
+                />
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowNewTicketForm(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreateTicket}>
+                  Create Ticket
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
