@@ -156,8 +156,9 @@ export class ApiClient {
     return this.request(`/analytics/products/performance?limit=${limit}`);
   }
 
-  async getAdvertisementAnalytics(limit: number = 3) {
-    return this.request(`/advertisements/analytics?limit=${limit}`);
+  async getAdvertisementAnalytics(params: { period?: string; limit?: number } = {}) {
+    const { period = '30d', limit = 3 } = params;
+    return this.request(`/ads/analytics?period=${period}&limit=${limit}`);
   }
 
   // Dashboard endpoints
@@ -328,6 +329,49 @@ export class ApiClient {
     return this.request(`/ads/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAdvertisement(id: string) {
+    return this.request(`/ads/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Advertisement Campaigns endpoints
+  async getAdvertisementCampaigns(params: any = {}) {
+    const cleanParams: any = {};
+
+    if (params.page) cleanParams.page = params.page;
+    if (params.limit) cleanParams.limit = params.limit;
+    if (params.search && params.search.trim()) {
+      cleanParams.search = params.search.trim();
+    }
+    if (params.status && params.status !== 'all' && params.status.trim()) {
+      cleanParams.status = params.status.trim();
+    }
+
+    const query = new URLSearchParams(cleanParams).toString();
+    return this.request(`/ads/campaigns${query ? `?${query}` : ''}`);
+  }
+
+  async createAdvertisementCampaign(data: any) {
+    return this.request('/ads/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAdvertisementCampaign(id: string, data: any) {
+    return this.request(`/ads/campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAdvertisementCampaign(id: string) {
+    return this.request(`/ads/campaigns/${id}`, {
+      method: 'DELETE',
     });
   }
 
@@ -631,7 +675,7 @@ export class ApiClient {
     });
   }
 
-  // Legacy Categories endpoints (kept for backward compatibility)
+  // Categories endpoints
   async getCategory(id: string) {
     return this.request(`/categories/${id}`);
   }
@@ -2237,7 +2281,7 @@ export class ApiClient {
     }
 
     const query = new URLSearchParams(cleanParams).toString();
-    return this.request(`/products/categories${query ? `?${query}` : ''}`);
+    return this.request(`/categories${query ? `?${query}` : ''}`);
   }
 
   async createCategory(data: {

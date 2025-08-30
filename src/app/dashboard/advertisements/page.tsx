@@ -1,31 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { 
-  Target, 
-  Plus, 
-  Search, 
-  Filter, 
-  Eye, 
-  Edit, 
-  Trash2, 
-  Play, 
-  Pause, 
-  DollarSign,
-  Calendar,
-  BarChart3,
-  Users,
-  MousePointer,
-  RefreshCw,
-  Wallet,
-  AlertCircle,
-  TrendingUp
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -35,499 +22,526 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Megaphone,
+  Plus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Eye,
+  Edit,
+  Trash2,
+  Play,
+  Pause,
+  BarChart3,
+  TrendingUp,
+  DollarSign,
+  MousePointer,
+  Users,
+  Calendar,
+  AlertCircle,
+  CheckCircle,
+  Clock
+} from 'lucide-react';
+import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
-import { formatCurrency, formatDate } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
+import { formatCurrency, formatNumber, formatDate } from '@/lib/utils';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
 interface Advertisement {
   id: string;
   title: string;
-  description: string;
-  type: 'banner' | 'sponsored' | 'featured';
-  status: 'draft' | 'active' | 'paused' | 'completed' | 'rejected';
+  type: string;
+  status: 'active' | 'paused' | 'completed' | 'draft';
   budget: number;
   spent: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cpc: number;
+  conversions: number;
+  createdAt: string;
+  isActive: boolean;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  description: string;
+  status: 'active' | 'paused' | 'completed' | 'draft';
+  campaignType: string;
+  budget: number;
   dailyBudget: number;
+  spentAmount: number;
   startDate: string;
   endDate: string;
-  targetAudience: string;
-  createdAt: string;
-  updatedAt: string;
   impressions: number;
   clicks: number;
   conversions: number;
-  ctr: number; // Click-through rate
-  cpc: number; // Cost per click
-  walletBalance: number;
+  ctr: number;
+  cpc: number;
+  conversionRate: number;
+  adCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface WalletBalance {
-  availableBalance: number;
-  lockedBalance: number;
-  totalBalance: number;
-}
+const statusColors = {
+  active: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+  paused: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
+  completed: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
+  draft: 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400',
+};
+
+const statusIcons = {
+  active: CheckCircle,
+  paused: Pause,
+  completed: CheckCircle,
+  draft: Clock,
+};
 
 export default function AdvertisementsPage() {
-  const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
-  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
+  return (
+    <AuthGuard requiredRoles={['seller', 'both', 'admin', 'super_admin']}>
+      <AdvertisementsContent />
+    </AuthGuard>
+  );
+}
+
+function AdvertisementsContent() {
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [analytics, setAnalytics] = useState<any>(null);
 
-  const loadAdvertisements = async () => {
+  // Load campaigns
+  const loadCampaigns = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.getAdvertisements({
-        search: searchTerm,
-        status: statusFilter,
-        type: typeFilter,
-        limit: 50
+      const response = await apiClient.getAdvertisementCampaigns({
+        page: currentPage,
+        limit: 10,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchTerm || undefined,
       });
 
-      if (response.success && response.data) {
+      if (response.success) {
         const data = response.data as any;
-        const adsList = Array.isArray(data) ? data : data.advertisements || data.data || [];
-        setAdvertisements(adsList);
+        setCampaigns(data?.campaigns || []);
+        setTotalPages(data?.pagination?.totalPages || 1);
       } else {
-        setAdvertisements([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load campaigns',
+          variant: 'destructive',
+        });
       }
     } catch (error) {
-      console.error('Failed to load advertisements:', error);
+      console.error('Failed to load campaigns:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load advertisements. Please try again.',
+        description: 'Failed to load campaigns',
         variant: 'destructive',
       });
-      setAdvertisements([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadWalletBalance = async () => {
+  // Load analytics
+  const loadAnalytics = async () => {
     try {
-      const response = await apiClient.get('/wallet/balance');
-      if (response.success && response.data) {
-        setWalletBalance(response.data as WalletBalance);
-      }
-    } catch (error) {
-      console.error('Failed to load wallet balance:', error);
-    }
-  };
-
-  const handleStatusChange = async (adId: string, newStatus: 'active' | 'paused') => {
-    try {
-      const response = await apiClient.put(`/advertisements/${adId}/status`, {
-        status: newStatus
-      });
-      
+      const response = await apiClient.getAdvertisementAnalytics();
       if (response.success) {
-        toast({
-          title: 'Success',
-          description: `Advertisement ${newStatus === 'active' ? 'activated' : 'paused'} successfully.`,
-        });
-        loadAdvertisements();
-      } else {
-        throw new Error('Failed to update advertisement status');
+        setAnalytics(response.data);
       }
     } catch (error) {
-      console.error('Failed to update advertisement status:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update advertisement status. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Failed to load analytics:', error);
     }
-  };
-
-  const handleDelete = async (adId: string) => {
-    if (!confirm('Are you sure you want to delete this advertisement? This action cannot be undone.')) {
-      return;
-    }
-
-    try {
-      const response = await apiClient.delete(`/advertisements/${adId}`);
-      
-      if (response.success) {
-        toast({
-          title: 'Success',
-          description: 'Advertisement deleted successfully.',
-        });
-        loadAdvertisements();
-      } else {
-        throw new Error('Failed to delete advertisement');
-      }
-    } catch (error) {
-      console.error('Failed to delete advertisement:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete advertisement. Please try again.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSearch = () => {
-    loadAdvertisements();
   };
 
   useEffect(() => {
-    loadAdvertisements();
-    loadWalletBalance();
-  }, [loadAdvertisements]);
+    loadCampaigns();
+    loadAnalytics();
+  }, [currentPage, statusFilter]);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'paused': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'draft': return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-      case 'completed': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'rejected': return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (currentPage === 1) {
+        loadCampaigns();
+      } else {
+        setCurrentPage(1);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayedSearch);
+  }, [currentPage, loadCampaigns, searchTerm]);
+
+  const handleStatusChange = async (campaignId: string, newStatus: string) => {
+    try {
+      const response = await apiClient.updateAdvertisementCampaign(campaignId, { status: newStatus });
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: `Campaign ${newStatus === 'active' ? 'activated' : 'paused'} successfully`,
+        });
+        loadCampaigns();
+      } else {
+        throw new Error(response.error?.message || 'Failed to update campaign');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update campaign status',
+        variant: 'destructive',
+      });
     }
   };
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'banner': return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
-      case 'sponsored': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      case 'featured': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+  const handleDeleteCampaign = async (campaignId: string) => {
+    if (!confirm('Are you sure you want to delete this campaign?')) return;
+
+    try {
+      const response = await apiClient.deleteAdvertisementCampaign(campaignId);
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Campaign deleted successfully',
+        });
+        loadCampaigns();
+      } else {
+        throw new Error(response.error?.message || 'Failed to delete campaign');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete campaign',
+        variant: 'destructive',
+      });
     }
   };
-
-  const totalSpent = advertisements.reduce((sum, ad) => sum + ad.spent, 0);
-  const totalBudget = advertisements.reduce((sum, ad) => sum + ad.budget, 0);
-  const activeAds = advertisements.filter(ad => ad.status === 'active').length;
-  const totalImpressions = advertisements.reduce((sum, ad) => sum + ad.impressions, 0);
-  const totalClicks = advertisements.reduce((sum, ad) => sum + ad.clicks, 0);
-  const averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Advertisements</h1>
-          <p className="text-muted-foreground">Create and manage your advertising campaigns</p>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-600 to-amber-800 bg-clip-text text-transparent">
+            Advertisement Campaigns
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">
+            Promote your products and services to reach more customers
+          </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Link href="/dashboard/wallet">
+        <div className="flex items-center space-x-3">
+          <Link href="/dashboard/advertisements/analytics">
             <Button variant="outline" size="sm">
-              <Wallet className="mr-2 h-4 w-4" />
-              Wallet: {walletBalance ? formatCurrency(walletBalance.availableBalance) : '₹0'}
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
             </Button>
           </Link>
-          <Button variant="outline" onClick={loadAdvertisements} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
           <Link href="/dashboard/advertisements/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white">
+              <Plus className="h-4 w-4 mr-2" />
               Create Campaign
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* Wallet Balance Warning */}
-      {walletBalance && walletBalance.availableBalance < 1000 && (
-        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-yellow-600" />
-              <div>
-                <p className="font-medium text-yellow-800 dark:text-yellow-200">Low Wallet Balance</p>
-                <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  Your wallet balance is low. Add funds to continue running advertisements.
-                </p>
-              </div>
-              <Link href="/dashboard/wallet/add-money">
-                <Button size="sm" variant="outline">
-                  Add Funds
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Analytics Overview */}
+      {analytics && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(analytics.summary?.totalBudget || 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                Spent: {formatCurrency(analytics.summary?.totalSpent || 0)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Impressions</CardTitle>
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(analytics.summary?.totalImpressions || 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                CTR: {analytics.summary?.averageCTR || 0}%
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Clicks</CardTitle>
+              <MousePointer className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(analytics.summary?.totalClicks || 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                CPC: {formatCurrency(analytics.summary?.averageCPC || 0)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Conversions</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(analytics.summary?.totalConversions || 0)}</div>
+              <p className="text-xs text-muted-foreground">
+                Rate: {analytics.summary?.conversionRate || 0}%
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Active Campaigns</p>
-                <p className="text-2xl font-bold">{activeAds}</p>
-              </div>
-              <Target className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Spent</p>
-                <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
-                <p className="text-xs text-muted-foreground">of {formatCurrency(totalBudget)} budget</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Impressions</p>
-                <p className="text-2xl font-bold">{totalImpressions.toLocaleString()}</p>
-              </div>
-              <Eye className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Average CTR</p>
-                <p className="text-2xl font-bold">{averageCTR.toFixed(2)}%</p>
-              </div>
-              <MousePointer className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search campaigns..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="paused">Paused</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
-                  <SelectItem value="banner">Banner</SelectItem>
-                  <SelectItem value="sponsored">Sponsored</SelectItem>
-                  <SelectItem value="featured">Featured</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={handleSearch}>
-                <Filter className="h-4 w-4 mr-2" />
-                Apply
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Advertisements Table */}
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Campaigns ({advertisements.length})</CardTitle>
+          <CardTitle>Campaigns</CardTitle>
+          <CardDescription>Manage your advertising campaigns</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p className="ml-2 text-muted-foreground">Loading campaigns...</p>
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search campaigns..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
             </div>
-          ) : advertisements.length > 0 ? (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="paused">Paused</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Campaigns Table */}
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Budget</TableHead>
                   <TableHead>Performance</TableHead>
-                  <TableHead>Duration</TableHead>
+                  <TableHead>Dates</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {advertisements.map((ad) => (
-                  <TableRow key={ad.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{ad.title}</div>
-                        <div className="text-sm text-muted-foreground line-clamp-1">
-                          {ad.description}
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <div className="animate-pulse">
+                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getTypeColor(ad.type)}>
-                        {ad.type.charAt(0).toUpperCase() + ad.type.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(ad.status)}>
-                        {ad.status.charAt(0).toUpperCase() + ad.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{formatCurrency(ad.budget)}</div>
-                        <div className="text-sm text-muted-foreground">
-                          Spent: {formatCurrency(ad.spent)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-6 bg-gray-200 rounded w-16 animate-pulse"></div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="animate-pulse">
+                          <div className="h-4 bg-gray-200 rounded w-20 mb-1"></div>
+                          <div className="h-3 bg-gray-200 rounded w-16"></div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm">
-                          <Eye className="h-3 w-3 mr-1" />
-                          <span>{ad.impressions.toLocaleString()}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="animate-pulse">
+                          <div className="h-3 bg-gray-200 rounded w-24 mb-1"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
                         </div>
-                        <div className="flex items-center text-sm">
-                          <MousePointer className="h-3 w-3 mr-1" />
-                          <span>{ad.clicks} ({ad.ctr.toFixed(2)}%)</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="animate-pulse">
+                          <div className="h-3 bg-gray-200 rounded w-20 mb-1"></div>
+                          <div className="h-3 bg-gray-200 rounded w-16"></div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{formatDate(ad.startDate)}</div>
-                        <div className="text-muted-foreground">
-                          to {formatDate(ad.endDate)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="h-8 bg-gray-200 rounded w-8 animate-pulse ml-auto"></div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : campaigns.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex flex-col items-center space-y-3">
+                        <Megaphone className="h-12 w-12 text-gray-400" />
+                        <div>
+                          <p className="text-lg font-medium">No campaigns found</p>
+                          <p className="text-gray-500">Create your first advertising campaign to get started</p>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
+                        <Link href="/dashboard/advertisements/new">
+                          <Button>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Create Campaign
                           </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Link href={`/dashboard/advertisements/${ad.id}`} className="flex items-center w-full">
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Link href={`/dashboard/advertisements/${ad.id}/analytics`} className="flex items-center w-full">
-                              <BarChart3 className="h-4 w-4 mr-2" />
-                              Analytics
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Link href={`/dashboard/advertisements/${ad.id}/edit`} className="flex items-center w-full">
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                          {ad.status === 'active' ? (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(ad.id, 'paused')}
-                            >
-                              <Pause className="h-4 w-4 mr-2" />
-                              Pause Campaign
-                            </DropdownMenuItem>
-                          ) : ad.status === 'paused' ? (
-                            <DropdownMenuItem
-                              onClick={() => handleStatusChange(ad.id, 'active')}
-                            >
-                              <Play className="h-4 w-4 mr-2" />
-                              Resume Campaign
-                            </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(ad.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  campaigns.map((campaign) => {
+                    const StatusIcon = statusIcons[campaign.status];
+                    return (
+                      <TableRow key={campaign.id}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{campaign.name}</div>
+                            <div className="text-sm text-gray-500">
+                              {campaign.adCount} ads • {campaign.campaignType}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={statusColors[campaign.status]}>
+                            <StatusIcon className="h-3 w-3 mr-1" />
+                            {campaign.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{formatCurrency(campaign.budget)}</div>
+                            <div className="text-sm text-gray-500">
+                              Spent: {formatCurrency(campaign.spentAmount)}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>{formatNumber(campaign.impressions)} impressions</div>
+                            <div className="text-gray-500">
+                              {campaign.clicks} clicks • {campaign.ctr}% CTR
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <div>{formatDate(campaign.startDate)}</div>
+                            <div className="text-gray-500">to {formatDate(campaign.endDate)}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>
+                                <Link href={`/dashboard/advertisements/${campaign.id}`} className="flex items-center">
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Link href={`/dashboard/advertisements/${campaign.id}/edit`} className="flex items-center">
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit Campaign
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(
+                                  campaign.id,
+                                  campaign.status === 'active' ? 'paused' : 'active'
+                                )}
+                              >
+                                {campaign.status === 'active' ? (
+                                  <>
+                                    <Pause className="h-4 w-4 mr-2" />
+                                    Pause Campaign
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="h-4 w-4 mr-2" />
+                                    Activate Campaign
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteCampaign(campaign.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Campaign
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
-          ) : (
-            <div className="text-center py-12">
-              <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No campaigns found</h3>
-              <p className="text-muted-foreground mb-4">
-                {searchTerm || statusFilter || typeFilter
-                  ? 'Try adjusting your search or filters.'
-                  : 'Create your first advertising campaign to start promoting your products.'
-                }
-              </p>
-              {searchTerm || statusFilter || typeFilter ? (
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setSearchTerm('');
-                    setStatusFilter('');
-                    setTypeFilter('');
-                    loadAdvertisements();
-                  }}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-500">
+                Page {currentPage} of {totalPages}
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
                 >
-                  Clear Filters
+                  Previous
                 </Button>
-              ) : (
-                <Link href="/dashboard/advertisements/new">
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Your First Campaign
-                  </Button>
-                </Link>
-              )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }

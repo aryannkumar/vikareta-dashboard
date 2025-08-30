@@ -1,25 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-  Target, 
-  DollarSign, 
-  Calendar, 
-  Users, 
-  Image as ImageIcon,
-  Wallet,
-  AlertCircle,
-  Info,
-  ArrowLeft,
-  Save,
-  CreditCard
-} from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -27,569 +14,542 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { FileUpload } from '@/components/ui/file-upload';
+import {
+  Megaphone,
+  Save,
+  ArrowLeft,
+  Calendar,
+  DollarSign,
+  Target,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Loader2,
+  Eye,
+  MousePointer,
+  Users,
+  TrendingUp
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api/client';
-import { formatCurrency } from '@/lib/utils';
 import { toast } from '@/components/ui/use-toast';
+import { AuthGuard } from '@/components/auth/auth-guard';
 
-interface WalletBalance {
-  availableBalance: number;
-  lockedBalance: number;
-  totalBalance: number;
-}
-
-interface AdFormData {
-  title: string;
+interface CampaignFormData {
+  name: string;
   description: string;
-  type: 'banner' | 'sponsored' | 'featured';
+  campaignType: string;
   budget: number;
   dailyBudget: number;
   startDate: string;
   endDate: string;
-  targetAudience: {
-    locations: string[];
-    categories: string[];
-    userTypes: string[];
-    ageGroups: string[];
-  };
-  creativeAssets: {
-    images: string[];
-    videos: string[];
-  };
-  bidStrategy: 'cpc' | 'cpm' | 'cpa';
-  maxBid: number;
+  targetAudience: string;
+  adType: string;
+  placement: string;
+  title: string;
+  adDescription: string;
+  imageUrl: string;
+  targetUrl: string;
+  callToAction: string;
 }
 
-export default function CreateAdvertisementPage() {
+const campaignTypes = [
+  { value: 'awareness', label: 'Brand Awareness', description: 'Increase visibility and recognition' },
+  { value: 'traffic', label: 'Website Traffic', description: 'Drive visitors to your website' },
+  { value: 'conversions', label: 'Conversions', description: 'Generate sales and leads' },
+  { value: 'engagement', label: 'Engagement', description: 'Increase likes, shares, and comments' },
+];
+
+const adTypes = [
+  { value: 'banner', label: 'Banner Ad', description: 'Display banner advertisements' },
+  { value: 'product', label: 'Product Ad', description: 'Showcase specific products' },
+  { value: 'category', label: 'Category Ad', description: 'Promote product categories' },
+];
+
+const placements = [
+  { value: 'home', label: 'Homepage', description: 'Main homepage banner' },
+  { value: 'category', label: 'Category Pages', description: 'Category listing pages' },
+  { value: 'product', label: 'Product Pages', description: 'Individual product pages' },
+  { value: 'search', label: 'Search Results', description: 'Search results pages' },
+];
+
+const callToActions = [
+  'Shop Now',
+  'Learn More',
+  'Get Quote',
+  'Contact Us',
+  'View Products',
+  'Sign Up',
+  'Download',
+  'Book Now',
+];
+
+export default function CreateCampaignPage() {
+  return (
+    <AuthGuard requiredRoles={['seller', 'both', 'admin', 'super_admin']}>
+      <CreateCampaignContent />
+    </AuthGuard>
+  );
+}
+
+function CreateCampaignContent() {
   const router = useRouter();
-  const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState<AdFormData>({
-    title: '',
+  const [formData, setFormData] = useState<CampaignFormData>({
+    name: '',
     description: '',
-    type: 'sponsored',
-    budget: 5000,
-    dailyBudget: 500,
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    targetAudience: {
-      locations: [],
-      categories: [],
-      userTypes: [],
-      ageGroups: [],
-    },
-    creativeAssets: {
-      images: [],
-      videos: [],
-    },
-    bidStrategy: 'cpc',
-    maxBid: 10,
+    campaignType: '',
+    budget: 0,
+    dailyBudget: 0,
+    startDate: '',
+    endDate: '',
+    targetAudience: '',
+    adType: '',
+    placement: '',
+    title: '',
+    adDescription: '',
+    imageUrl: '',
+    targetUrl: '',
+    callToAction: 'Shop Now',
   });
 
+  // Set default dates
   useEffect(() => {
-    loadWalletBalance();
-  }, []);
+    const today = new Date();
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
 
-  const loadWalletBalance = async () => {
-    try {
-      const response = await apiClient.get('/wallet/balance');
-      if (response.success && response.data) {
-        setWalletBalance(response.data as WalletBalance);
-      }
-    } catch (error) {
-      console.error('Failed to load wallet balance:', error);
-    }
-  };
-
-  const handleInputChange = (field: keyof AdFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleTargetAudienceChange = (field: keyof AdFormData['targetAudience'], value: string[]) => {
     setFormData(prev => ({
       ...prev,
-      targetAudience: {
-        ...prev.targetAudience,
-        [field]: value,
-      },
+      startDate: today.toISOString().split('T')[0],
+      endDate: nextWeek.toISOString().split('T')[0],
+    }));
+  }, []);
+
+  const handleInputChange = (field: keyof CampaignFormData, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
     }));
   };
 
-  const handleSubmit = async (isDraft = false) => {
-    try {
-      setSaving(true);
-
-      // Validate required fields
-      if (!formData.title || !formData.description || !formData.budget) {
-        toast({
-          title: 'Validation Error',
-          description: 'Please fill in all required fields.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Check wallet balance
-      if (walletBalance && walletBalance.availableBalance < formData.budget) {
-        toast({
-          title: 'Insufficient Balance',
-          description: 'Your wallet balance is insufficient for this campaign budget.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const payload = {
-        ...formData,
-        status: isDraft ? 'draft' : 'pending_approval',
-        paymentMethod: 'wallet',
-      };
-
-      const response = await apiClient.post('/advertisements', payload);
-      
-      if (response.success) {
-        toast({
-          title: 'Success',
-          description: `Advertisement ${isDraft ? 'saved as draft' : 'created and submitted for approval'} successfully.`,
-        });
-        
-        // Redirect to advertisements list
-        router.push('/dashboard/advertisements');
-      } else {
-        throw new Error('Failed to create advertisement');
-      }
-    } catch (error) {
-      console.error('Failed to create advertisement:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create advertisement. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
+  const handleImageUpload = (uploadedFiles: any[]) => {
+    if (uploadedFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: uploadedFiles[0].url,
+      }));
     }
   };
 
-  const estimatedDuration = Math.ceil(formData.budget / formData.dailyBudget);
-  const canAfford = walletBalance ? walletBalance.availableBalance >= formData.budget : false;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // Validate required fields
+      if (!formData.name || !formData.campaignType || !formData.budget || !formData.adType || !formData.placement) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please fill in all required fields',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!formData.imageUrl) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please upload an advertisement image',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Create campaign payload
+      const campaignPayload = {
+        name: formData.name,
+        description: formData.description,
+        campaignType: formData.campaignType,
+        budget: formData.budget,
+        dailyBudget: formData.dailyBudget,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        targetAudience: formData.targetAudience,
+        status: 'draft',
+      };
+
+      // Create advertisement payload
+      const adPayload = {
+        title: formData.title || formData.name,
+        description: formData.adDescription,
+        type: formData.adType,
+        placement: formData.placement,
+        imageUrl: formData.imageUrl,
+        targetUrl: formData.targetUrl,
+        callToAction: formData.callToAction,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        budget: formData.budget,
+        priority: 5,
+      };
+
+      console.log('Creating campaign with payload:', { campaignPayload, adPayload });
+
+      // Create campaign first
+      const campaignResponse = await apiClient.createAdvertisementCampaign(campaignPayload);
+      
+      if (!campaignResponse.success) {
+        throw new Error(campaignResponse.error?.message || 'Failed to create campaign');
+      }
+
+      // Create advertisement with campaign ID
+      const adResponse = await apiClient.createAdvertisement({
+        ...adPayload,
+        campaignId: (campaignResponse.data as any)?.id,
+      });
+
+      if (!adResponse.success) {
+        throw new Error(adResponse.error?.message || 'Failed to create advertisement');
+      }
+
+      toast({
+        title: 'Success! 🎉',
+        description: 'Campaign created successfully',
+      });
+
+      router.push('/dashboard/advertisements');
+    } catch (error: any) {
+      console.error('Campaign creation error:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create campaign',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto space-y-6"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
+      <div className="flex items-center space-x-4">
+        <Link href="/dashboard/advertisements">
+          <Button variant="outline" size="sm">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Campaigns
           </Button>
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight">Create Advertisement</h1>
-            <p className="text-muted-foreground">Create a new advertising campaign</p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">Wallet Balance</p>
-            <p className="font-medium">
-              {walletBalance ? formatCurrency(walletBalance.availableBalance) : 'Loading...'}
-            </p>
-          </div>
-          <Wallet className="h-8 w-8 text-blue-500" />
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-600 to-amber-800 bg-clip-text text-transparent">
+            Create Advertisement Campaign
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300">
+            Promote your products and services to reach more customers
+          </p>
         </div>
       </div>
 
-      {/* Wallet Balance Check */}
-      {walletBalance && !canAfford && (
-        <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <div>
-                <p className="font-medium text-red-800 dark:text-red-200">Insufficient Wallet Balance</p>
-                <p className="text-sm text-red-700 dark:text-red-300">
-                  You need {formatCurrency(formData.budget - walletBalance.availableBalance)} more to create this campaign.
-                </p>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Campaign Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Target className="h-5 w-5 mr-2" />
+              Campaign Details
+            </CardTitle>
+            <CardDescription>
+              Set up your campaign objectives and budget
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="name">Campaign Name *</Label>
+                <Input
+                  id="name"
+                  placeholder="e.g., Summer Sale 2024"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  required
+                />
               </div>
-              <Button size="sm" onClick={() => router.push('/dashboard/wallet/add-money')}>
-                Add Funds
-              </Button>
+              <div className="space-y-2">
+                <Label htmlFor="campaignType">Campaign Type *</Label>
+                <Select value={formData.campaignType} onValueChange={(value) => handleInputChange('campaignType', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select campaign type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {campaignTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div>
+                          <div className="font-medium">{type.label}</div>
+                          <div className="text-sm text-gray-500">{type.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                placeholder="Describe your campaign objectives and target audience"
+                rows={3}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="budget">Total Budget (₹) *</Label>
+                <Input
+                  id="budget"
+                  type="number"
+                  min="100"
+                  step="10"
+                  placeholder="5000"
+                  value={formData.budget}
+                  onChange={(e) => handleInputChange('budget', parseFloat(e.target.value) || 0)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dailyBudget">Daily Budget (₹)</Label>
+                <Input
+                  id="dailyBudget"
+                  type="number"
+                  min="10"
+                  step="10"
+                  placeholder="200"
+                  value={formData.dailyBudget}
+                  onChange={(e) => handleInputChange('dailyBudget', parseFloat(e.target.value) || 0)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="targetAudience">Target Audience</Label>
+                <Input
+                  id="targetAudience"
+                  placeholder="e.g., Electronics buyers"
+                  value={formData.targetAudience}
+                  onChange={(e) => handleInputChange('targetAudience', e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="startDate">Start Date *</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => handleInputChange('startDate', e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate">End Date *</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => handleInputChange('endDate', e.target.value)}
+                  required
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Main Form */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Campaign Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        {/* Advertisement Creative */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <ImageIcon className="h-5 w-5 mr-2" />
+              Advertisement Creative
+            </CardTitle>
+            <CardDescription>
+              Design your advertisement content and placement
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="title">Campaign Title *</Label>
+                <Label htmlFor="adType">Ad Type *</Label>
+                <Select value={formData.adType} onValueChange={(value) => handleInputChange('adType', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select ad type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        <div>
+                          <div className="font-medium">{type.label}</div>
+                          <div className="text-sm text-gray-500">{type.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="placement">Placement *</Label>
+                <Select value={formData.placement} onValueChange={(value) => handleInputChange('placement', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select placement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {placements.map((placement) => (
+                      <SelectItem key={placement.value} value={placement.value}>
+                        <div>
+                          <div className="font-medium">{placement.label}</div>
+                          <div className="text-sm text-gray-500">{placement.description}</div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="title">Ad Title</Label>
                 <Input
                   id="title"
+                  placeholder="e.g., Best Electronics Deals"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
-                  placeholder="Enter campaign title"
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Describe your campaign"
-                  rows={3}
-                />
+                <Label htmlFor="callToAction">Call to Action</Label>
+                <Select value={formData.callToAction} onValueChange={(value) => handleInputChange('callToAction', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {callToActions.map((cta) => (
+                      <SelectItem key={cta} value={cta}>
+                        {cta}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Advertisement Type *</Label>
-                <RadioGroup
-                  value={formData.type}
-                  onValueChange={(value) => handleInputChange('type', value)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="sponsored" id="sponsored" />
-                    <Label htmlFor="sponsored">Sponsored Product (₹5-50 per click)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="banner" id="banner" />
-                    <Label htmlFor="banner">Banner Ad (₹100-1000 per day)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="featured" id="featured" />
-                    <Label htmlFor="featured">Featured Listing (₹500-2000 per week)</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            </CardContent>
-          </Card>
+            <div className="space-y-2">
+              <Label htmlFor="adDescription">Ad Description</Label>
+              <Textarea
+                id="adDescription"
+                placeholder="Write compelling ad copy that attracts customers"
+                rows={3}
+                value={formData.adDescription}
+                onChange={(e) => handleInputChange('adDescription', e.target.value)}
+              />
+            </div>
 
-          {/* Budget & Scheduling */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Budget & Schedule</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="budget">Total Budget (₹) *</Label>
-                  <Input
-                    id="budget"
-                    type="number"
-                    value={formData.budget}
-                    onChange={(e) => handleInputChange('budget', parseInt(e.target.value) || 0)}
-                    min="100"
-                    step="100"
+            <div className="space-y-2">
+              <Label htmlFor="targetUrl">Target URL</Label>
+              <Input
+                id="targetUrl"
+                type="url"
+                placeholder="https://vikareta.com/your-products"
+                value={formData.targetUrl}
+                onChange={(e) => handleInputChange('targetUrl', e.target.value)}
+              />
+            </div>
+
+            {/* Image Upload */}
+            <div className="space-y-4">
+              <Label>Advertisement Image *</Label>
+              <FileUpload
+                onFilesUploaded={handleImageUpload}
+                acceptedTypes={['image/jpeg', 'image/png', 'image/webp']}
+                maxFiles={1}
+                folder="advertisements"
+                resize={{ width: 1200, height: 600, quality: 0.9 }}
+                generateThumbnail={true}
+              />
+              {formData.imageUrl && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                  <img
+                    src={formData.imageUrl}
+                    alt="Advertisement preview"
+                    className="w-full max-w-md h-32 object-cover rounded-lg border"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dailyBudget">Daily Budget (₹) *</Label>
-                  <Input
-                    id="dailyBudget"
-                    type="number"
-                    value={formData.dailyBudget}
-                    onChange={(e) => handleInputChange('dailyBudget', parseInt(e.target.value) || 0)}
-                    min="50"
-                    step="50"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date *</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={(e) => handleInputChange('startDate', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date *</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={formData.endDate}
-                    onChange={(e) => handleInputChange('endDate', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Info className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-800 dark:text-blue-200">Campaign Estimate</span>
-                </div>
-                <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                  <p>Duration: {estimatedDuration} days</p>
-                  <p>Estimated reach: {(formData.budget / 2).toLocaleString()} users</p>
-                  <p>Payment will be deducted from your wallet balance</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Target Audience */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Target Audience</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>User Types</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['buyers', 'sellers', 'both'].map((type) => (
-                    <div key={type} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={type}
-                        checked={formData.targetAudience.userTypes.includes(type)}
-                        onCheckedChange={(checked) => {
-                          const newTypes = checked
-                            ? [...formData.targetAudience.userTypes, type]
-                            : formData.targetAudience.userTypes.filter(t => t !== type);
-                          handleTargetAudienceChange('userTypes', newTypes);
-                        }}
-                      />
-                      <Label htmlFor={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Categories</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['Electronics', 'Textiles', 'Machinery', 'Chemicals', 'Automotive', 'Food & Beverages'].map((category) => (
-                    <div key={category} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={category}
-                        checked={formData.targetAudience.categories.includes(category)}
-                        onCheckedChange={(checked) => {
-                          const newCategories = checked
-                            ? [...formData.targetAudience.categories, category]
-                            : formData.targetAudience.categories.filter(c => c !== category);
-                          handleTargetAudienceChange('categories', newCategories);
-                        }}
-                      />
-                      <Label htmlFor={category}>{category}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Locations</Label>
-                <div className="flex flex-wrap gap-2">
-                  {['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Hyderabad', 'All India'].map((location) => (
-                    <div key={location} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={location}
-                        checked={formData.targetAudience.locations.includes(location)}
-                        onCheckedChange={(checked) => {
-                          const newLocations = checked
-                            ? [...formData.targetAudience.locations, location]
-                            : formData.targetAudience.locations.filter(l => l !== location);
-                          handleTargetAudienceChange('locations', newLocations);
-                        }}
-                      />
-                      <Label htmlFor={location}>{location}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Bidding Strategy */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Bidding Strategy</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Bid Strategy</Label>
-                <RadioGroup
-                  value={formData.bidStrategy}
-                  onValueChange={(value) => handleInputChange('bidStrategy', value)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cpc" id="cpc" />
-                    <Label htmlFor="cpc">Cost Per Click (CPC) - Pay when users click</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cpm" id="cpm" />
-                    <Label htmlFor="cpm">Cost Per Mille (CPM) - Pay per 1000 impressions</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cpa" id="cpa" />
-                    <Label htmlFor="cpa">Cost Per Action (CPA) - Pay when users take action</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="maxBid">Maximum Bid (₹)</Label>
-                <Input
-                  id="maxBid"
-                  type="number"
-                  value={formData.maxBid}
-                  onChange={(e) => handleInputChange('maxBid', parseFloat(e.target.value) || 0)}
-                  min="1"
-                  step="0.5"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Recommended: ₹5-15 for {formData.bidStrategy.toUpperCase()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Wallet Info */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Wallet className="h-5 w-5" />
-                <span>Wallet Balance</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {walletBalance ? (
-                <>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm">Available:</span>
-                      <span className="font-medium">{formatCurrency(walletBalance.availableBalance)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm">Locked:</span>
-                      <span className="font-medium">{formatCurrency(walletBalance.lockedBalance)}</span>
-                    </div>
-                    <div className="flex justify-between border-t pt-2">
-                      <span className="font-medium">Total:</span>
-                      <span className="font-medium">{formatCurrency(walletBalance.totalBalance)}</span>
-                    </div>
-                  </div>
-                  
-                  {!canAfford && (
-                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                      <p className="text-sm text-red-700 dark:text-red-300">
-                        Insufficient balance for this campaign
-                      </p>
-                      <Button size="sm" className="mt-2 w-full" onClick={() => router.push('/dashboard/wallet/add-money')}>
-                        Add Funds
-                      </Button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="animate-pulse space-y-2">
-                  <div className="h-4 bg-muted rounded w-full"></div>
-                  <div className="h-4 bg-muted rounded w-3/4"></div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Campaign Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Campaign Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm">Type:</span>
-                  <span className="font-medium capitalize">{formData.type}</span>
+        {/* Expected Performance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <TrendingUp className="h-5 w-5 mr-2" />
+              Expected Performance
+            </CardTitle>
+            <CardDescription>
+              Estimated reach and performance based on your budget
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <Eye className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-blue-600">
+                  {formData.budget ? Math.floor(formData.budget * 10) : 0}
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Total Budget:</span>
-                  <span className="font-medium">{formatCurrency(formData.budget)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Daily Budget:</span>
-                  <span className="font-medium">{formatCurrency(formData.dailyBudget)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Duration:</span>
-                  <span className="font-medium">{estimatedDuration} days</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">Bid Strategy:</span>
-                  <span className="font-medium">{formData.bidStrategy.toUpperCase()}</span>
-                </div>
+                <p className="text-sm text-blue-600">Estimated Impressions</p>
               </div>
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <MousePointer className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-green-600">
+                  {formData.budget ? Math.floor(formData.budget * 0.5) : 0}
+                </div>
+                <p className="text-sm text-green-600">Estimated Clicks</p>
+              </div>
+              <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <Users className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-purple-600">
+                  {formData.budget ? Math.floor(formData.budget * 8) : 0}
+                </div>
+                <p className="text-sm text-purple-600">Estimated Reach</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  <strong>Payment:</strong> Amount will be deducted from your wallet balance when campaign is approved.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pricing Guide */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Pricing Guide</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Sponsored Products:</span>
-                  <span>₹5-50 per click</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Banner Ads:</span>
-                  <span>₹100-1000 per day</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Featured Listings:</span>
-                  <span>₹500-2000 per week</span>
-                </div>
-              </div>
-              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                <p className="text-xs text-green-700 dark:text-green-300">
-                  Higher budgets get better placement and more visibility
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Actions */}
+        <div className="flex items-center justify-end space-x-4 pt-4">
+          <Link href="/dashboard/advertisements">
+            <Button type="button" variant="outline">
+              Cancel
+            </Button>
+          </Link>
+          <Button type="submit" disabled={loading} className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white">
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Save className="mr-2 h-4 w-4" />
+            Create Campaign
+          </Button>
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-end space-x-4 pt-6 border-t">
-        <Button variant="outline" onClick={() => router.back()}>
-          Cancel
-        </Button>
-        <Button 
-          variant="outline" 
-          onClick={() => handleSubmit(true)}
-          disabled={saving || !formData.title || !formData.description}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          Save as Draft
-        </Button>
-        <Button 
-          onClick={() => handleSubmit(false)}
-          disabled={saving || !canAfford || !formData.title || !formData.description}
-        >
-          <CreditCard className="h-4 w-4 mr-2" />
-          {saving ? 'Creating...' : 'Create & Pay'}
-        </Button>
-      </div>
-    </div>
+      </form>
+    </motion.div>
   );
 }

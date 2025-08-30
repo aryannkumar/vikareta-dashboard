@@ -64,7 +64,7 @@ export function AdAnalytics() {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.getAdvertisementAnalytics(3);
+      const response = await apiClient.getAdvertisementAnalytics({ limit: 3 });
       
       if (response.success && response.data) {
         const data = response.data as any;

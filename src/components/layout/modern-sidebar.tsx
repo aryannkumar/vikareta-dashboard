@@ -7,12 +7,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  MessageSquare, 
-  Megaphone, 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  MessageSquare,
+  Megaphone,
   Wallet,
   Settings,
   User,
@@ -48,18 +48,22 @@ const navigation: NavigationItem[] = [
     icon: LayoutDashboard,
   },
   {
-    name: 'Analytics',
-    href: '/dashboard/analytics',
-    icon: BarChart3,
-  },
-  {
     name: 'Products',
     href: '/dashboard/products',
     icon: Package,
     children: [
       { name: 'All Products', href: '/dashboard/products', icon: Package },
       { name: 'Add Product', href: '/dashboard/products/new', icon: Package },
-      { name: 'Categories', href: '/dashboard/products/categories', icon: Package },
+      { name: 'Inventory', href: '/dashboard/inventory', icon: Package },
+    ],
+  },
+  {
+    name: 'Services',
+    href: '/dashboard/services',
+    icon: FileText,
+    children: [
+      { name: 'All Services', href: '/dashboard/services', icon: FileText },
+      { name: 'Add Service', href: '/dashboard/services/new', icon: FileText },
     ],
   },
   {
@@ -67,21 +71,44 @@ const navigation: NavigationItem[] = [
     href: '/dashboard/orders',
     icon: ShoppingCart,
     badge: '12',
+    children: [
+      { name: 'All Orders', href: '/dashboard/orders', icon: ShoppingCart },
+      { name: 'Pending', href: '/dashboard/orders/pending', icon: ShoppingCart },
+      { name: 'Completed', href: '/dashboard/orders/completed', icon: ShoppingCart },
+    ],
   },
   {
     name: 'RFQs',
     href: '/dashboard/rfqs',
     icon: MessageSquare,
     badge: '5',
+    children: [
+      { name: 'Received RFQs', href: '/dashboard/rfqs', icon: MessageSquare },
+      { name: 'My Quotes', href: '/dashboard/quotes', icon: MessageSquare },
+    ],
+  },
+  {
+    name: 'Shipments',
+    href: '/dashboard/shipments',
+    icon: Package,
   },
   {
     name: 'Advertisements',
     href: '/dashboard/advertisements',
     icon: Megaphone,
     children: [
-      { name: 'All Ads', href: '/dashboard/advertisements', icon: Megaphone },
-      { name: 'Create Ad', href: '/dashboard/advertisements/new', icon: Megaphone },
+      { name: 'All Campaigns', href: '/dashboard/advertisements', icon: Megaphone },
+      { name: 'Create Campaign', href: '/dashboard/advertisements/new', icon: Megaphone },
       { name: 'Analytics', href: '/dashboard/advertisements/analytics', icon: BarChart3 },
+    ],
+  },
+  {
+    name: 'Analytics',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    children: [
+      { name: 'Sales Analytics', href: '/dashboard/analytics/sales', icon: BarChart3 },
+      { name: 'Product Performance', href: '/dashboard/analytics/products', icon: BarChart3 },
     ],
   },
   {
@@ -91,7 +118,6 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Balance', href: '/dashboard/wallet', icon: Wallet },
       { name: 'Transactions', href: '/dashboard/wallet/transactions', icon: FileText },
-      { name: 'Add Money', href: '/dashboard/wallet/add-money', icon: Wallet },
       { name: 'Withdraw', href: '/dashboard/wallet/withdraw', icon: Wallet },
     ],
   },
@@ -99,18 +125,19 @@ const navigation: NavigationItem[] = [
 
 const bottomNavigation: NavigationItem[] = [
   {
-    name: 'Customers',
-    href: '/dashboard/customers',
-    icon: Users,
-  },
-  {
     name: 'Settings',
     href: '/dashboard/settings',
     icon: Settings,
+    children: [
+      { name: 'Business Profile', href: '/dashboard/settings/business', icon: Settings },
+      { name: 'Account', href: '/dashboard/settings/account', icon: Settings },
+      { name: 'Security', href: '/dashboard/settings/security', icon: Settings },
+      { name: 'Notifications', href: '/dashboard/settings/notifications', icon: Settings },
+    ],
   },
   {
-    name: 'Help',
-    href: '/dashboard/help',
+    name: 'Support',
+    href: '/dashboard/support',
     icon: HelpCircle,
   },
 ];
@@ -127,8 +154,8 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
   const { user, logout } = useVikaretaAuthContext();
 
   const toggleExpanded = (itemName: string) => {
-    setExpandedItems(prev => 
-      prev.includes(itemName) 
+    setExpandedItems(prev =>
+      prev.includes(itemName)
         ? prev.filter(name => name !== itemName)
         : [...prev, itemName]
     );
@@ -151,11 +178,10 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
         <div className={`group relative flex items-center ${level > 0 ? 'pl-6' : ''}`}>
           <Link
             href={item.href}
-            className={`flex items-center w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-              active
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            } ${isCollapsed && level === 0 ? 'justify-center' : ''}`}
+            className={`flex items-center w-full px-3 py-2 text-sm font-medium rounded-lg transition-colors ${active
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+              } ${isCollapsed && level === 0 ? 'justify-center' : ''}`}
             onClick={() => setIsMobileOpen(false)}
           >
             <item.icon className={`flex-shrink-0 ${isCollapsed && level === 0 ? 'h-5 w-5' : 'h-4 w-4 mr-3'}`} />
@@ -281,18 +307,16 @@ export function ModernSidebar({ className = '' }: ModernSidebarProps) {
 
       {/* Mobile Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform lg:hidden ${
-          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transform transition-transform lg:hidden ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <SidebarContent />
       </div>
 
       {/* Desktop Sidebar */}
       <div
-        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:bg-background lg:border-r lg:shadow-sm transition-all duration-300 ${
-          isCollapsed ? 'lg:w-16' : 'lg:w-64'
-        } ${className}`}
+        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:bg-background lg:border-r lg:shadow-sm transition-all duration-300 ${isCollapsed ? 'lg:w-16' : 'lg:w-64'
+          } ${className}`}
       >
         <SidebarContent />
       </div>

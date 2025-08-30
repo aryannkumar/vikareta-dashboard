@@ -18,7 +18,9 @@ import {
   Star,
   MessageSquare,
   Clock,
-  CheckCircle
+  CheckCircle,
+  FileText,
+  Megaphone
 } from 'lucide-react';
 import Link from 'next/link';
 import { RevenueChart } from '@/components/dashboard/revenue-chart';
@@ -292,9 +294,9 @@ function DashboardContent() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {[
                 { href: "/dashboard/products/new", icon: Plus, label: "Add Product", gradient: "from-green-500 to-green-600" },
-                { href: "/dashboard/rfqs/new", icon: Package, label: "Create RFQ", gradient: "from-blue-500 to-blue-600" },
-                { href: "/dashboard/orders", icon: ShoppingCart, label: "View Orders", gradient: "from-purple-500 to-purple-600" },
-                { href: "/dashboard/wallet", icon: DollarSign, label: "Manage Wallet", gradient: "from-amber-500 to-amber-600" }
+                { href: "/dashboard/services/new", icon: FileText, label: "Add Service", gradient: "from-blue-500 to-blue-600" },
+                { href: "/dashboard/advertisements/new", icon: Megaphone, label: "Create Ad", gradient: "from-purple-500 to-purple-600" },
+                { href: "/dashboard/orders", icon: ShoppingCart, label: "View Orders", gradient: "from-amber-500 to-amber-600" }
               ].map((action, index) => (
                 <motion.div
                   key={action.href}

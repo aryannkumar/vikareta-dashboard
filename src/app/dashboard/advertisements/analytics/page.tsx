@@ -1,300 +1,462 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { CalendarIcon, ChartBarIcon, CurrencyDollarIcon, EyeIcon } from '@heroicons/react/24/outline';
-import { Card } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select } from '@/components/ui/select';
-import { AnalyticsOverview } from '@/components/advertisements/analytics-overview';
-import { PerformanceChart } from '@/components/advertisements/performance-chart';
-import { CampaignComparison } from '@/components/advertisements/campaign-comparison';
-import { AudienceInsights } from '@/components/advertisements/audience-insights';
-import { BudgetTracker } from '@/components/advertisements/budget-tracker';
-import { RealTimeMetrics } from '@/components/advertisements/real-time-metrics';
-import { HistoricalPerformance } from '@/components/advertisements/historical-performance';
-import { useAdvertisementStore } from '@/lib/stores/advertisement';
-import { formatCurrency, formatPercentage } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  ArrowLeft,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Eye,
+  MousePointer,
+  Users,
+  Target,
+  Calendar,
+  Download,
+  RefreshCw,
+  BarChart3,
+  PieChart,
+  Activity
+} from 'lucide-react';
+import Link from 'next/link';
+import { apiClient } from '@/lib/api/client';
+import { toast } from '@/components/ui/use-toast';
+import { formatCurrency, formatNumber, formatDate } from '@/lib/utils';
+import { AuthGuard } from '@/components/auth/auth-guard';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 
-type DateRange = '7d' | '30d' | '90d' | 'custom';
+interface AnalyticsData {
+  ads: Array<{
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+    budget: number;
+    spent: number;
+    impressions: number;
+    clicks: number;
+    ctr: number;
+    cpc: number;
+    conversions: number;
+    createdAt: string;
+    isActive: boolean;
+  }>;
+  summary: {
+    totalAds: number;
+    totalBudget: number;
+    totalSpent: number;
+    totalImpressions: number;
+    totalClicks: number;
+    totalConversions: number;
+    averageCTR: number;
+    averageCPC: number;
+    conversionRate: number;
+  };
+  period: string;
+}
+
+const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
 
 export default function AdvertisementAnalyticsPage() {
-  const { 
-    campaigns, 
-    analytics, 
-    fetchAnalytics, 
-    fetchCampaigns,
-    pauseCampaign,
-    resumeCampaign,
-    loading 
-  } = useAdvertisementStore();
-  const [dateRange, setDateRange] = useState<DateRange>('30d');
-  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'realtime' | 'historical' | 'budget'>('overview');
+  return (
+    <AuthGuard requiredRoles={['seller', 'both', 'admin', 'super_admin']}>
+      <AdvertisementAnalyticsContent />
+    </AuthGuard>
+  );
+}
+
+function AdvertisementAnalyticsContent() {
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState('30d');
+  const [selectedTab, setSelectedTab] = useState('overview');
+
+  const loadAnalytics = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.getAdvertisementAnalytics({ period, limit: 20 });
+      
+      if (response.success) {
+        setAnalytics(response.data as AnalyticsData);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to load analytics data',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load analytics:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load analytics data',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchAnalytics(dateRange);
-    fetchCampaigns();
-  }, [fetchAnalytics, fetchCampaigns, dateRange]);
+    loadAnalytics();
+  }, [period]);
 
-  const totalMetrics = analytics.reduce(
-    (acc, curr) => ({
-      impressions: acc.impressions + curr.impressions,
-      clicks: acc.clicks + curr.clicks,
-      conversions: acc.conversions + curr.conversions,
-      spend: acc.spend + curr.spend,
-      revenue: acc.revenue + curr.revenue,
-    }),
-    { impressions: 0, clicks: 0, conversions: 0, spend: 0, revenue: 0 }
-  );
+  const exportData = () => {
+    if (!analytics) return;
+    
+    const csvData = analytics.ads.map(ad => ({
+      Title: ad.title,
+      Type: ad.type,
+      Status: ad.status,
+      Budget: ad.budget,
+      Spent: ad.spent,
+      Impressions: ad.impressions,
+      Clicks: ad.clicks,
+      CTR: ad.ctr,
+      CPC: ad.cpc,
+      Conversions: ad.conversions,
+      'Created At': formatDate(ad.createdAt),
+    }));
 
-  const averageCTR = totalMetrics.impressions > 0 
-    ? (totalMetrics.clicks / totalMetrics.impressions) * 100 
-    : 0;
+    const csv = [
+      Object.keys(csvData[0]).join(','),
+      ...csvData.map(row => Object.values(row).join(','))
+    ].join('\n');
 
-  const averageCPC = totalMetrics.clicks > 0 
-    ? totalMetrics.spend / totalMetrics.clicks 
-    : 0;
-
-  const roas = totalMetrics.spend > 0 
-    ? totalMetrics.revenue / totalMetrics.spend 
-    : 0;
-
-  const metricCards = [
-    {
-      title: 'Total Impressions',
-      value: totalMetrics.impressions.toLocaleString(),
-      icon: EyeIcon,
-      color: 'text-ad-blue',
-      bgColor: 'bg-ad-blue/10',
-    },
-    {
-      title: 'Total Clicks',
-      value: totalMetrics.clicks.toLocaleString(),
-      icon: ChartBarIcon,
-      color: 'text-ad-blue',
-      bgColor: 'bg-ad-blue/10',
-    },
-    {
-      title: 'Total Spend',
-      value: formatCurrency(totalMetrics.spend),
-      icon: CurrencyDollarIcon,
-      color: 'text-ad-orange',
-      bgColor: 'bg-ad-orange/10',
-    },
-    {
-      title: 'Average CTR',
-      value: formatPercentage(averageCTR / 100),
-      icon: ChartBarIcon,
-      color: 'text-ad-status-success',
-      bgColor: 'bg-ad-status-success/10',
-    },
-  ];
-
-  const handlePauseCampaign = async (campaignId: string) => {
-    try {
-      await pauseCampaign(campaignId);
-    } catch (error) {
-      console.error('Failed to pause campaign:', error);
-    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `advertisement-analytics-${period}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
-  const handleResumeCampaign = async (campaignId: string) => {
-    try {
-      await resumeCampaign(campaignId);
-    } catch (error) {
-      console.error('Failed to resume campaign:', error);
-    }
-  };
+  // Prepare chart data
+  const performanceData = analytics?.ads.slice(0, 10).map(ad => ({
+    name: ad.title.substring(0, 20) + (ad.title.length > 20 ? '...' : ''),
+    impressions: ad.impressions,
+    clicks: ad.clicks,
+    conversions: ad.conversions,
+    spent: ad.spent,
+  })) || [];
 
-  const tabs = [
-    { id: 'overview', label: 'Overview', icon: ChartBarIcon },
-    { id: 'realtime', label: 'Real-Time', icon: EyeIcon },
-    { id: 'historical', label: 'Historical', icon: CalendarIcon },
-    { id: 'budget', label: 'Budget Tracking', icon: CurrencyDollarIcon },
-  ];
+  const typeDistribution = analytics?.ads.reduce((acc, ad) => {
+    acc[ad.type] = (acc[ad.type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const pieData = Object.entries(typeDistribution || {}).map(([type, count]) => ({
+    name: type,
+    value: count,
+  }));
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse"></div>
+          <div className="h-8 w-64 bg-gray-200 rounded animate-pulse"></div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Advertisement Analytics</h1>
-          <p className="text-muted-foreground">
-            Monitor your campaign performance and optimize your advertising strategy
-          </p>
-        </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          <Select
-            value={dateRange}
-            onValueChange={(value: string) => setDateRange(value as DateRange)}
-          >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="custom">Custom range</option>
+          <Link href="/dashboard/advertisements">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Campaigns
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-amber-600 to-amber-800 bg-clip-text text-transparent">
+              Advertisement Analytics
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              Track your campaign performance and ROI
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+              <SelectItem value="90d">Last 90 days</SelectItem>
+            </SelectContent>
           </Select>
-          <Button variant="outline">
-            <CalendarIcon className="w-4 h-4 mr-2" />
-            Export Report
+          <Button variant="outline" size="sm" onClick={loadAnalytics}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportData}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
           </Button>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="border-b border-border">
-        <nav className="flex space-x-8">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-ad-orange text-ad-orange'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          {/* Metrics Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {metricCards.map((metric) => {
-              const Icon = metric.icon;
-              return (
-                <Card key={metric.title} className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {metric.title}
-                      </p>
-                      <p className="text-2xl font-bold text-foreground mt-2">
-                        {metric.value}
-                      </p>
-                    </div>
-                    <div className={`p-3 rounded-lg ${metric.bgColor}`}>
-                      <Icon className={`w-6 h-6 ${metric.color}`} />
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* Performance Overview */}
-          <AnalyticsOverview 
-            analytics={analytics}
-            dateRange={dateRange}
-            loading={loading}
-          />
-
-          {/* Performance Chart */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-foreground">Performance Trends</h2>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-muted-foreground">Metric:</span>
-                <Select defaultValue="impressions">
-                  <option value="impressions">Impressions</option>
-                  <option value="clicks">Clicks</option>
-                  <option value="conversions">Conversions</option>
-                  <option value="spend">Spend</option>
-                </Select>
+      {/* Key Metrics */}
+      {analytics && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Spend</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(analytics.summary.totalSpent)}</div>
+              <p className="text-xs text-muted-foreground">
+                of {formatCurrency(analytics.summary.totalBudget)} budget
+              </p>
+              <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-amber-600 h-2 rounded-full"
+                  style={{
+                    width: `${Math.min(100, (analytics.summary.totalSpent / analytics.summary.totalBudget) * 100)}%`
+                  }}
+                ></div>
               </div>
-            </div>
-            <PerformanceChart 
-              analytics={analytics}
-              dateRange={dateRange}
-            />
+            </CardContent>
           </Card>
 
-          {/* Campaign Comparison */}
-          <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-foreground">Campaign Comparison</h2>
-              <Select
-                value={selectedCampaigns[0] || ''}
-                onValueChange={(value) => setSelectedCampaigns([value])}
-              >
-                {campaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.name}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <CampaignComparison 
-              campaigns={campaigns.filter(c => selectedCampaigns.includes(c.id))}
-              analytics={analytics}
-            />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Impressions</CardTitle>
+              <Eye className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(analytics.summary.totalImpressions)}</div>
+              <p className="text-xs text-muted-foreground">
+                {analytics.summary.totalAds} active campaigns
+              </p>
+            </CardContent>
           </Card>
 
-          {/* Audience Insights */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-6">Audience Insights</h2>
-            <AudienceInsights 
-              analytics={analytics}
-              dateRange={dateRange}
-            />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Click-Through Rate</CardTitle>
+              <MousePointer className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{analytics.summary.averageCTR}%</div>
+              <p className="text-xs text-muted-foreground">
+                {formatNumber(analytics.summary.totalClicks)} total clicks
+              </p>
+            </CardContent>
           </Card>
 
-          {/* Key Metrics Summary */}
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-6">Key Performance Indicators</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-ad-blue mb-2">
-                  {formatCurrency(averageCPC)}
-                </div>
-                <div className="text-sm text-muted-foreground">Average CPC</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-ad-orange mb-2">
-                  {roas.toFixed(2)}x
-                </div>
-                <div className="text-sm text-muted-foreground">Return on Ad Spend</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-ad-status-success mb-2">
-                  {totalMetrics.conversions.toLocaleString()}
-                </div>
-                <div className="text-sm text-muted-foreground">Total Conversions</div>
-              </div>
-            </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Conversions</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatNumber(analytics.summary.totalConversions)}</div>
+              <p className="text-xs text-muted-foreground">
+                {analytics.summary.conversionRate}% conversion rate
+              </p>
+            </CardContent>
           </Card>
         </div>
       )}
 
-      {activeTab === 'realtime' && (
-        <RealTimeMetrics 
-          analytics={analytics}
-          refreshInterval={30}
-        />
-      )}
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Performance Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2" />
+              Campaign Performance
+            </CardTitle>
+            <CardDescription>Impressions, clicks, and conversions by campaign</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={performanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="impressions" fill="#f59e0b" name="Impressions" />
+                <Bar dataKey="clicks" fill="#3b82f6" name="Clicks" />
+                <Bar dataKey="conversions" fill="#10b981" name="Conversions" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-      {activeTab === 'historical' && (
-        <HistoricalPerformance 
-          analytics={analytics}
-          dateRange={dateRange}
-        />
-      )}
+        {/* Ad Type Distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <PieChart className="h-5 w-5 mr-2" />
+              Ad Type Distribution
+            </CardTitle>
+            <CardDescription>Distribution of campaigns by ad type</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <RechartsPieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </RechartsPieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
-      {activeTab === 'budget' && (
-        <BudgetTracker 
-          campaigns={campaigns}
-          onPauseCampaign={handlePauseCampaign}
-          onResumeCampaign={handleResumeCampaign}
-        />
-      )}
-    </div>
+      {/* Detailed Performance Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Activity className="h-5 w-5 mr-2" />
+            Campaign Details
+          </CardTitle>
+          <CardDescription>Detailed performance metrics for all campaigns</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Budget</TableHead>
+                  <TableHead>Impressions</TableHead>
+                  <TableHead>Clicks</TableHead>
+                  <TableHead>CTR</TableHead>
+                  <TableHead>CPC</TableHead>
+                  <TableHead>Conversions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {analytics?.ads.map((ad) => (
+                  <TableRow key={ad.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{ad.title}</div>
+                        <div className="text-sm text-gray-500">{formatDate(ad.createdAt)}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{ad.type}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={
+                        ad.status === 'active' ? 'bg-green-100 text-green-800' :
+                        ad.status === 'paused' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-gray-100 text-gray-800'
+                      }>
+                        {ad.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{formatCurrency(ad.budget)}</div>
+                        <div className="text-sm text-gray-500">
+                          Spent: {formatCurrency(ad.spent)}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatNumber(ad.impressions)}</TableCell>
+                    <TableCell>{formatNumber(ad.clicks)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center">
+                        {ad.ctr}%
+                        {ad.ctr > 2 ? (
+                          <TrendingUp className="h-3 w-3 text-green-500 ml-1" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-500 ml-1" />
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{formatCurrency(ad.cpc)}</TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{formatNumber(ad.conversions)}</div>
+                        <div className="text-sm text-gray-500">
+                          {ad.clicks > 0 ? ((ad.conversions / ad.clicks) * 100).toFixed(1) : 0}%
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
