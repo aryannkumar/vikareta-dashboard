@@ -21,7 +21,7 @@ export class VikaretaSSOClient {
   private readonly storageKeys = VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS;
 
   /**
-   * Initialize SSO client with security checks
+   * Initialize SSO client with optimized caching
    */
   async initialize(): Promise<VikaretaAuthState> {
     try {
@@ -44,87 +44,66 @@ export class VikaretaSSOClient {
           return { user: null, isAuthenticated: false, isLoading: false, error: null, sessionId: null };
         }
 
-        // Try to validate session with backend (with retry logic)
-        console.log('SSO Client: Validating session with backend...');
-        let isValid = false;
-
-        // Try validation with retries for resilient SSO
-        for (let attempt = 1; attempt <= 2; attempt++) {
-          try {
-            isValid = await this.validateSession();
-            console.log('SSO Client: Session validation result (attempt', attempt, '):', isValid);
-            if (isValid) break;
-          } catch (error) {
-            console.warn('SSO Client: Session validation attempt', attempt, 'failed:', error);
+        // For performance, trust the stored state initially and validate in background
+        console.log('SSO Client: Using stored state, validating in background...');
+        
+        // Background validation without blocking UI
+        this.validateSession().then(isValid => {
+          if (!isValid) {
+            console.warn('SSO Client: Background validation failed, clearing auth state');
+            vikaretaCrossDomainAuth.clearAuthData();
+            // Trigger a re-initialization
+            window.dispatchEvent(new CustomEvent('vikareta-auth-invalid'));
           }
+        }).catch(error => {
+          console.warn('SSO Client: Background validation error:', error);
+        });
 
-          // Wait before retry
-          if (attempt < 2) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-
-        if (!isValid) {
-          console.warn('SSO Client: Session validation failed after retries, but keeping stored state for cross-domain auth');
-          // Don't clear auth state immediately - allow for cross-domain auth to work
-          // Return the stored state but mark it as potentially needing refresh
-          return {
-            ...storedState,
-            error: 'Session validation pending'
-          };
-        }
-
-        console.log('SSO Client: Initialization successful with valid session');
         return storedState;
       }
 
-      // No stored state found, but check if user is authenticated via cookies
+      // No stored state found, check if user is authenticated via cookies
       console.log('SSO Client: No stored auth state, checking authentication via cookies...');
 
       try {
-        const isValid = await this.validateSession();
-        if (isValid) {
-          // Get user data from the validation response
-          const response = await fetch('/api/auth/me', {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Accept': 'application/json' }
-          });
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
 
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.user && isVikaretaUser(data.user)) {
-              console.log('SSO Client: Found valid authentication via cookies');
-              console.log('SSO Client: User data:', { id: data.user.id, email: data.user.email, userType: data.user.userType });
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.user && isVikaretaUser(data.user)) {
+            console.log('SSO Client: Found valid authentication via cookies');
+            console.log('SSO Client: User data:', { id: data.user.id, email: data.user.email, userType: data.user.userType });
 
-              try {
-                // Store the auth data for future use
-                const authData: VikaretaAuthData = {
-                  user: data.user,
-                  tokens: {
-                    accessToken: data.accessToken || '', // Use token from response if available
-                    refreshToken: data.refreshToken || '',
-                    tokenType: 'Bearer' as const
-                  },
-                  domain: 'dashboard' as const,
-                  sessionId: data.sessionId || null
-                };
-
-                await vikaretaCrossDomainAuth.storeAuthData(authData);
-                console.log('SSO Client: Successfully stored auth data');
-              } catch (storeError) {
-                console.warn('SSO Client: Failed to store auth data, but continuing with authentication:', storeError);
-                // Don't fail the authentication just because storage failed
-              }
-
-              return {
+            try {
+              // Store the auth data for future use
+              const authData: VikaretaAuthData = {
                 user: data.user,
-                isAuthenticated: true,
-                isLoading: false,
-                error: null,
+                tokens: {
+                  accessToken: data.accessToken || '',
+                  refreshToken: data.refreshToken || '',
+                  tokenType: 'Bearer' as const
+                },
+                domain: 'dashboard' as const,
                 sessionId: data.sessionId || null
               };
+
+              await vikaretaCrossDomainAuth.storeAuthData(authData);
+              console.log('SSO Client: Successfully stored auth data');
+            } catch (storeError) {
+              console.warn('SSO Client: Failed to store auth data, but continuing with authentication:', storeError);
             }
+
+            return {
+              user: data.user,
+              isAuthenticated: true,
+              isLoading: false,
+              error: null,
+              sessionId: data.sessionId || null
+            };
           }
         }
       } catch (error) {

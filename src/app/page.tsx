@@ -26,93 +26,63 @@ export default function HomePage() {
     setIsHydrated(true);
   }, []);
 
-  // Check for SSO authentication on mount with extended timeout and retries
+  // Simplified SSO check - trust the auth context more
   useEffect(() => {
     const checkSSOAuth = async () => {
       if (!isHydrated) return;
 
-      console.log('Dashboard Home: Starting comprehensive auth check...', { 
+      console.log('Dashboard Home: Starting auth check...', { 
         isAuthenticated, 
         user: !!user,
         hasUserId: user?.id,
         userType: user?.userType 
       });
       
-      // If already authenticated via store, no need to check API
+      // If already authenticated via store, trust it
       if (isAuthenticated && user?.id) {
         console.log('Dashboard Home: Already authenticated via store with valid user');
         setCheckingSSO(false);
         return;
       }
 
-      // Extended wait for SSO sync with retries
-      console.log('Dashboard Home: Waiting for potential SSO sync...');
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        console.log(`Dashboard Home: SSO wait attempt ${attempt}/3`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Single wait for auth context to settle
+      console.log('Dashboard Home: Waiting for auth context to settle...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Check if auth state updated during wait
-        if (isAuthenticated && user?.id) {
-          console.log('Dashboard Home: Authentication detected during SSO wait, attempt:', attempt);
-          setCheckingSSO(false);
-          return;
-        }
+      // Check if auth state updated during wait
+      if (isAuthenticated && user?.id) {
+        console.log('Dashboard Home: Authentication detected after wait');
+        setCheckingSSO(false);
+        return;
       }
 
-      // Try to check authentication via API call (for SSO) with retries
-      let apiSuccess = false;
-      for (let attempt = 1; attempt <= 2; attempt++) {
-        try {
-          console.log(`Dashboard Home: Making auth check request, attempt ${attempt}/2...`);
-          const response = await fetch('/api/auth/me', {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json'
-            }
-          });
+      // Single API check as fallback
+      try {
+        console.log('Dashboard Home: Making single auth check request...');
+        const response = await fetch('/api/auth/me', {
+          method: 'GET',
+          credentials: 'include',
+          headers: { 'Accept': 'application/json' }
+        });
 
-          console.log('Dashboard Home: Auth check response:', {
-            status: response.status,
-            ok: response.ok,
-            attempt
-          });
-
-          if (response.ok) {
-            const userData = await response.json();
-            console.log('Dashboard Home: Auth check successful, user found:', {
-              hasUser: !!userData.user,
-              userId: userData.user?.id,
-              userType: userData.user?.userType,
-              success: userData.success
-            });
-            
-            if (userData.user?.id) {
-              apiSuccess = true;
-              console.log('Dashboard Home: Valid user data received, refreshing page to sync auth state...');
-              // Small delay to ensure cookies are set, then refresh
-              setTimeout(() => {
-                window.location.reload();
-              }, 500);
-              return;
-            }
-          } else {
-            console.log(`Dashboard Home: Auth check failed with status: ${response.status}, attempt: ${attempt}`);
+        if (response.ok) {
+          const userData = await response.json();
+          if (userData.user?.id) {
+            console.log('Dashboard Home: Valid user found via API, triggering auth refresh...');
+            // Dispatch custom event to trigger auth refresh
+            window.dispatchEvent(new CustomEvent('vikareta-auth-refresh'));
+            // Small delay then refresh
+            setTimeout(() => {
+              window.location.reload();
+            }, 300);
+            return;
           }
-        } catch (error) {
-          console.error(`Dashboard Home: Auth check failed, attempt ${attempt}:`, error);
         }
-
-        // Wait before retry
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+      } catch (error) {
+        console.warn('Dashboard Home: Auth check failed:', error);
       }
       
-      if (!apiSuccess) {
-        console.log('Dashboard Home: All auth checks failed, user needs to login');
-      }
-      
+      console.log('Dashboard Home: No authentication found');
       setCheckingSSO(false);
     };
 

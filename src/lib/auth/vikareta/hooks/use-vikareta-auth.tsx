@@ -46,11 +46,19 @@ export function useVikaretaAuth(): UseVikaretaAuthReturn {
   });
 
   /**
-   * Initialize authentication state
+   * Initialize authentication state with caching
    */
   const initializeAuth = useCallback(async () => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
+      
+      // Check if we already have valid auth state in memory
+      const cachedState = vikaretaCrossDomainAuth.getStoredAuthData();
+      if (cachedState.isAuthenticated && cachedState.user) {
+        console.log('Auth: Using cached authentication state');
+        setAuthState(cachedState);
+        return;
+      }
       
       const initialState = await vikaretaSSOClient.initialize();
       setAuthState(initialState);
@@ -210,28 +218,59 @@ export function useVikaretaAuth(): UseVikaretaAuthReturn {
    */
   useEffect(() => {
     initializeAuth();
+
+    // Listen for custom auth events
+    const handleAuthRefresh = () => {
+      console.log('Auth: Received refresh event');
+      initializeAuth();
+    };
+
+    const handleAuthInvalid = () => {
+      console.log('Auth: Received invalid event, clearing state');
+      setAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: 'Session expired',
+        sessionId: null
+      });
+    };
+
+    window.addEventListener('vikareta-auth-refresh', handleAuthRefresh);
+    window.addEventListener('vikareta-auth-invalid', handleAuthInvalid);
+
+    return () => {
+      window.removeEventListener('vikareta-auth-refresh', handleAuthRefresh);
+      window.removeEventListener('vikareta-auth-invalid', handleAuthInvalid);
+    };
   }, [initializeAuth]);
 
   /**
    * Listen for storage changes (cross-tab sync) and SSO completion
    */
   useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+
     const handleStorageChange = (event: StorageEvent) => {
       if (event.key === VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.AUTH_STATE) {
-        console.log('Vikareta Auth: Storage change detected, reinitializing auth state...');
-        // Auth state changed in another tab, update current state
-        initializeAuth();
+        console.log('Vikareta Auth: Storage change detected, debouncing reinit...');
+        // Debounce to prevent multiple rapid reinitializations
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          initializeAuth();
+        }, 500);
       }
     };
 
     const handlePostMessage = (event: MessageEvent) => {
       // Listen for SSO completion from iframe
       if (event.data?.sso === 'ok') {
-        console.log('Vikareta Auth: SSO completion message received, reinitializing auth state...');
-        // Small delay to ensure localStorage is updated
-        setTimeout(() => {
+        console.log('Vikareta Auth: SSO completion message received, debouncing reinit...');
+        // Debounce to prevent multiple rapid reinitializations
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
           initializeAuth();
-        }, 100);
+        }, 200);
       }
     };
 
@@ -239,6 +278,7 @@ export function useVikaretaAuth(): UseVikaretaAuthReturn {
     window.addEventListener('message', handlePostMessage);
     
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('message', handlePostMessage);
     };

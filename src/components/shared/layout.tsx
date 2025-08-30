@@ -29,12 +29,20 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     window.location.href = mainAppUrl;
   };
 
-  // The auth system automatically handles authentication check
-  // We just need to redirect to login if not authenticated
+  // Optimized auth check with debouncing
   useEffect(() => {
+    let redirectTimer: NodeJS.Timeout;
+    
     if (isHydrated && !isAuthenticated && !authLoading) {
-      redirectToLogin();
+      // Debounce redirect to prevent rapid redirects during auth state changes
+      redirectTimer = setTimeout(() => {
+        redirectToLogin();
+      }, 1000);
     }
+
+    return () => {
+      if (redirectTimer) clearTimeout(redirectTimer);
+    };
   }, [authLoading, isAuthenticated, isHydrated]);
 
   useEffect(() => {
@@ -51,7 +59,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
     }
   }, []);
 
-  // Only redirect to dashboard if explicitly requested via URL parameter
+  // Optimized dashboard redirect with single execution
   useEffect(() => {
     if (isAuthenticated && user && pathname === '/') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -59,6 +67,7 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
 
       if (shouldRedirectToDashboard) {
         console.log('Dashboard: Redirecting to /dashboard as requested');
+        // Use replace to avoid adding to history
         window.location.replace('/dashboard');
       }
     }

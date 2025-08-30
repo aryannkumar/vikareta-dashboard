@@ -208,7 +208,7 @@ const nextConfig: NextConfig = {
     dirs: ['src'],
   },
   
-  // Redirects
+  // Redirects - Remove automatic redirect to dashboard
   async redirects() {
     return [
       {
@@ -216,11 +216,8 @@ const nextConfig: NextConfig = {
         destination: '/dashboard',
         permanent: true,
       },
-      {
-        source: '/',
-        destination: '/dashboard',
-        permanent: false,
-      },
+      // Remove automatic redirect from root to dashboard
+      // Let the app handle routing based on authentication state
     ];
   },
   

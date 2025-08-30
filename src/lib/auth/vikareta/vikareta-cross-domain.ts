@@ -16,6 +16,8 @@ export class VikaretaCrossDomainAuth {
   private readonly domains = VIKARETA_AUTH_CONSTANTS.DOMAINS;
   private readonly cookieNames = VIKARETA_AUTH_CONSTANTS.COOKIE_NAMES;
   private authState: VikaretaAuthState | null = null;
+  private lastValidationTime: number = 0;
+  private readonly VALIDATION_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Get current domain type with validation
@@ -46,7 +48,7 @@ export class VikaretaCrossDomainAuth {
 
     if (typeof window === 'undefined') return;
 
-    // Keep auth state in-memory only
+    // Keep auth state in-memory with validation timestamp
     this.authState = {
       user: authData.user,
       isAuthenticated: true,
@@ -54,6 +56,21 @@ export class VikaretaCrossDomainAuth {
       error: null,
       sessionId: authData.sessionId || null
     };
+    
+    // Update validation timestamp
+    this.lastValidationTime = Date.now();
+
+    // Store minimal data in sessionStorage for persistence across page reloads
+    try {
+      const persistentData = {
+        user: authData.user,
+        sessionId: authData.sessionId,
+        timestamp: this.lastValidationTime
+      };
+      sessionStorage.setItem('vikareta_auth_cache', JSON.stringify(persistentData));
+    } catch (error) {
+      console.warn('Failed to cache auth data in sessionStorage:', error);
+    }
 
     // Exchange tokens with backend so server can set HttpOnly cookies
     try {
@@ -74,7 +91,7 @@ export class VikaretaCrossDomainAuth {
   }
 
   /**
-   * Get stored authentication data with validation
+   * Get stored authentication data with validation and caching
    */
   getStoredAuthData(): VikaretaAuthState {
     if (typeof window === 'undefined') {
@@ -82,6 +99,37 @@ export class VikaretaCrossDomainAuth {
     }
 
     try {
+      // Return in-memory state if available and recent
+      if (this.authState && this.authState.user && 
+          (Date.now() - this.lastValidationTime) < this.VALIDATION_CACHE_DURATION) {
+        return this.authState;
+      }
+
+      // Try to restore from sessionStorage if in-memory state is stale
+      if (!this.authState || !this.authState.user) {
+        try {
+          const cached = sessionStorage.getItem('vikareta_auth_cache');
+          if (cached) {
+            const parsedCache = JSON.parse(cached);
+            if (parsedCache.user && parsedCache.timestamp && 
+                (Date.now() - parsedCache.timestamp) < this.VALIDATION_CACHE_DURATION) {
+              console.log('Auth: Restored from sessionStorage cache');
+              this.authState = {
+                user: parsedCache.user,
+                isAuthenticated: true,
+                isLoading: false,
+                error: null,
+                sessionId: parsedCache.sessionId || null
+              };
+              this.lastValidationTime = parsedCache.timestamp;
+              return this.authState;
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to restore auth cache:', error);
+        }
+      }
+
       if (this.authState && this.authState.user) return this.authState;
       return { user: null, isAuthenticated: false, isLoading: false, error: null, sessionId: null };
     } catch (error) {
@@ -97,10 +145,12 @@ export class VikaretaCrossDomainAuth {
   clearAuthData(): void {
     if (typeof window === 'undefined') return;
 
-  // Clear in-memory state and sessionStorage
-  this.authState = null;
-  try { sessionStorage.removeItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.USER_PREFERENCES); } catch {}
-  try { sessionStorage.removeItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.RETURN_URL); } catch {}
+    // Clear in-memory state and sessionStorage
+    this.authState = null;
+    this.lastValidationTime = 0;
+    try { sessionStorage.removeItem('vikareta_auth_cache'); } catch {}
+    try { sessionStorage.removeItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.USER_PREFERENCES); } catch {}
+    try { sessionStorage.removeItem(VIKARETA_AUTH_CONSTANTS.STORAGE_KEYS.RETURN_URL); } catch {}
 
     // Clear cookies on all domains
     this.clearSecureCookie(this.cookieNames.ACCESS_TOKEN);
