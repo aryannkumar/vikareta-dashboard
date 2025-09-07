@@ -16,6 +16,55 @@ export async function GET(req: Request) {
     });
 
     const text = await resp.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: { 
+          code: 'PARSE_ERROR', 
+          message: 'Invalid response from authentication service' 
+        } 
+      }), { 
+        status: 500, 
+        headers: { 'content-type': 'application/json' } 
+      });
+    }
+
+    // Validate dashboard access for business users
+    if (resp.ok && data.success && data.data) {
+      const { user, subscription } = data.data;
+
+      // Check if user is a business (seller)
+      if (user.userType !== 'seller') {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: { 
+            code: 'ACCESS_DENIED', 
+            message: 'Access denied: Only business users can access the dashboard' 
+          } 
+        }), { 
+          status: 403, 
+          headers: { 'content-type': 'application/json' } 
+        });
+      }
+
+      // Check if user has an active subscription
+      if (!subscription || subscription.status !== 'active') {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: { 
+            code: 'SUBSCRIPTION_REQUIRED', 
+            message: 'Access denied: Active subscription required to access dashboard' 
+          } 
+        }), { 
+          status: 403, 
+          headers: { 'content-type': 'application/json' } 
+        });
+      }
+    }
+
     const headers = new Headers();
     const ct = resp.headers.get('content-type');
     if (ct) headers.set('content-type', ct);

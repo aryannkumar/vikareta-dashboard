@@ -23,6 +23,18 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
+  // SSO access control for dashboard
+  if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/') && !pathname.startsWith('/favicon.ico')) {
+    // Check if user is authenticated by making a request to /api/auth/me
+    // This will be handled by the API route which forwards to backend
+    const cookie = request.headers.get('cookie');
+    if (!cookie || !cookie.includes('refreshToken')) {
+      // Redirect to vikareta-web for SSO login
+      const webUrl = process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
+      return NextResponse.redirect(`${webUrl}/auth/login?redirect=dashboard`);
+    }
+  }
+
   // Add security headers
   const response = NextResponse.next();
   
