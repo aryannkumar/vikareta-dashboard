@@ -2,8 +2,8 @@
 export const API_CONFIG = {
   // Primary API URLs (in order of preference)
   apiUrls: [
-    process.env.NEXT_PUBLIC_API_URL_PRIMARY || 'https://api.vikareta.com/api',
-    process.env.NEXT_PUBLIC_API_URL_SECONDARY || 'https://api.vikareta.com/api',
+    process.env.NEXT_PUBLIC_API_URL_PRIMARY || 'https://api.vikareta.com/api/v1',
+    process.env.NEXT_PUBLIC_API_URL_SECONDARY || 'https://api.vikareta.com/api/v1',
   ].filter(Boolean),
   
   // WebSocket URLs

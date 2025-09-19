@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { WalletBalance } from '@/types';
+import { apiClient } from '@/lib/api/client';
 
 interface WalletState {
   // State
@@ -25,13 +26,12 @@ export const useWalletStore = create<WalletState>()(
       fetchBalance: async () => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch('/api/wallet/balance');
-          if (!response.ok) {
-            throw new Error('Failed to fetch wallet balance');
+          const response = await apiClient.getWalletBalance();
+          if (response.success) {
+            set({ balance: response.data, loading: false });
+          } else {
+            throw new Error(response.error || 'Failed to fetch wallet balance');
           }
-
-          const data = await response.json();
-          set({ balance: data.data, loading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to fetch wallet balance',

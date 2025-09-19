@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   if (cookie) forwardHeaders['cookie'] = cookie;
 
   try {
-    const resp = await fetch(`${apiBase}/api/auth/me`, {
+    const resp = await fetch(`${apiBase}/api/v1/auth/me`, {
       method: 'GET',
       headers: forwardHeaders,
       credentials: 'include' as RequestCredentials,

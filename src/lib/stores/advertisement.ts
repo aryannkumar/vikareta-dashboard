@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { AdCampaign, AdAnalytics, CreateCampaignRequest, AdCampaignFilters } from '@/types';
+import { apiClient } from '@/lib/api/client';
 
 interface AdvertisementState {
   // State
@@ -40,21 +41,13 @@ export const useAdvertisementStore = create<AdvertisementState>()(
         set({ loading: true, error: null });
         try {
           const { filters } = get();
-          const queryParams = new URLSearchParams();
+          const response = await apiClient.getAdvertisementCampaigns(filters);
           
-          Object.entries(filters).forEach(([key, value]) => {
-            if (value !== undefined && value !== '') {
-              queryParams.append(key, value.toString());
-            }
-          });
-
-          const response = await fetch(`/api/ads/campaigns?${queryParams}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch campaigns');
+          if (response.success) {
+            set({ campaigns: response.data || [], loading: false });
+          } else {
+            throw new Error(response.error?.message || 'Failed to fetch campaigns');
           }
-
-          const data = await response.json();
-          set({ campaigns: data.data || [], loading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to fetch campaigns',
@@ -66,13 +59,13 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       fetchCampaign: async (id: string) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch(`/api/ads/campaigns/${id}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch campaign');
+          const response = await apiClient.get(`/ads/campaigns/${id}`);
+          
+          if (response.success) {
+            set({ selectedCampaign: response.data, loading: false });
+          } else {
+            throw new Error(response.error?.message || 'Failed to fetch campaign');
           }
-
-          const data = await response.json();
-          set({ selectedCampaign: data.data, loading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to fetch campaign',
@@ -84,28 +77,19 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       createCampaign: async (data: CreateCampaignRequest) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch('/api/ads/campaigns', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-          });
+          const response = await apiClient.createAdvertisementCampaign(data);
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Failed to create campaign');
+          if (response.success) {
+            const newCampaign = response.data;
+            set(state => ({
+              campaigns: [newCampaign, ...state.campaigns],
+              loading: false
+            }));
+
+            return newCampaign;
+          } else {
+            throw new Error(response.error?.message || 'Failed to create campaign');
           }
-
-          const result = await response.json();
-          const newCampaign = result.data;
-
-          set(state => ({
-            campaigns: [newCampaign, ...state.campaigns],
-            loading: false
-          }));
-
-          return newCampaign;
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to create campaign',
@@ -118,31 +102,23 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       updateCampaign: async (id: string, data: Partial<CreateCampaignRequest>) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch(`/api/ads/campaigns/${id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-          });
+          const response = await apiClient.updateAdvertisementCampaign(id, data);
 
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Failed to update campaign');
+          if (response.success) {
+            const updatedCampaign = response.data;
+
+            set(state => ({
+              campaigns: state.campaigns.map(c => 
+                c.id === id ? updatedCampaign : c
+              ),
+              selectedCampaign: state.selectedCampaign?.id === id ? updatedCampaign : state.selectedCampaign,
+              loading: false
+            }));
+
+            return updatedCampaign;
+          } else {
+            throw new Error(response.error?.message || 'Failed to update campaign');
           }
-
-          const result = await response.json();
-          const updatedCampaign = result.data;
-
-          set(state => ({
-            campaigns: state.campaigns.map(c => 
-              c.id === id ? updatedCampaign : c
-            ),
-            selectedCampaign: state.selectedCampaign?.id === id ? updatedCampaign : state.selectedCampaign,
-            loading: false
-          }));
-
-          return updatedCampaign;
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to update campaign',
@@ -155,20 +131,18 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       pauseCampaign: async (id: string) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch(`/api/ads/campaigns/${id}/pause`, {
-            method: 'POST',
-          });
+          const response = await apiClient.put(`/ads/campaigns/${id}/pause`);
 
-          if (!response.ok) {
-            throw new Error('Failed to pause campaign');
+          if (response.success) {
+            set(state => ({
+              campaigns: state.campaigns.map(c => 
+                c.id === id ? { ...c, status: 'paused' as const } : c
+              ),
+              loading: false
+            }));
+          } else {
+            throw new Error(response.error?.message || 'Failed to pause campaign');
           }
-
-          set(state => ({
-            campaigns: state.campaigns.map(c => 
-              c.id === id ? { ...c, status: 'paused' as const } : c
-            ),
-            loading: false
-          }));
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to pause campaign',
@@ -181,20 +155,18 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       resumeCampaign: async (id: string) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch(`/api/ads/campaigns/${id}/resume`, {
-            method: 'POST',
-          });
+          const response = await apiClient.put(`/ads/campaigns/${id}/resume`);
 
-          if (!response.ok) {
-            throw new Error('Failed to resume campaign');
+          if (response.success) {
+            set(state => ({
+              campaigns: state.campaigns.map(c => 
+                c.id === id ? { ...c, status: 'active' as const } : c
+              ),
+              loading: false
+            }));
+          } else {
+            throw new Error(response.error?.message || 'Failed to resume campaign');
           }
-
-          set(state => ({
-            campaigns: state.campaigns.map(c => 
-              c.id === id ? { ...c, status: 'active' as const } : c
-            ),
-            loading: false
-          }));
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to resume campaign',
@@ -207,19 +179,17 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       deleteCampaign: async (id: string) => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch(`/api/ads/campaigns/${id}`, {
-            method: 'DELETE',
-          });
+          const response = await apiClient.deleteAdvertisementCampaign(id);
 
-          if (!response.ok) {
-            throw new Error('Failed to delete campaign');
+          if (response.success) {
+            set(state => ({
+              campaigns: state.campaigns.filter(c => c.id !== id),
+              selectedCampaign: state.selectedCampaign?.id === id ? null : state.selectedCampaign,
+              loading: false
+            }));
+          } else {
+            throw new Error(response.error?.message || 'Failed to delete campaign');
           }
-
-          set(state => ({
-            campaigns: state.campaigns.filter(c => c.id !== id),
-            selectedCampaign: state.selectedCampaign?.id === id ? null : state.selectedCampaign,
-            loading: false
-          }));
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to delete campaign',
@@ -232,13 +202,13 @@ export const useAdvertisementStore = create<AdvertisementState>()(
       fetchAnalytics: async (dateRange = '30d') => {
         set({ loading: true, error: null });
         try {
-          const response = await fetch(`/api/ads/analytics?dateRange=${dateRange}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch analytics');
+          const response = await apiClient.getAdvertisementAnalytics({ period: dateRange });
+          
+          if (response.success) {
+            set({ analytics: response.data || [], loading: false });
+          } else {
+            throw new Error(response.error?.message || 'Failed to fetch analytics');
           }
-
-          const data = await response.json();
-          set({ analytics: data.data || [], loading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to fetch analytics',

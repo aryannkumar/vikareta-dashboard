@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   if (xsrf) forwardHeaders['x-xsrf-token'] = xsrf;
 
   try {
-    const resp = await fetch(`${apiBase}/api/auth/login`, {
+    const resp = await fetch(`${apiBase}/api/v1/auth/login`, {
       method: 'POST',
       headers: forwardHeaders,
       body,
