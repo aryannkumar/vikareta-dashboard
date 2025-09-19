@@ -419,7 +419,7 @@ export class VikaretaSSOClient {
   /**
    * Get access token from cookie
    */
-  private getTokenFromCookie(): string | null {
+  getTokenFromCookie(): string | null {
     if (typeof window === 'undefined') return null;
 
     const cookies = document.cookie.split(';');
@@ -428,6 +428,13 @@ export class VikaretaSSOClient {
     );
 
     return tokenCookie ? decodeURIComponent(tokenCookie.split('=')[1]) : null;
+  }
+
+  /**
+   * Get access token from cookie
+   */
+  getAccessToken(): string | null {
+    return this.getTokenFromCookie();
   }
 }
 
