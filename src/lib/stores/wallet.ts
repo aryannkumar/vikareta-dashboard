@@ -28,9 +28,9 @@ export const useWalletStore = create<WalletState>()(
         try {
           const response = await apiClient.getWalletBalance();
           if (response.success) {
-            set({ balance: response.data, loading: false });
+            set({ balance: response.data as WalletBalance, loading: false });
           } else {
-            throw new Error(response.error || 'Failed to fetch wallet balance');
+            throw new Error(response.error?.message || 'Failed to fetch wallet balance');
           }
         } catch (error) {
           set({ 

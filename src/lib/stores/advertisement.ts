@@ -44,7 +44,7 @@ export const useAdvertisementStore = create<AdvertisementState>()(
           const response = await apiClient.getAdvertisementCampaigns(filters);
           
           if (response.success) {
-            set({ campaigns: response.data || [], loading: false });
+            set({ campaigns: (response.data as AdCampaign[]) || [], loading: false });
           } else {
             throw new Error(response.error?.message || 'Failed to fetch campaigns');
           }
@@ -62,7 +62,7 @@ export const useAdvertisementStore = create<AdvertisementState>()(
           const response = await apiClient.get(`/ads/campaigns/${id}`);
           
           if (response.success) {
-            set({ selectedCampaign: response.data, loading: false });
+            set({ selectedCampaign: response.data as AdCampaign, loading: false });
           } else {
             throw new Error(response.error?.message || 'Failed to fetch campaign');
           }
@@ -80,7 +80,7 @@ export const useAdvertisementStore = create<AdvertisementState>()(
           const response = await apiClient.createAdvertisementCampaign(data);
 
           if (response.success) {
-            const newCampaign = response.data;
+            const newCampaign = response.data as AdCampaign;
             set(state => ({
               campaigns: [newCampaign, ...state.campaigns],
               loading: false
@@ -105,7 +105,7 @@ export const useAdvertisementStore = create<AdvertisementState>()(
           const response = await apiClient.updateAdvertisementCampaign(id, data);
 
           if (response.success) {
-            const updatedCampaign = response.data;
+            const updatedCampaign = response.data as AdCampaign;
 
             set(state => ({
               campaigns: state.campaigns.map(c => 
@@ -205,7 +205,7 @@ export const useAdvertisementStore = create<AdvertisementState>()(
           const response = await apiClient.getAdvertisementAnalytics({ period: dateRange });
           
           if (response.success) {
-            set({ analytics: response.data || [], loading: false });
+            set({ analytics: (response.data as AdAnalytics[]) || [], loading: false });
           } else {
             throw new Error(response.error?.message || 'Failed to fetch analytics');
           }
